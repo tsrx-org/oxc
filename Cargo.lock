@@ -897,7 +897,7 @@ dependencies = [
 
 [[package]]
 name = "oxc_adapter"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "oxc-miette",
  "oxc_allocator",
@@ -1394,7 +1394,7 @@ dependencies = [
 
 [[package]]
 name = "oxc_tsrx_benchmark"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "memory-stats",
  "oxc_adapter",
@@ -1406,7 +1406,7 @@ dependencies = [
 
 [[package]]
 name = "oxc_tsrx_cli"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "oxc_adapter",
  "rayon",
@@ -1417,7 +1417,7 @@ dependencies = [
 
 [[package]]
 name = "oxc_tsrx_format_benchmark"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "memory-stats",
  "oxc_adapter",
@@ -1452,7 +1452,7 @@ dependencies = [
 
 [[package]]
 name = "parser_napi_binding"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "mimalloc-safe",
  "napi",
@@ -2018,7 +2018,7 @@ dependencies = [
 
 [[package]]
 name = "tsrx_format"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "globset",
  "ignore",
@@ -2031,7 +2031,7 @@ dependencies = [
 
 [[package]]
 name = "tsrx_lint"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "oxc_adapter",
  "serde",
@@ -2040,7 +2040,7 @@ dependencies = [
 
 [[package]]
 name = "tsrx_parser_engine"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "oxc_adapter",
  "tsrx_syntax",
@@ -2051,14 +2051,14 @@ dependencies = [
 
 [[package]]
 name = "tsrx_syntax"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "unicode-id-start",
 ]
 
 [[package]]
 name = "tsrx_tape_schema"
-version = "0.7.0"
+version = "0.8.0"
 
 [[package]]
 name = "unicode-id"

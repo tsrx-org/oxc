@@ -49,7 +49,7 @@ test("@tsrx/oxc is the complete public toolchain boundary", async () => {
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
 
   assert.equal(manifest.name, "@tsrx/oxc");
-  assert.equal(manifest.version, "0.7.0");
+  assert.equal(manifest.version, "0.8.0");
   assert.deepEqual(manifest.bin, {
     "oxc-tsrx": "./bin/oxc-tsrx",
     oxlint: "./bin/oxlint",
@@ -71,14 +71,14 @@ test("@tsrx/oxc is the complete public toolchain boundary", async () => {
   // The eight-platform split is what makes a user download one binary instead
   // of eight, and this package is now the only place that declares it.
   assert.deepEqual(Object.entries(manifest.optionalDependencies), [
-    ["@tsrx/oxc-darwin-arm64", "0.7.0"],
-    ["@tsrx/oxc-darwin-x64", "0.7.0"],
-    ["@tsrx/oxc-linux-arm64-gnu", "0.7.0"],
-    ["@tsrx/oxc-linux-arm64-musl", "0.7.0"],
-    ["@tsrx/oxc-linux-x64-gnu", "0.7.0"],
-    ["@tsrx/oxc-linux-x64-musl", "0.7.0"],
-    ["@tsrx/oxc-win32-arm64-msvc", "0.7.0"],
-    ["@tsrx/oxc-win32-x64-msvc", "0.7.0"],
+    ["@tsrx/oxc-darwin-arm64", "0.8.0"],
+    ["@tsrx/oxc-darwin-x64", "0.8.0"],
+    ["@tsrx/oxc-linux-arm64-gnu", "0.8.0"],
+    ["@tsrx/oxc-linux-arm64-musl", "0.8.0"],
+    ["@tsrx/oxc-linux-x64-gnu", "0.8.0"],
+    ["@tsrx/oxc-linux-x64-musl", "0.8.0"],
+    ["@tsrx/oxc-win32-arm64-msvc", "0.8.0"],
+    ["@tsrx/oxc-win32-x64-msvc", "0.8.0"],
   ]);
   assert.deepEqual(Object.keys(manifest.exports), [
     ".",
