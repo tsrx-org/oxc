@@ -8,6 +8,57 @@
 // (empty in a dev server that serves us unversioned) to every lazy import.
 const ASSET_VERSION = new URL(import.meta.url).search
 
+// ---------- enhancements that must stay out of the first load ----------
+// The bytes a reader is actually waiting on are the markup, the shell CSS and
+// the two web fonts. Everything else this file pulls — the hero demo's script,
+// the WebGL plume under the chart, a page warmed because the pointer crossed a
+// link — is enhancement: nothing above the fold paints differently for the
+// fraction of a second it is missing, and every one of those requests competes
+// for the same connections while the first screen is still assembling.
+//
+// They used to start during the load event, so on a first visit the browser was
+// fetching 55 KiB of demo panel (and, if the pointer happened to rest on a nav
+// link, a whole other page) before the fonts had landed. docs/verify.mjs' perf
+// budget measures exactly that window and caught it.
+//
+// So enhancements queue here instead and run once the load event is behind us
+// and the main thread has gone idle. After that first flush the queue is
+// transparent: SPA navigations, and anything a reader touches, run immediately.
+const ENHANCEMENT_DELAY_MS = 200
+const deferredEnhancements = []
+let enhancementsUnlocked = false
+
+function runEnhancements() {
+  enhancementsUnlocked = true
+  for (const task of deferredEnhancements.splice(0)) {
+    try {
+      task()
+    } catch {}
+  }
+}
+
+function afterFirstLoad(task) {
+  if (enhancementsUnlocked) task()
+  else deferredEnhancements.push(task)
+}
+
+const unlockEnhancementsWhenIdle = () =>
+  setTimeout(() => {
+    if (typeof requestIdleCallback === 'function')
+      requestIdleCallback(runEnhancements, { timeout: 2000 })
+    else runEnhancements()
+  }, ENHANCEMENT_DELAY_MS)
+
+if (document.readyState === 'complete') unlockEnhancementsWhenIdle()
+else window.addEventListener('load', unlockEnhancementsWhenIdle, { once: true })
+
+// A reader who reaches for the page before the delay is up has told us the
+// first screen is done, so stop holding anything back. Hover is deliberately
+// not on this list: the pointer can be resting on the page without the reader
+// having looked at it yet.
+for (const type of ['pointerdown', 'keydown', 'touchstart', 'wheel'])
+  window.addEventListener(type, runEnhancements, { once: true, passive: true })
+
 // ---------- theme toggle (persistent chrome) ----------
 const themeToggle = document.getElementById('theme-toggle')
 const root = document.documentElement
@@ -705,9 +756,14 @@ function initPage() {
   const demo = document.getElementById('hero-demo')
   if (demo && !demo.dataset.ready) {
     demo.dataset.ready = '1'
-    import(new URL(`./demo-panel.js${ASSET_VERSION}`, import.meta.url))
-      .then((module) => module.initDemo(demo))
-      .catch(() => {})
+    // The panel ships its example already rendered in the HTML, so this script
+    // only makes it live. Waiting for the load event costs nothing visible and
+    // keeps 55 KiB out of the first screen's way.
+    afterFirstLoad(() => {
+      import(new URL(`./demo-panel.js${ASSET_VERSION}`, import.meta.url))
+        .then((module) => module.initDemo(demo))
+        .catch(() => {})
+    })
   }
   const fuelRows = document.querySelectorAll(
     '.comp-row[data-key="oxlint"], .comp-row[data-key="oxcTsrx"], .comp-row[data-key="oxcTsrxMixed"]',
@@ -723,9 +779,14 @@ function initPage() {
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return
         io.disconnect()
-        import(new URL(`./fuel.js${ASSET_VERSION}`, import.meta.url))
-          .then((module) => module.init(fuelRows, pageCleanupCallbacks))
-          .catch(() => {})
+        // In view is not the same as worth fetching yet: on a short window the
+        // chart can already be on screen at load, and the shader has no business
+        // downloading ahead of the fonts. The CSS fill is showing meanwhile.
+        afterFirstLoad(() => {
+          import(new URL(`./fuel.js${ASSET_VERSION}`, import.meta.url))
+            .then((module) => module.init(fuelRows, pageCleanupCallbacks))
+            .catch(() => {})
+        })
       },
       { rootMargin: '200px 0px' },
     )
@@ -1080,11 +1141,17 @@ if ('navigation' in window) {
     })
   })
 
-  // Warm the cache when a nav/sidebar link is hovered or touched.
+  // Warm the cache when a nav/sidebar link is hovered or touched. A guess about
+  // the next page must never take bandwidth from the one being read, so a hover
+  // that lands while the first screen is still loading queues instead: the
+  // pointer can already be resting on a link when the document arrives (a
+  // restored tab, a fresh navigation under a still pointer), and that used to
+  // pull an entire extra page into the initial load.
   document.addEventListener('pointerover', (event) => {
     const link = event.target.closest('.sidebar a, .top-nav a, .pager a, .hero-actions a')
     if (link && new URL(link.href).origin === location.origin) {
-      fetchPage(link.href).catch(() => {})
+      const href = link.href
+      afterFirstLoad(() => fetchPage(href).catch(() => {}))
     }
   })
 }
