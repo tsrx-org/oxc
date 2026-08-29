@@ -14,22 +14,42 @@
 //   website-oxc/wasm-pin.json             tag + inputs hash + sha256 of each byte
 //   this script                           downloads and verifies against the pin
 //
-// Two rules shape everything below.
+// Three rules shape everything below.
 //
-// It never fails the site build. A missing pin, a pin describing a different
-// source tree, a download that will not come, bytes that do not match their
-// hash: each one prints one line and exits 0. docs/build.mjs detects the engine
-// by the presence of docs/tools/demo-wasm/dist/demo-wasm.wasm and renders the
-// static preview contract without it (docs/build.mjs, `wasmDemo`), so the
-// correct degradation is a site that builds and says the demo is unavailable --
-// never a red deploy.
+// It never fails the site build. A missing pin, a download that will not come,
+// bytes that do not match their hash: each one prints one line and exits 0.
+// docs/build.mjs detects the engine by the presence of
+// docs/tools/demo-wasm/dist/demo-wasm.wasm and renders the static preview
+// contract without it (docs/build.mjs, `wasmDemo`), so the correct degradation
+// is a site that builds and says the demo is unavailable -- never a red deploy.
+// The exit code matters: website-oxc/package.json runs this script and the site
+// build in one `&&` chain, so a non-zero exit here is a failed deploy.
 //
-// It refuses bytes that do not belong to this source tree. The pin carries a
-// hash of the sources the engine is compiled from; if this checkout hashes
-// differently, the released engine is from other source and is not downloaded.
-// That check is why the hash lives here rather than in the workflow: the
-// workflow authors the pin by calling this same file with --print-inputs-hash,
-// so the two definitions cannot drift.
+// It refuses bytes that do not match the pin, and only those. sha256 and byte
+// length are checked on every download and a mismatch installs nothing --
+// integrity is fail-closed and this file must keep it that way.
+//
+// A stale pin is NOT an integrity failure, and does not take the demo down.
+// Owner directive, 2026-08-29, after this cost the live site the demo more than
+// once. The pin also carries a hash of the sources the engine was compiled
+// from, and that hash disagrees with the checkout on every merge that touches
+// crates/tsrx_* or docs/tools/demo-wasm, because the workflow's pin-refresh
+// push is rejected by branch protection and lands late or not at all. Refusing
+// on that mismatch turned an ordinary merge into a silent outage:
+// oxc.tsrx.dev fell back to mode:"static" with nothing red anywhere. So a
+// mismatch now prints a loud warning and installs the pinned engine anyway.
+// The bytes are still exactly the bytes CI proved; they are merely older than
+// the checkout, which is strictly better than no engine at all. The known cost
+// is skew -- demo-panel JS newer than the engine it drives -- and there is no
+// version handshake between the two to catch it (docs/demo-wasm-engine-entry.mjs
+// re-exports lint/format/project straight off the module), so skew shows up as
+// a panel-side error rather than a clean fallback. That risk was weighed and
+// accepted against a certain outage.
+//
+// The inputs hash therefore has exactly one remaining job: telling a reader
+// which engine they are looking at. It still lives here rather than in the
+// workflow because the workflow authors the pin by calling this same file with
+// --print-inputs-hash, so the two definitions cannot drift.
 //
 // Deliberately repo-only: the hash covers tracked source, not the rustc that
 // compiled it. Vercel's builder cannot know which compiler CI used, and it does
@@ -43,7 +63,12 @@ import { join, resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const pinPath = "website-oxc/wasm-pin.json";
 const outputDir = "docs/tools/demo-wasm/dist";
-const releaseBase = "https://github.com/tsrx-org/oxc/releases/download";
+// Overridable so the download can be pointed at a local server: the fallback
+// policy above is only believable if it is tested, and tests/site/
+// stale-pin-fallback.test.mjs cannot reach a GitHub release. Unset in every
+// real build, where the bytes come from the release named by the pin.
+const releaseBase =
+  process.env.OXC_TSRX_WASM_RELEASE_BASE || "https://github.com/tsrx-org/oxc/releases/download";
 
 // Both files land in docs/tools/demo-wasm/dist/ and neither is optional: the
 // engine bundle reaches the worker through a relative URL that the worker entry
@@ -163,17 +188,31 @@ async function download(url, expected, name) {
 
 async function fetchPinnedEngine() {
   const pin = await readPin();
+  const sourceCommit =
+    typeof pin.sourceCommit === "string" && pin.sourceCommit !== ""
+      ? pin.sourceCommit.slice(0, 7)
+      : "an unrecorded commit";
 
+  // Advisory from here on. Neither a mismatch nor a failure to compute it stops
+  // the install; both only decide what gets printed. See the staleness note at
+  // the top of this file -- the only thing that can stop an install is a byte
+  // that does not match the pin.
   let inputsHash;
   try {
     inputsHash = await computeInputsHash();
   } catch (error) {
-    throw new Skip(`the engine sources could not be hashed: ${describe(error)}`);
+    console.warn(
+      `fetch-docs-wasm: WARNING -- freshness unknown: the engine sources could not be hashed ` +
+        `(${describe(error)}). Installing the pinned engine built from ${sourceCommit} anyway; ` +
+        `its sha256s are still checked below.`,
+    );
   }
-  if (inputsHash !== pin.inputsHash) {
-    throw new Skip(
-      `${pinPath} pins an engine built from other source ` +
-        `(pinned ${pin.inputsHash.slice(0, 12)}, this checkout ${inputsHash.slice(0, 12)})`,
+  if (inputsHash !== undefined && inputsHash !== pin.inputsHash) {
+    console.warn(
+      `fetch-docs-wasm: WARNING -- stale pin: engine built from ${sourceCommit} ` +
+        `(inputs ${pin.inputsHash.slice(0, 12)}), checkout is ${inputsHash.slice(0, 12)}. ` +
+        `Installing the last engine CI proved, so the playground stays live on older ` +
+        `engine code; a fresh pin from site-artifact.yml clears this.`,
     );
   }
 
@@ -194,9 +233,8 @@ async function fetchPinnedEngine() {
   }
 
   const sizes = downloaded.map((asset) => `${asset.name} ${asset.bytes.length} bytes`).join(", ");
-  const commit = typeof pin.sourceCommit === "string" ? pin.sourceCommit.slice(0, 7) : "unknown";
   console.log(
-    `fetch-docs-wasm: demo engine in place from ${pin.tag} (${sizes}), built from ${commit}`,
+    `fetch-docs-wasm: demo engine in place from ${pin.tag} (${sizes}), built from ${sourceCommit}`,
   );
 }
 
@@ -207,13 +245,18 @@ if (options.length > 0 && !printInputsHash) {
 }
 
 if (printInputsHash) {
-  // The workflow's half of the contract. Failure here must be loud: a pin
-  // written with a wrong hash is a pin no site build will ever accept.
+  // The workflow's half of the contract, and the one caller that must fail
+  // hard: site-artifact.yml runs this under `set -e` to author the pin, and a
+  // hash silently defaulted to nothing would write a pin that reports every
+  // later build as stale. Nothing about the fallback below applies here.
   process.stdout.write(`${await computeInputsHash()}\n`);
 } else {
   try {
     await fetchPinnedEngine();
   } catch (error) {
+    // Reaching here now means the pin is unusable or its bytes did not verify,
+    // never that the pin is merely old. Exit 0 all the same: the site must
+    // build and say the demo is unavailable rather than fail the deploy.
     const reason = error instanceof Skip ? error.message : `unexpected failure: ${describe(error)}`;
     console.log(`fetch-docs-wasm: no demo engine, ${reason}`);
     console.log("fetch-docs-wasm: the playground will render its static preview instead.");

@@ -71,7 +71,7 @@
     "docs:serve": "node docs/serve.mjs",
     "docs:verify": "node docs/verify.mjs",
     "docs:check": "node scripts/check-docs-fresh.ts",
-    "test:site:unit": "node --test tests/site/benchmark-sections.test.mjs tests/site/benchmark-chart-parity.test.mjs tests/site/launch-build.test.mjs tests/site/fragment-links.test.mjs tests/site/documented-version-pin.test.mjs tests/site/platform-support-matrix.test.mjs",
+    "test:site:unit": "node --test tests/site/benchmark-sections.test.mjs tests/site/benchmark-chart-parity.test.mjs tests/site/launch-build.test.mjs tests/site/fragment-links.test.mjs tests/site/documented-version-pin.test.mjs tests/site/platform-support-matrix.test.mjs tests/site/stale-pin-fallback.test.mjs",
     "test:site:static": "node tests/site/verify-static.mjs",
     "test:site:wasm": "pnpm run docs:wasm && node tests/site/verify-static.mjs --require-wasm",
     "test:site": "pnpm run test:site:unit && pnpm run test:site:static",
