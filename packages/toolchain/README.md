@@ -24,8 +24,7 @@ and `@for` for showing something only sometimes, or once per item in a list.
 [OXC](https://oxc.rs) is a set of fast tools for JavaScript and TypeScript,
 written in Rust. This package teaches them to read `.tsrx` too.
 
-_OXC for TSRX is the official OXC integration maintained by the TSRX project. It
-is not affiliated with, endorsed by, or a product of VoidZero or the OXC team._
+_OXC for TSRX is the official OXC integration maintained by the TSRX project._
 
 [**Docs**](https://compiled.run/oxc-tsrx) &nbsp;·&nbsp; [**Getting started**](https://compiled.run/oxc-tsrx/guide/getting-started) &nbsp;·&nbsp; [**Playground**](https://compiled.run/oxc-tsrx/playground)
 

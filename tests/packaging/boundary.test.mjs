@@ -704,15 +704,19 @@ test("the maintainer guide defines a source-backed upstream transplant contract"
   ]);
   const guide = flatten(guideRaw);
 
-  assert.match(guide, /OXC for TSRX is an independent community project/i);
-  // The disclaimer is required, its exact phrasing is not.
-  assert.match(guide, /not affiliated with[^.]*(?:endorsed by|product of)/i);
-  assert.match(guide, /VoidZero/);
+  // The stance is required, its exact phrasing is not: this is the official
+  // OXC integration for TSRX, and the TSRX project is the one maintaining it.
+  assert.match(guide, /OXC for TSRX is the official OXC integration for TSRX/i);
+  assert.match(guide, /official OXC integration[^.]*maintained by the TSRX project/i);
+  // The retired non-affiliation disclaimer must not come back with a reflow.
+  assert.doesNotMatch(guide, /not affiliated with/i);
   assert.match(guide, new RegExp(pinnedOxcRevision));
   assert.match(guide, new RegExp(auditedOxcMain));
   assert.match(guide, /audited(?: on)? 2026-07-16/i);
   assert.match(guide, /no merged whole-file (?:language |parser )?hook/i);
-  assert.match(guide, /no (?:OXC )?maintainer interest(?: or endorsement)? is claimed/i);
+  // Being the official integration is not a claim that any of this transplant
+  // work is upstream business: the page still has to say so in its own words.
+  assert.match(guide, /nothing here has been submitted to OXC and nothing is scheduled/i);
   assert.match(guide, /unicode-id-start\s*=\s*[`"]1[`"]|`unicode-id-start = "1"`/);
 
   for (const path of [
