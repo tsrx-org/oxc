@@ -453,6 +453,13 @@ impl<'a> Builder<'a> {
             return Err(ProjectionError::StructuralMismatch);
         }
         let header = clause.for_header;
+        // Only an annotated header carries `left`/`right`, because only an annotated header has a
+        // grammar the type lane has to rewrite. An unannotated `@for (const {cell} of rows)` is
+        // already the TypeScript it projects to, so it is copied the way every other lane copies
+        // it rather than demanding fields the scanner never fills in.
+        if !header.annotated {
+            return self.unannotated_type_header(clause.header);
+        }
         if header.left.is_empty() || header.right.is_empty() {
             return Err(ProjectionError::StructuralMismatch);
         }
@@ -481,6 +488,44 @@ impl<'a> Builder<'a> {
         self.output.push(')');
         self.cursor = clause.header.end as usize;
         Ok(())
+    }
+
+    /// Copies an unannotated `@for` header verbatim, spending the lazy sigils on the way through.
+    ///
+    /// The sigils have to be spent here for the same reason the annotated header spends them:
+    /// rewriting the header moves the cursor past the whole clause, and `PendingActions::next`
+    /// then skips every lazy pattern behind that cursor.
+    fn unannotated_type_header(&mut self, header: ByteSpan) -> Result<(), ProjectionError> {
+        let open = header.start as usize;
+        if self.source.as_bytes().get(open) != Some(&b'(') || header.end <= header.start {
+            return Err(ProjectionError::StructuralMismatch);
+        }
+        let inner = ByteSpan::new(to_u32(open.saturating_add(1))?, header.end);
+        self.copy_to(inner.start as usize)?;
+        // A bare lazy loop target — `@for (&{cell} of rows)` — is the one unannotated shape that is
+        // not already TypeScript: the sigil stands in for the declaration keyword, so the type lane
+        // writes the keyword the annotated lane writes for the very same target.
+        if self.has_bare_lazy_loop_target(inner) {
+            self.output.push_str("const ");
+        }
+        self.copy_original_with_lazy_markers(inner)?;
+        self.cursor = header.end as usize;
+        Ok(())
+    }
+
+    /// Reports whether the header's iteration target is a lazy pattern with no declaration keyword
+    /// of its own, which is the shape `Scanner::register_lazy_loop_target` records.
+    fn has_bare_lazy_loop_target(&self, inner: ByteSpan) -> bool {
+        let Some(text) = self.source.get(inner.start as usize..inner.end as usize) else {
+            return false;
+        };
+        let Some(offset) = text.find(|byte: char| !byte.is_ascii_whitespace()) else {
+            return false;
+        };
+        let Ok(target) = u32::try_from(inner.start as usize + offset) else {
+            return false;
+        };
+        self.overlay.parser_lazy_patterns.iter().any(|pattern| pattern.ampersand == target)
     }
 
     fn for_body(&mut self, clause_index: u32) -> Result<(), ProjectionError> {

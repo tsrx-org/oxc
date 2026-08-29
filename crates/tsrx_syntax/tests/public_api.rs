@@ -173,6 +173,92 @@ fn type_projection_rewrites_lazy_sigils_in_annotated_for_headers() {
 }
 
 #[test]
+fn type_projection_keeps_unannotated_for_headers_verbatim() {
+    let source = concat!(
+        "type Row={cell:string};",
+        "declare const rows:Row[];",
+        "declare const pairs:[string,string][];",
+        "function View() @{<main>",
+        "@for (const {cell} of rows) {<span>{cell}</span>}",
+        "@for (const [first,second] of pairs) {<b>{first}{second}</b>}",
+        "@for (const row of rows) {<i>{row.cell}</i>}",
+        "</main>}"
+    );
+    let overlay = scan(source).unwrap();
+    let projection = project_for_types(source, &overlay).unwrap();
+    assert!(projection.source().contains("for (const {cell} of rows)"));
+    assert!(projection.source().contains("for (const [first,second] of pairs)"));
+    assert!(projection.source().contains("for (const row of rows)"));
+    // An unannotated header carries no scaffold, so no header helper is declared for it.
+    assert!(!projection.source().contains("H0_"));
+
+    for needle in ["cell", "second", "row.cell"] {
+        let projected_start = u32::try_from(projection.source().rfind(needle).unwrap()).unwrap();
+        let authored_start = u32::try_from(source.rfind(needle).unwrap()).unwrap();
+        let width = u32::try_from(needle.len()).unwrap();
+        assert_eq!(
+            projection.map_range(projected_start..projected_start + width),
+            Some(authored_start..authored_start + width),
+            "{needle} maps back to its authored bytes"
+        );
+    }
+}
+
+#[test]
+fn type_projection_declares_bare_lazy_targets_but_leaves_assignment_targets_alone() {
+    let source = concat!(
+        "declare const items:{id:string;label:string}[];",
+        "declare let cell:string;",
+        "declare const rows:string[];",
+        "function View() @{<ol>",
+        "@for (&{id, label} of items) {<li>{label}</li>}",
+        "@for ([cell] of rows.map(row=>[row])) {<li>{cell}</li>}",
+        "</ol>}"
+    );
+    let overlay = scan_for_parser(source).unwrap();
+    let projection = project_for_types(source, &overlay).unwrap();
+    let projected = projection.source();
+    assert!(!projected.contains('&'), "{projected}");
+
+    // The sigil stands in for the declaration keyword, so the type lane has to write one.
+    let lazy = header_target(projected, " of items)");
+    assert!(lazy.starts_with("const "), "{lazy}");
+    assert!(lazy.contains("{id, label}"), "{lazy}");
+
+    // A plain assignment target already declares nothing, and declaring it would change what the
+    // authored loop means.
+    let assignment = header_target(projected, " of rows.map(");
+    assert!(!assignment.contains("const"), "{assignment}");
+    assert!(assignment.contains("[cell]"), "{assignment}");
+}
+
+/// Returns the projected `@for` target between its `for (` and the given ` of ...` tail.
+fn header_target<'a>(projected: &'a str, tail: &str) -> &'a str {
+    let end = projected.find(tail).expect("projected loop tail");
+    let start = projected[..end].rfind("for (").expect("projected loop head") + "for (".len();
+    &projected[start..end]
+}
+
+#[test]
+fn type_projection_mixes_annotated_and_unannotated_for_headers() {
+    let source = concat!(
+        "type Row={cell:string};",
+        "declare const rows:Row[];",
+        "function View() @{<main>",
+        "@for (const {cell} of rows) {<span>{cell}</span>}",
+        "@for(const row of rows;index i;key row.cell){<i>{i}{row.cell}</i>}",
+        "</main>}"
+    );
+    let overlay = scan(source).unwrap();
+    let projection = project_for_types(source, &overlay).unwrap();
+    assert!(projection.source().contains("for (const {cell} of rows)"));
+    // The annotated header keeps today's rewrite: bindings hoisted into the body.
+    assert!(projection.source().contains("for(const row of rows)"));
+    assert!(projection.source().contains("let i = 0;"));
+    assert!(projection.source().contains("void (row.cell);"));
+}
+
+#[test]
 fn dynamic_tag_expression_is_affine_but_style_payload_is_synthetic() {
     let source = "function View({tag}:{tag:string}) @{<{tag}><style>.x{color:red}</style></{tag}>}";
     let overlay = scan(source).unwrap();
