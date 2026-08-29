@@ -1,7 +1,7 @@
 {
   "name": "oxc-tsrx-vscode",
   "displayName": "OXC for TSRX",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Official OXC editor support for TSRX",
   "homepage": "https://compiled.run/oxc-tsrx",
   "publisher": "thejackshelton",
@@ -59,7 +59,7 @@
     "THIRD_PARTY_NOTICES.md"
   ],
   "dependencies": {
-    "@tsrx/oxc": "0.7.0",
+    "@tsrx/oxc": "0.8.0",
     "vscode-languageclient": "10.1.0"
   },
   "contributes": {
