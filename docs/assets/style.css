@@ -1463,8 +1463,7 @@ html.dark .projection-map-code .shiki span {
 }
 .gs-terminal-titlebar button,
 .er-play,
-.chooser-chips button,
-.matrix-chips button {
+.chooser-chips button {
   padding: 5px 11px;
   border: 1px solid var(--c-divider);
   border-radius: 6px;
@@ -1477,14 +1476,12 @@ html.dark .projection-map-code .shiki span {
 }
 .gs-terminal-titlebar button:hover,
 .er-play:hover,
-.chooser-chips button:hover,
-.matrix-chips button:hover {
+.chooser-chips button:hover:hover {
   border-color: var(--c-brand);
 }
 .gs-terminal-titlebar button:focus-visible,
 .er-play:focus-visible,
-.chooser-chips button:focus-visible,
-.matrix-chips button:focus-visible {
+.chooser-chips button:focus-visible:focus-visible {
   outline: 2px solid var(--c-brand);
   outline-offset: 2px;
 }
@@ -3626,18 +3623,7 @@ html.dark .explorer-panel .shiki span {
 
 /* #css-pages-end */
 /* #css-pages: doc */
-/* ---------- matrix filter + review route (Upstreaming to OXC) ---------- */
-.matrix-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-.matrix-chips button { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; color: var(--c-text-2); }
-.matrix-chips button[aria-pressed="true"] {
-  border-color: var(--c-brand);
-  background: var(--c-brand-soft);
-  color: var(--c-brand);
-}
-/* text-3 on the pressed chip's tinted background lands at 4.3:1, just under the
-   4.5:1 axe asks for at this size. */
-.matrix-count { font-variant-numeric: tabular-nums; color: var(--c-text-2); font-weight: 500; }
-.doc .matrix-status { min-height: 1.4em; margin: 0 0 8px; font-size: 13px; color: var(--c-text-3); }
+/* ---------- pill badge (used by the review route steps below) ---------- */
 .matrix-badge {
   display: inline-flex;
   padding: 2px 9px;
@@ -3648,7 +3634,6 @@ html.dark .explorer-panel .shiki span {
   font-weight: 650;
   white-space: nowrap;
 }
-.matrix-chips .matrix-badge { width: 10px; height: 10px; padding: 0; }
 /* ---------- chooser ---------- */
 .chooser {
   margin: 20px 0;
@@ -3681,17 +3666,6 @@ html.dark .explorer-panel .shiki span {
   color: var(--c-text-2);
 }
 .doc .chooser-answer { margin: 0 0 14px; }
-/* The light-theme foregrounds are a step darker than the badge tint suggests:
-   one shade up lands at 4.2 to 4.45:1 against it, which reads fine and fails
-   the contrast rule at this size. */
-.matrix-badge-reuse { --mb: 16, 185, 129; --mb-fg: #065f46; }
-.matrix-badge-adapt { --mb: 245, 158, 11; --mb-fg: #92400e; }
-.matrix-badge-glue { --mb: 59, 130, 246; --mb-fg: #1d4ed8; }
-.matrix-badge-redesign { --mb: 139, 92, 246; --mb-fg: #6d28d9; }
-html.dark .matrix-badge-reuse { --mb-fg: #34d399; }
-html.dark .matrix-badge-adapt { --mb-fg: #fbbf24; }
-html.dark .matrix-badge-glue { --mb-fg: #93c5fd; }
-html.dark .matrix-badge-redesign { --mb-fg: #c4b5fd; }
 .review-route {
   margin: 20px 0;
   padding: 16px 18px;

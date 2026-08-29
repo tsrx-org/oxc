@@ -139,8 +139,9 @@ test("static launch build has canonical and social metadata on every public page
   // 467 bytes under the page-weight budget with it, so nothing else could be
   // added there. The vercel.json redirect that stood in for the page is gone
   // with it. It dropped to 19 again when /playground was removed, and is back
-  // at 20 now that the in-browser engine works and the page is restored.
-  assert.equal(htmlFiles.length, 20);
+  // at 20 now that the in-browser engine works and the page is restored. Down
+  // to 19 once more with the upstreaming-to-OXC guide retired.
+  assert.equal(htmlFiles.length, 19);
   assert.equal(htmlFiles.some((path) => path.endsWith(`${sep}logos.html`)), false);
 
   for (const path of htmlFiles) {
@@ -205,7 +206,7 @@ test("static launch build has a scoped base, crawl metadata, and no internal des
     `User-agent: *\nAllow: ${base}\nSitemap: ${siteUrl}sitemap.xml\n`,
   );
   assert.match(sitemap, /^<\?xml version="1\.0" encoding="UTF-8"\?>/u);
-  assert.equal([...sitemap.matchAll(/<loc>/gu)].length, 20);
+  assert.equal([...sitemap.matchAll(/<loc>/gu)].length, 19);
   assert.match(sitemap, new RegExp(`<loc>${homeUrl}</loc>`));
   assert.equal(sitemap.includes("logos.html"), false);
   assert.equal(sitemap.includes(".html"), false);

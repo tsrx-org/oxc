@@ -78,16 +78,13 @@ Open any JavaScript, TypeScript, or JSON file once. `.tsrx` is then served for
 the whole session, whatever language id it has, because the registrations match
 file names.
 
-That one extra step is the whole gap, and it is why this package exists today
-instead of a patch upstream: support that already works in the wild makes a
-better case for `.tsrx` in OXC than an ask would. The extension finds this
-package because it declares a command named `oxlint`. The `oxc.provider` block
-it also declares is [our own proposal, which no released tool reads
-yet](/architecture/provider-protocol). OXC's
-[Language Plugins RFC](https://github.com/oxc-project/oxc/discussions/21936)
-could remove both the extra step and the multiplexer, and we would rather end up
-there than keep our own path; [Upstreaming to OXC](/architecture/upstreaming-to-oxc)
-tracks what that needs.
+That one extra step is the whole gap, and everything after it is already wired.
+The extension finds this package because it declares a command named `oxlint`.
+The `oxc.provider` block it also declares is [our own proposal, which no
+released tool reads yet](/architecture/provider-protocol). OXC's
+[Language Plugins RFC](https://github.com/oxc-project/oxc/discussions/21936) is
+the discussion where a general answer to the extra step and the multiplexer
+would come from, and it is unmerged.
 
 ## What a session looks like
 

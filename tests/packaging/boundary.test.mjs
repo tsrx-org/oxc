@@ -11,10 +11,7 @@ const root = resolve(import.meta.dirname, "../..");
 const adapterManifestPath = join(root, "crates/oxc_adapter/Cargo.toml");
 const adapterSourcePath = join(root, "crates/oxc_adapter/src/lib.rs");
 const editorIntegrationPath = join(root, "docs/integrations/editor.md");
-const upstreamingGuidePath = join(root, "docs/architecture/upstreaming-to-oxc.md");
 const canonicalRepository = "https://github.com/oxc-project/oxc";
-const pinnedOxcRevision = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
-const auditedOxcMain = "6fe866af3036127c2236cc1db557f086c4408905";
 const expectedAdapterDependencies = [
   "oxc_allocator",
   "oxc_ast",
@@ -668,123 +665,59 @@ test("repository npm invocation matches npm's public manifest-declared bin", asy
   assert.doesNotMatch(invocation.args[0], /[\\/]\.bin[\\/]|\.(?:bat|cmd|com|exe|ps1)$/iu);
 });
 
-test("editor and maintainer docs distinguish OXC's compiled seam from runtime hooks", async () => {
+test("the editor guide records why no released OXC tool exposes a runtime language hook", async () => {
   // Prose reflows on every edit, so phrase assertions run against collapsed
   // whitespace: a line break must never be the reason a fact "disappears".
   const flatten = (text) => text.replace(/\s+/gu, " ");
-  const [editor, guide] = (
-    await Promise.all([
-      readFile(editorIntegrationPath, "utf8"),
-      readFile(upstreamingGuidePath, "utf8"),
-    ])
-  ).map(flatten);
+  const editor = flatten(await readFile(editorIntegrationPath, "utf8"));
 
   // The page may say this in its own words. What must survive is that the
   // extension picks its documents from a fixed internal list rather than from
-  // an API a provider could call.
+  // an API a provider could call, and that the one open upstream discussion
+  // about a general hook is named as unmerged rather than as a plan.
   assert.match(editor, /hard-codes its document selectors|fixed\s+internal list/i);
   assert.match(editor, /exposes no public API|rather than from a public API/i);
   assert.match(editor, /github\.com\/oxc-project\/oxc\/discussions\/21936/);
-  assert.match(guide, /ToolBuilder/);
-  assert.match(guide, /compile-time Rust embedding seam/i);
-  assert.match(guide, /not a runtime language loader/i);
-  assert.match(guide, /github\.com\/oxc-project\/oxc\/discussions\/21936/);
-  assert.match(guide, /github\.com\/oxc-project\/oxc\/issues\/19918/);
-  assert.match(guide, /github\.com\/oxc-project\/oxc\/pull\/24262/);
+  assert.match(editor, /unmerged/i);
 });
 
-test("the maintainer guide defines a source-backed upstream transplant contract", async () => {
+// The project ships as the official OXC integration for TSRX. That stance used
+// to be asserted against the maintainer transplant guide, which has been
+// retired along with the rest of the upstreaming story; it now has to hold on
+// the two surfaces that actually publish it, the README and the site footer
+// every built page carries.
+test("the official-integration stance holds on the surfaces that publish it", async () => {
   const flatten = (text) => text.replace(/\s+/gu, " ");
-  const [guideRaw, readme, core, editor, siteConfig] = await Promise.all([
-    readFile(upstreamingGuidePath, "utf8"),
-    readFile(join(root, "README.md"), "utf8"),
-    readFile(join(root, "docs/architecture/rust-oxc-core.md"), "utf8"),
-    readFile(editorIntegrationPath, "utf8"),
-    readFile(join(root, "docs/site.config.mjs"), "utf8"),
-  ]);
-  const guide = flatten(guideRaw);
+  const [readme, siteConfig, core, editor] = (
+    await Promise.all([
+      readFile(join(root, "README.md"), "utf8"),
+      readFile(join(root, "docs/site.config.mjs"), "utf8"),
+      readFile(join(root, "docs/architecture/rust-oxc-core.md"), "utf8"),
+      readFile(editorIntegrationPath, "utf8"),
+    ])
+  ).map(flatten);
 
-  // The stance is required, its exact phrasing is not: this is the official
-  // OXC integration for TSRX, and the TSRX project is the one maintaining it.
-  assert.match(guide, /OXC for TSRX is the official OXC integration for TSRX/i);
-  assert.match(guide, /official OXC integration[^.]*maintained by the TSRX project/i);
-  // The retired non-affiliation disclaimer must not come back with a reflow.
-  assert.doesNotMatch(guide, /not affiliated with/i);
-  assert.match(guide, new RegExp(pinnedOxcRevision));
-  assert.match(guide, new RegExp(auditedOxcMain));
-  assert.match(guide, /audited(?: on)? 2026-07-16/i);
-  assert.match(guide, /no merged whole-file (?:language |parser )?hook/i);
-  // Being the official integration is not a claim that any of this transplant
-  // work is upstream business: the page still has to say so in its own words.
-  assert.match(guide, /nothing here has been submitted to OXC and nothing is scheduled/i);
-  assert.match(guide, /unicode-id-start\s*=\s*[`"]1[`"]|`unicode-id-start = "1"`/);
+  const stanceSurfaces = [
+    ["README.md", readme],
+    ["docs/site.config.mjs", siteConfig],
+  ];
+  for (const [name, source] of stanceSurfaces) {
+    // The stance is required, its exact phrasing is not.
+    assert.match(source, /official OXC integration for TSRX/i, name);
+    // The retired non-affiliation disclaimer must not come back with a reflow.
+    assert.doesNotMatch(source, /not affiliated with/i, name);
+  }
+  // And the TSRX project is the one maintaining it.
+  assert.match(readme, /official OXC integration[^.]*maintained by the TSRX project/i);
+  // The footer is the one line every published page carries.
+  assert.match(siteConfig, /disclaimer:\s*'The official OXC integration for TSRX\.'/);
 
-  for (const path of [
-    "scanner/overlay.rs",
-    "scanner/lexical.rs",
-    "projection/lint.rs",
-    "projection/lift/scaffold.rs",
-  ]) {
-    assert.match(guide, new RegExp(path.replaceAll("/", "\\/")), path);
+  // The transplant guide is retired. No published surface links it back, and
+  // no page is left promising a submission to OXC.
+  for (const [name, source] of [...stanceSurfaces, ["rust-oxc-core.md", core], ["editor.md", editor]]) {
+    assert.doesNotMatch(source, /upstreaming-to-oxc/i, name);
+    assert.doesNotMatch(source, /upstream(?:ing)? (?:TSRX )?to OXC/i, name);
   }
-  assert.doesNotMatch(guide, /projection\/manifest\.rs/);
-
-  for (const classification of [
-    "Direct reuse",
-    "Adapt or replace",
-    "Standalone product glue",
-    "Upstream-only redesign",
-  ]) {
-    assert.match(guide, new RegExp(classification, "i"), classification);
-  }
-
-  for (const closedSeam of ["SourceType", "PartialLoader", "FileKind", "Oxfmt LSP routing"]) {
-    assert.match(guide, new RegExp(closedSeam), closedSeam);
-  }
-  for (const primarySource of [
-    `${canonicalRepository}/blob/${auditedOxcMain}/crates/oxc_span/src/source_type.rs`,
-    `${canonicalRepository}/blob/${auditedOxcMain}/crates/oxc_linter/src/loader/partial_loader/mod.rs`,
-    `${canonicalRepository}/blob/${auditedOxcMain}/apps/oxfmt/src/core/support.rs`,
-    `${canonicalRepository}/blob/${auditedOxcMain}/apps/oxfmt/src/lsp/mod.rs`,
-    `${canonicalRepository}/blob/${auditedOxcMain}/crates/oxc_parser/src/config.rs`,
-    `${canonicalRepository}/blob/${pinnedOxcRevision}/crates/oxc_lexer/README.md`,
-  ]) {
-    assert.ok(guide.includes(primarySource), primarySource);
-  }
-  for (const researchUrl of [
-    `${canonicalRepository}/discussions/21936`,
-    `${canonicalRepository}/issues/19918`,
-    `${canonicalRepository}/pull/24262`,
-  ]) {
-    assert.ok(guide.includes(researchUrl), researchUrl);
-  }
-  assert.match(guide, /unmerged research/i);
-  assert.match(guide, /not (?:runtime |release )?dependencies/i);
-  assert.match(guide, /one (?:canonical )?OXC parse/i);
-  assert.match(guide, /format (?:performs|does) two structural scan(?:ner passe|)s/i);
-  // Was pinned to the precise phrasing ("affine authored identity segments and
-  // explicitly unmapped synthetic regions"). The page now says the same thing in
-  // plain words, so assert the fact: a whole-file copy whose ranges are not all
-  // yours, which is why PartialLoader does not fit.
-  assert.match(
-    guide,
-    /affine authored identity segments|some ranges are yours and some are\s+placeholders/i,
-  );
-  assert.match(
-    guide,
-    /no (?:new )?(?:source )?cop(?:y|ies),\s+parses,\s+allocations, or dynamic dispatch/i,
-  );
-  assert.match(guide, /cargo test --locked -p tsrx_syntax --all-targets/);
-  assert.match(guide, /pnpm run benchmark:native-lint/);
-  assert.match(guide, /pnpm run benchmark:native-format/);
-  // The extension is optional because these two may link either at the file in
-  // this repository or at the published site, which serves clean URLs. What has
-  // to hold is that both still point a reader at the upstream map.
-  for (const source of [readme, editor]) {
-    assert.match(source, /architecture\/upstreaming-to-oxc(?:\.md|\.html)?/);
-  }
-  assert.match(siteConfig, /link:\s*['"]\/architecture\/upstreaming-to-oxc['"]/);
-  assert.match(core, /(?:\.\/|architecture\/)upstreaming-to-oxc\.md/);
 });
 
 // The docs Rust tools sit outside the product workspace, so each keeps its own

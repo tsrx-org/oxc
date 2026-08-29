@@ -64,7 +64,6 @@ export default {
       text: 'Architecture',
       items: [
         { text: 'Rust/OXC Core', link: '/architecture/rust-oxc-core' },
-        { text: 'Upstreaming to OXC', link: '/architecture/upstreaming-to-oxc' },
         {
           text: 'Provider Protocol',
           link: '/architecture/provider-protocol',
