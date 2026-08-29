@@ -2,10 +2,9 @@
  * What the *real* installed Vite+ binary does when a project holds a language
  * provider.
  *
- * The zero-line claim recorded in docs/architecture/upstreaming-to-oxc.md says
- * Vite+ needs no change to reach a provider-aware Oxlint wrapper, because it
- * resolves the `oxlint` package, joins `bin/oxlint`, and executes whatever it
- * finds. Until now that was checked by re-implementing Vite+'s resolution rule
+ * Vite+ needs no change of its own to reach a provider-aware Oxlint wrapper,
+ * because it resolves the `oxlint` package, joins `bin/oxlint`, and executes
+ * whatever it finds. Until now that was checked by re-implementing its rule
  * in a scratch script. This file checks it by running the real
  * `vite-plus-current` 0.2.4 binary that is already installed in this repository
  * and recording where it actually lands.

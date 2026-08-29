@@ -17,8 +17,7 @@ passing the full behavior and performance suites.
 `tsrx_syntax::scan` reads the source bytes once and records the TSRX
 structure in a few compact arrays instead of building a full syntax tree,
 which keeps scanning fast and memory-light. Its only direct dependency is
-`unicode-id-start = "1"` (no direct OXC dependency). See
-[Upstreaming TSRX to OXC](./upstreaming-to-oxc.md).
+`unicode-id-start = "1"` (no direct OXC dependency).
 
 The overlay recognizes:
 

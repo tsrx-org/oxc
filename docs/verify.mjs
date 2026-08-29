@@ -1427,38 +1427,6 @@ check(
   JSON.stringify(diagramCursorAtRest),
 )
 
-// ---------- transplant matrix filter (upstreaming page) ----------
-await page.goto(`${baseUrl}/architecture/upstreaming-to-oxc`, { waitUntil: 'load' })
-await page.waitForSelector('[data-matrix-filter][data-ready]')
-const matrixFiltered = await page.evaluate(() => {
-  const filter = document.querySelector('[data-matrix-filter]')
-  const chip = filter.querySelector('[data-matrix-chip="reuse"]')
-  chip.click()
-  const rows = [...filter.querySelectorAll('tr[data-classification]')]
-  return {
-    pressed: chip.getAttribute('aria-pressed'),
-    visible: rows.filter((row) => !row.hidden).length,
-    hidden: rows.filter((row) => row.hidden).length,
-    allVisible: rows.filter((row) => !row.hidden).every((row) => row.dataset.classification === 'reuse'),
-    status: filter.querySelector('[data-matrix-status]').textContent,
-  }
-})
-check(
-  matrixFiltered.pressed === 'true' &&
-    matrixFiltered.visible > 0 &&
-    matrixFiltered.hidden > 0 &&
-    matrixFiltered.allVisible &&
-    /Showing \d+ of \d+/.test(matrixFiltered.status),
-  'matrix filter: classification chip hides other rows and announces the count',
-  JSON.stringify(matrixFiltered),
-)
-const matrixReset = await page.evaluate(() => {
-  const filter = document.querySelector('[data-matrix-filter]')
-  filter.querySelector('[data-matrix-chip="all"]').click()
-  return [...filter.querySelectorAll('tr[data-classification]')].every((row) => !row.hidden)
-})
-check(matrixReset, 'matrix filter: All chip restores every row')
-
 // ---------- chooser (provider protocol page) ----------
 // The chooser replaces a decision table, so the thing worth proving is that a
 // reader who picks their own case is left looking at exactly one answer.

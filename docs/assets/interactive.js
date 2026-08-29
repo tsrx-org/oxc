@@ -1,29 +1,6 @@
-// Interactive doc-page components (matrix filter, review route, editor
-// replay). Loaded on demand by app.js only when a page contains one, so
-// the home page never pays for it. Init is idempotent via data-ready.
-
-function initMatrixFilters() {
-  for (const filter of document.querySelectorAll('[data-matrix-filter]:not([data-ready])')) {
-    filter.dataset.ready = '1'
-    const chips = [...filter.querySelectorAll('[data-matrix-chip]')]
-    const rows = [...filter.querySelectorAll('tr[data-classification]')]
-    const status = filter.querySelector('[data-matrix-status]')
-    const select = (slug) => {
-      let shown = 0
-      for (const chip of chips) chip.setAttribute('aria-pressed', String(chip.dataset.matrixChip === slug))
-      for (const row of rows) {
-        row.hidden = slug !== 'all' && row.dataset.classification !== slug
-        if (!row.hidden) shown += 1
-      }
-      status.textContent =
-        shown === rows.length
-          ? `Showing all ${shown} responsibilities.`
-          : `Showing ${shown} of ${rows.length} responsibilities.`
-    }
-    for (const chip of chips) chip.addEventListener('click', () => select(chip.dataset.matrixChip))
-    select('all')
-  }
-}
+// Interactive doc-page components (review route, editor replay). Loaded on
+// demand by app.js only when a page contains one, so the home page never pays
+// for it. Init is idempotent via data-ready.
 
 function initReviewRoute() {
   for (const route of document.querySelectorAll('[data-review-route]:not([data-ready])')) {
@@ -109,7 +86,6 @@ function initChoosers() {
 }
 
 export function init(cleanupCallbacks) {
-  initMatrixFilters()
   initReviewRoute()
   initChoosers()
   initEditorReplay(cleanupCallbacks)

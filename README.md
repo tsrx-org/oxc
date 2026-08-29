@@ -126,7 +126,6 @@ settings.
 - [Getting started](https://compiled.run/oxc-tsrx/guide/getting-started): install, first file, first run.
 - [TSRX syntax](https://compiled.run/oxc-tsrx/guide/tsrx-syntax): every supported block.
 - [Configuration](https://compiled.run/oxc-tsrx/integrations/configuration): every supported setting.
-- [Upstream map](https://compiled.run/oxc-tsrx/architecture/upstreaming-to-oxc): what a submission to OXC would have contained, and why it is parked. Nothing has been submitted.
 
 ## Contributing
 

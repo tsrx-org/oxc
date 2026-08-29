@@ -745,7 +745,7 @@ function initPage() {
   initCliBuilder()
   if (
     document.querySelector(
-      '[data-matrix-filter], [data-review-route], [data-editor-replay], [data-chooser]',
+      '[data-review-route], [data-editor-replay], [data-chooser]',
     )
   ) {
     import(new URL(`./interactive.js${ASSET_VERSION}`, import.meta.url))

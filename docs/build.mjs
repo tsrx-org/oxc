@@ -920,57 +920,6 @@ function terminalDemoHtml(example, generator = 'docs/generate-projection.mjs') {
 </figure>`
 }
 
-// ---------- transplant matrix filter (Upstreaming to OXC) ----------
-// <!-- matrix-filter --> before a table adds classification badges to each
-// row and a chip bar that app.js turns into live row filtering. Without JS
-// the badges still render and every row stays visible.
-const MATRIX_CLASSIFICATIONS = [
-  { slug: 'reuse', chip: 'Direct reuse', match: 'Direct reuse' },
-  { slug: 'adapt', chip: 'Adapt or replace', match: 'Adapt or replace' },
-  { slug: 'glue', chip: 'Product glue', match: 'Standalone product glue' },
-  { slug: 'redesign', chip: 'Upstream-only redesign', match: 'Upstream-only redesign' },
-]
-
-function matrixFilterHtml(article) {
-  const marker = '<!-- matrix-filter -->'
-  const markerIndex = article.indexOf(marker)
-  const start = article.indexOf('<div class="table-wrap">', markerIndex)
-  const end = article.indexOf('</table></div>', start)
-  if (markerIndex === -1 || start === -1 || end === -1) {
-    throw new Error('matrix-filter marker found without a following table')
-  }
-  const counts = new Map(MATRIX_CLASSIFICATIONS.map((entry) => [entry.slug, 0]))
-  const table = article
-    .slice(start, end)
-    .replace(/<tr>([\s\S]*?)<\/tr>/g, (row, cells) => {
-      const entry = MATRIX_CLASSIFICATIONS.find((candidate) =>
-        cells.includes(`<strong>${candidate.match}</strong>`),
-      )
-      if (!entry) return row
-      counts.set(entry.slug, counts.get(entry.slug) + 1)
-      return `<tr data-classification="${entry.slug}">${cells.replace(
-        `<strong>${entry.match}</strong>`,
-        `<span class="matrix-badge matrix-badge-${entry.slug}">${entry.match}</span>`,
-      )}</tr>`
-    })
-  const total = [...counts.values()].reduce((sum, count) => sum + count, 0)
-  const chips = [
-    `<button type="button" data-matrix-chip="all" aria-pressed="true">All <span class="matrix-count">${total}</span></button>`,
-    ...MATRIX_CLASSIFICATIONS.map(
-      (entry) =>
-        `<button type="button" data-matrix-chip="${entry.slug}" aria-pressed="false"><span class="matrix-badge matrix-badge-${entry.slug}" aria-hidden="true"></span>${entry.chip} <span class="matrix-count">${counts.get(entry.slug)}</span></button>`,
-    ),
-  ].join('\n    ')
-  const replacement = `<div class="matrix-filter" data-matrix-filter>
-  <div class="matrix-chips" role="group" aria-label="Filter the transplant matrix by classification">
-    ${chips}
-  </div>
-  <p class="matrix-status" aria-live="polite" data-matrix-status></p>
-  ${table}</table></div>
-</div>`
-  return article.slice(0, markerIndex) + article.slice(markerIndex + marker.length, start) + replacement + article.slice(end + '</table></div>'.length)
-}
-
 // ---------- disclosure (the detail a reader wants once, not on the way past) ----------
 // `<!-- details:Summary -->` ... `<!-- /details -->` folds everything between
 // the two behind a summary line. It is for the paragraph that is true, worth
@@ -2467,9 +2416,6 @@ async function build() {
       const generator = 'docs/generate-transcripts.mjs'
       article = article.replace(match[0], terminalDemoHtml(demo, generator))
       exportedBody = exportedBody.replace(match[0], terminalDemoMarkdown(demo, generator))
-    }
-    if (article.includes('<!-- matrix-filter -->')) {
-      article = matrixFilterHtml(article)
     }
     if (article.includes('<!-- review-route -->')) {
       article = reviewRouteHtml(article)
