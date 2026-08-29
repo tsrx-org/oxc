@@ -232,6 +232,35 @@ fn type_projection_declares_bare_lazy_targets_but_leaves_assignment_targets_alon
     assert!(assignment.contains("[cell]"), "{assignment}");
 }
 
+#[test]
+fn type_projection_declares_bare_lazy_targets_behind_header_comments() {
+    // The scanner walks full trivia to find the sigil, so a comment between `(` and `&` still
+    // registers a bare lazy loop target. The type lane has to agree, or the `const` the sigil
+    // stands in for goes unwritten and the projected loop assigns to undeclared bindings.
+    let source = concat!(
+        "declare const items:{id:string;label:string}[];",
+        "declare const rows:{cell:string}[];",
+        "function View() @{<ol>",
+        "@for (/* note */ &{id, label} of items) {<li>{label}</li>}",
+        "@for (// note\n&{cell} of rows) {<li>{cell}</li>}",
+        "</ol>}"
+    );
+    let overlay = scan_for_parser(source).unwrap();
+    let projection = project_for_types(source, &overlay).unwrap();
+    let projected = projection.source();
+    assert!(!projected.contains('&'), "{projected}");
+
+    let block = header_target(projected, " of items)");
+    assert!(block.starts_with("const "), "{block}");
+    assert!(block.contains("/* note */"), "{block}");
+    assert!(block.contains("{id, label}"), "{block}");
+
+    let line = header_target(projected, " of rows)");
+    assert!(line.starts_with("const "), "{line}");
+    assert!(line.contains("// note"), "{line}");
+    assert!(line.contains("{cell}"), "{line}");
+}
+
 /// Returns the projected `@for` target between its `for (` and the given ` of ...` tail.
 fn header_target<'a>(projected: &'a str, tail: &str) -> &'a str {
     let end = projected.find(tail).expect("projected loop tail");
