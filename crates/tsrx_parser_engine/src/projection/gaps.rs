@@ -140,61 +140,65 @@ fn build_allowed_gaps(
         add_parser_dynamic_gap(source, source_len, overlay, *token, &mut dynamic_gaps)?;
     }
 
-    // Style owners are preorder identities, while payload tokens are naturally emitted in source
-    // order (including styles nested in an opening attribute). Keep a separate stream so the
-    // fixed-way merge remains linear without sorting either table.
-    let mut style_gaps =
+    // Embedded payload tokens are emitted in source order across both languages. Preserve that
+    // shared order: collecting style and script gaps in separate passes would group by language
+    // and make a valid script-before-style module appear to contain overlapping gaps.
+    let mut embedded_gaps =
         Vec::with_capacity(overlay.style_blocks.len().saturating_add(overlay.script_blocks.len()));
-    for token in overlay
-        .embedded
-        .iter()
-        .filter(|token| token.kind == tsrx_syntax::EmbeddedKind::StyleContent)
-    {
-        let style = usize::try_from(token.owner)
-            .ok()
-            .and_then(|index| overlay.style_blocks.get(index))
-            .ok_or(TsrxParseError::Unsupported("style gap has no owner"))?;
-        validate_style_source(source, source_len, *style)?;
-        if style.content != token.span {
-            return Err(TsrxParseError::Unsupported("style gap differs from its payload token"));
-        }
-        if !style.content.is_empty() {
-            style_gaps.push(style.content);
+    for token in overlay.embedded {
+        let content = match token.kind {
+            tsrx_syntax::EmbeddedKind::StyleContent => {
+                let style = usize::try_from(token.owner)
+                    .ok()
+                    .and_then(|index| overlay.style_blocks.get(index))
+                    .ok_or(TsrxParseError::Unsupported("style gap has no owner"))?;
+                validate_style_source(source, source_len, *style)?;
+                if style.content != token.span {
+                    return Err(TsrxParseError::Unsupported(
+                        "style gap differs from its payload token",
+                    ));
+                }
+                style.content
+            }
+            tsrx_syntax::EmbeddedKind::ScriptContent => {
+                let script = usize::try_from(token.owner)
+                    .ok()
+                    .and_then(|index| overlay.script_blocks.get(index))
+                    .ok_or(TsrxParseError::Unsupported("script gap has no owner"))?;
+                if script.content != token.span
+                    || script.element.end > source_len
+                    || source
+                        .as_bytes()
+                        .get(script.element.start as usize..script.element.start as usize + 7)
+                        != Some(b"<script")
+                    || source
+                        .as_bytes()
+                        .get(script.content.end as usize..script.element.end as usize)
+                        != Some(b"</script>")
+                {
+                    return Err(TsrxParseError::Unsupported(
+                        "script gap differs from its payload token",
+                    ));
+                }
+                script.content
+            }
+            tsrx_syntax::EmbeddedKind::DynamicOpen | tsrx_syntax::EmbeddedKind::DynamicClose => {
+                continue;
+            }
+        };
+        if !content.is_empty() {
+            embedded_gaps.push(content);
         }
     }
     for style in overlay.style_blocks.iter().filter(|style| style.self_closing) {
         validate_style_source(source, source_len, *style)?;
-    }
-    for token in overlay
-        .embedded
-        .iter()
-        .filter(|token| token.kind == tsrx_syntax::EmbeddedKind::ScriptContent)
-    {
-        let script = usize::try_from(token.owner)
-            .ok()
-            .and_then(|index| overlay.script_blocks.get(index))
-            .ok_or(TsrxParseError::Unsupported("script gap has no owner"))?;
-        if script.content != token.span
-            || script.element.end > source_len
-            || source
-                .as_bytes()
-                .get(script.element.start as usize..script.element.start as usize + 7)
-                != Some(b"<script")
-            || source.as_bytes().get(script.content.end as usize..script.element.end as usize)
-                != Some(b"</script>")
-        {
-            return Err(TsrxParseError::Unsupported("script gap differs from its payload token"));
-        }
-        if !script.content.is_empty() {
-            style_gaps.push(script.content);
-        }
     }
 
     let streams = [
         token_gaps.as_slice(),
         header_gaps.as_slice(),
         dynamic_gaps.as_slice(),
-        style_gaps.as_slice(),
+        embedded_gaps.as_slice(),
     ];
     let mut cursors = [0_usize; 4];
     let total = streams.iter().map(|stream| stream.len()).sum();

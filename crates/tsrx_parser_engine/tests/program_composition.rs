@@ -227,6 +227,18 @@ fn script_payloads_remain_raw_text_through_the_oxc_parse() {
 }
 
 #[test]
+fn interleaved_style_and_script_payloads_preserve_source_order() {
+    for source in [
+        r#"const x=<><script>{"a":1}</script><style>.a{color:red}</style></>;"#,
+        r#"const x=<><style>.a{color:red}</style><script>{"a":1}</script></>;"#,
+        r"const x=<><script>one</script><style>.a{}</style><script>two</script><style>.b{}</style></>;",
+    ] {
+        let result = parse_tsrx(&TsrxParseRequest { source }).expect("interleaved raw payloads");
+        assert_no_scaffold(result.program());
+    }
+}
+
+#[test]
 fn lazy_destructuring_patterns_preserve_markers_in_declarations_and_for_headers() {
     let source = "function View(props: any) @{\n\
         const &{ first, last } = props.user;\n\
