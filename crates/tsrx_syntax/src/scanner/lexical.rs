@@ -5,6 +5,30 @@ use crate::{
 
 use super::Scanner;
 
+/// Last bytes of the tokens that cannot end an expression, so a TSRX control written after one is
+/// continuing that expression however the source is laid out. `>` covers both `=>` and the close of
+/// a markup element, and `/` covers both division and the close of a regular expression, which is
+/// why neither of those shapes changes context under the line-leading rule.
+const OPERAND_BYTES: &[u8] = b"=([,?:.+-*/%&|^!~<>";
+
+/// Keywords that demand an operand. A line-leading control after one of these is still part of the
+/// expression the keyword opened, even though ASI would end some of them.
+const OPERAND_KEYWORDS: &[&[u8]] = &[
+    b"await",
+    b"case",
+    b"default",
+    b"delete",
+    b"extends",
+    b"in",
+    b"instanceof",
+    b"new",
+    b"of",
+    b"return",
+    b"typeof",
+    b"void",
+    b"yield",
+];
+
 impl Scanner<'_> {
     pub(super) fn scan_template(&mut self, start: usize) -> Result<usize, ProjectionError> {
         let mut index = start + 1;
@@ -104,11 +128,43 @@ impl Scanner<'_> {
             }
             break;
         }
-        if index == 0 || matches!(self.bytes[index - 1], b'{' | b'}' | b';') {
+        if index == 0
+            || matches!(self.bytes[index - 1], b'{' | b'}' | b';')
+            || self.line_leading_control_starts_a_statement(start, index)
+        {
             ControlContext::Statement
         } else {
             ControlContext::Expression
         }
+    }
+
+    /// Octane starts a new statement when a line begins with a TSRX control, even though the
+    /// previous line left its statement unterminated — the same boundary
+    /// `line_leading_markup_starts_a_statement` gives a line-leading markup opening. `start` is the
+    /// control's `@`; `previous` is one past the last non-trivia byte before it, as `code_context`
+    /// computed it. The control only continues the preceding expression when the token before it
+    /// demands an operand, so everything else on a fresh line opens a statement.
+    fn line_leading_control_starts_a_statement(&self, start: usize, previous: usize) -> bool {
+        self.at_line_start(start) && !self.token_demands_an_operand(previous)
+    }
+
+    /// True when the token ending at `index` cannot end an expression, so whatever follows it has
+    /// to continue that expression rather than start a statement. Deliberately a deny-list: an
+    /// unrecognised token leaves the control where a line break already put it.
+    fn token_demands_an_operand(&self, index: usize) -> bool {
+        let Some(&last) = index.checked_sub(1).and_then(|last| self.bytes.get(last)) else {
+            return false;
+        };
+        if OPERAND_BYTES.contains(&last) {
+            return true;
+        }
+        let mut word_start = index;
+        while word_start > 0 && self.bytes[word_start - 1].is_ascii_alphabetic() {
+            word_start -= 1;
+        }
+        word_start < index
+            && !identifier_continue_before(self.bytes, word_start)
+            && OPERAND_KEYWORDS.contains(&&self.bytes[word_start..index])
     }
 
     /// Octane starts a new statement when a line begins with a committed markup opening, even

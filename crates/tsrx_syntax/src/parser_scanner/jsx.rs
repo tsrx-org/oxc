@@ -487,7 +487,7 @@ impl Scanner<'_> {
     /// True when only non-terminator whitespace separates `index` from the preceding line
     /// terminator. A comment before the cursor on the same line is not whitespace, so it keeps the
     /// cursor inside the line it was written on.
-    fn at_line_start(&self, index: usize) -> bool {
+    pub(super) fn at_line_start(&self, index: usize) -> bool {
         let mut cursor = index;
         while cursor > 0 {
             match self.bytes[cursor - 1] {

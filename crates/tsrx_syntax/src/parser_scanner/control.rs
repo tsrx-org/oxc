@@ -374,7 +374,10 @@ impl Scanner<'_> {
             }
             break;
         }
-        if index == 0 || matches!(self.bytes[index - 1], b'{' | b'}' | b';') {
+        if index == 0
+            || matches!(self.bytes[index - 1], b'{' | b'}' | b';')
+            || self.line_leading_control_starts_a_statement(start, index)
+        {
             ControlContext::Statement
         } else {
             ControlContext::Expression

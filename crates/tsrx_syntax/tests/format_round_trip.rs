@@ -149,3 +149,108 @@ fn breaking_a_scaffold_call_does_not_make_the_lift_accept_a_changed_scaffold() {
         );
     }
 }
+
+/// The four trailing controls, each written after a sibling statement on its own line, with and
+/// without the sibling's authored semicolon. Issue #8 defect 2: the semicolon-less sibling left the
+/// control in expression context, which gave it the wrapper-call scaffold, which made the sibling's
+/// semicolon load-bearing scaffold structure — so Oxfmt's `semi` normalisation refused the lift.
+const TRAILING_CONTROL_BODIES: [&str; 4] = [
+    "@if (d) {\n    <main>a</main>\n  }",
+    "@for (const x of d) {\n    <main>a</main>\n  }",
+    "@switch (d) {\n    @case (1): {\n      <main>a</main>\n    }\n  }",
+    "@try {\n    <main>a</main>\n  } @catch (e) {\n    <b>{e}</b>\n  }",
+];
+
+fn trailing_control_source(body: &str, semicolon: bool) -> String {
+    let semicolon = if semicolon { ";" } else { "" };
+    format!("function D() @{{\n  const d = get(){semicolon}\n  {body}\n}}\n")
+}
+
+/// Rewrites the sibling statement's semicolon inside the already-built projection exactly the way
+/// Oxfmt's `semi` option does, leaving every scaffold and marker byte alone.
+fn flip_sibling_semicolon(projected: &str) -> String {
+    if projected.contains("get();") {
+        projected.replacen("get();", "get()", 1)
+    } else {
+        projected.replacen("get()", "get();", 1)
+    }
+}
+
+#[test]
+fn a_trailing_control_lifts_when_oxfmt_flips_its_sibling_semicolon() {
+    for body in TRAILING_CONTROL_BODIES {
+        for authored_semicolon in [false, true] {
+            let source = trailing_control_source(body, authored_semicolon);
+            let overlay = scan(&source).unwrap_or_else(|error| panic!("scan `{source}`: {error}"));
+            let controls = overlay.control_count();
+            let projection = project_for_format(&source, &overlay)
+                .unwrap_or_else(|error| panic!("project `{source}`: {error}"));
+
+            let flipped = flip_sibling_semicolon(projection.source());
+            assert_ne!(
+                flipped,
+                projection.source(),
+                "the semicolon flip did not change anything to test in `{source}`"
+            );
+
+            let lifted = lift_formatted(&flipped, &source, &projection).unwrap_or_else(|error| {
+                panic!("flipped-semicolon lift failed for `{source}`: {error}\n{flipped}")
+            });
+            assert!(!lifted.contains("_t"), "a scaffold identifier survived the lift: {lifted}");
+            let relifted =
+                scan(&lifted).unwrap_or_else(|error| panic!("rescan `{lifted}`: {error}"));
+            assert_eq!(relifted.control_count(), controls, "control count changed: {lifted}");
+        }
+    }
+}
+
+#[test]
+fn a_trailing_control_takes_no_wrapper_scaffold_whichever_way_its_sibling_ends() {
+    // The scaffold is what coupled the control to its sibling's semicolon. A control that leads its
+    // line is a statement, so the projection must spell it as one — with a plain marker comment and
+    // no generator wrapper — exactly as it does after an authored `;`.
+    for body in TRAILING_CONTROL_BODIES {
+        let with = trailing_control_source(body, true);
+        let without = trailing_control_source(body, false);
+        let projected_with =
+            project_for_format(&with, &scan(&with).unwrap()).unwrap().source().to_owned();
+        let projected_without =
+            project_for_format(&without, &scan(&without).unwrap()).unwrap().source().to_owned();
+
+        assert_eq!(
+            projected_with.replacen("get();", "get()", 1),
+            projected_without,
+            "dropping the sibling semicolon changed the projected structure of `{body}`"
+        );
+    }
+}
+
+#[test]
+fn a_control_that_really_continues_an_expression_keeps_its_wrapper_scaffold() {
+    // The line-leading rule is a deny-list, so the tokens that demand an operand must still hold
+    // the control in expression context. Each of these would otherwise be reclassified by the
+    // newline alone.
+    for source in [
+        "function D() @{\n  const d = get()\n  const e =\n    @if (d) {\n      <main>a</main>\n    }\n  <b>{e}</b>\n}\n",
+        "function D() @{\n  const d = get()\n  const e = [\n    @if (d) {\n      <main>a</main>\n    }\n  ]\n  <b>{e}</b>\n}\n",
+        "function D() @{\n  const d = get()\n  const e = () =>\n    @if (d) {\n      <main>a</main>\n    }\n  <b>{e()}</b>\n}\n",
+        "function D() @{\n  const d = get()\n  const e = d ?\n    @if (d) {\n      <main>a</main>\n    } : null\n  <b>{e}</b>\n}\n",
+    ] {
+        let overlay = scan(source).unwrap_or_else(|error| panic!("scan `{source}`: {error}"));
+        let projection = project_for_format(source, &overlay)
+            .unwrap_or_else(|error| panic!("project `{source}`: {error}"));
+        assert!(
+            projection.source().contains("_W0_("),
+            "the expression-position control lost its wrapper scaffold: {}",
+            projection.source()
+        );
+        let lifted = lift_formatted(projection.source(), source, &projection)
+            .unwrap_or_else(|error| panic!("lift `{source}`: {error}"));
+        assert!(!lifted.contains("_t"), "a scaffold identifier survived the lift: {lifted}");
+        assert_eq!(
+            scan(&lifted).unwrap().control_count(),
+            overlay.control_count(),
+            "control count changed: {lifted}"
+        );
+    }
+}
