@@ -20,7 +20,7 @@ import {
 } from './benchmarks-data.mjs'
 import { getDocsHighlighter, highlightWith } from './highlight.mjs'
 import config from './site.config.mjs'
-import { heroCode, typeAwareCode } from './demo-sources.mjs'
+import { heroCode, playgroundCode, typeAwareCode } from './demo-sources.mjs'
 
 const docsDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(docsDir, '..')
@@ -322,12 +322,13 @@ for (const entry of [
 }
 const assetVersion = assetVersionHash.digest('hex').slice(0, 10)
 
-// The two page shells this site renders. Each one gets its own stylesheet.
-const CSS_SHELLS = ['doc', 'home']
+// The three page shells this site renders. Each one gets its own stylesheet.
+const CSS_SHELLS = ['doc', 'home', 'playground']
 
 // Whether this build ships the in-browser engine (see the bundling step at the
-// end of build()). Known here, before any page is rendered, so the home demo
-// can say whether it will ever become interactive.
+// end of build()). Known here, before any page is rendered, because the
+// playground's markup differs: a build that can run the demo ships its controls
+// visible and pending, and one that cannot keeps them hidden.
 const wasmBinary = process.env.OXC_TSRX_WASM_BINARY
   ? path.resolve(process.env.OXC_TSRX_WASM_BINARY)
   : path.join(docsDir, 'tools', 'demo-wasm', 'dist', 'demo-wasm.wasm')
@@ -484,15 +485,19 @@ function createMarked(slugger, headings) {
         return `<h${depth} id="${id}">${html}${anchor}</h${depth}>\n`
       },
       code({ text, lang }) {
-        // The info string's first word is the language; the rest are flags.
-        // ```tsrx no-playground marks a fence that is deliberately not a whole
-        // valid file (a snippet, or a sample of what invalid TSRX looks like);
-        // tests/site/playground-snippets.test.mjs runs every other ```tsrx
-        // fence through the real engines and skips those.
-        const [language] = (lang || 'text').split(/\s+/)
+        const [language, ...flags] = (lang || 'text').split(/\s+/)
+        // The button hands the fence to the real engines, so it is only honest
+        // on a fence the engines accept. A sample that is deliberately not a
+        // whole file, or is showing what invalid TSRX looks like, opts out with
+        // ```tsrx no-playground; tests/site/playground-snippets.test.mjs proves
+        // every fence that keeps the button still parses.
+        const tryButton =
+          language === 'tsrx' && !flags.includes('no-playground')
+            ? `<button type="button" class="try-button" data-code="${escapeHtml(text)}">Try in playground</button>`
+            : ''
         let body = highlightHtml(text, language)
         if (language === 'tsrx') body = addTsrxHovers(body)
-        return `<div class="code-block" data-lang="${escapeHtml(language)}">${body}</div>\n`
+        return `<div class="code-block" data-lang="${escapeHtml(language)}">${body}${tryButton}</div>\n`
       },
       link({ href, title, tokens }) {
         const text = this.parser.parseInline(tokens)
@@ -670,6 +675,36 @@ const themeInit = `(() => {
   } catch {}
 })()`
 
+// The playground's example buttons are in the HTML from the first byte, but the
+// module that gives them behaviour is several hundred kilobytes and a couple of
+// round trips away. On a phone that gap was six seconds long, and a tap inside
+// it hit nothing and left no trace, which is what "sometimes didn't work at all"
+// was. This runs during head parsing, before any module, and does two things: it
+// records the tap so the module can replay it, and it says so on screen. It is
+// delegated from document, so it also covers a playground arrived at through a
+// client-side navigation, where the page's own inline scripts never re-run.
+// It disarms itself the moment demo-panel.js marks the bar ready.
+const playgroundTapQueue = `(() => {
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest && event.target.closest('button[id^="pg-scenario-"]')
+    if (!button) return
+    const bar = document.getElementById('pg-side')
+    if (!bar || bar.dataset.engine !== 'starting' || !bar.contains(button)) return
+    event.preventDefault()
+    event.stopPropagation()
+    window.__pgQueuedScenario = button.id
+    for (const other of bar.querySelectorAll('button[id^="pg-scenario-"]')) {
+      other.removeAttribute('data-queued')
+    }
+    button.dataset.queued = '1'
+    const note = document.getElementById('pg-scenario-note')
+    if (note) {
+      note.textContent =
+        'Queued: ' + button.textContent.trim() + '. It runs as soon as the engine has started.'
+    }
+  }, true)
+})()`
+
 const favicon = withBase('/assets/logo.svg')
 const socialImage = `${config.origin}${withBase('/assets/social-card.png')}`
 
@@ -750,7 +785,7 @@ function pageShell({ title, description, pathname, shell, bodyClass, header, mai
 <link rel="preload" href="${withBase('/assets/fonts/space-grotesk-latin.woff2')}" as="font" type="font/woff2" crossorigin />
 <link rel="preload" href="${withBase('/assets/fonts/inter-latin.woff2')}" as="font" type="font/woff2" crossorigin />
 <script>${themeInit}</script>
-<link rel="stylesheet" href="${withBase(`/assets/style-${shell}.css`)}?v=${assetVersion}" />
+${wasmDemo ? `<script>${playgroundTapQueue}</script>\n` : ''}<link rel="stylesheet" href="${withBase(`/assets/style-${shell}.css`)}?v=${assetVersion}" />
 </head>
 <body class="${bodyClass}">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -2231,6 +2266,105 @@ async function renderHomePage({ description }) {
   })
 }
 
+const PLAYGROUND_IDLE_NOTE =
+  'Each example edits the file and runs the real engines; the note here explains which flags were used.'
+
+// Two shapes for the same bar. A build that ships the in-browser engine sends
+// the controls down visible and marked as still starting: hiding them until the
+// engine is up is what made a phone look broken for six seconds. A build without
+// the engine keeps them hidden, because there they never become usable at all.
+function playgroundControlsHtml() {
+  const buttons = [
+    ['clean', 'Clean'],
+    ['lint', 'Lint findings'],
+    ['messy', 'Messy → Format'],
+    ['types', 'Type-aware lint'],
+    ['silence', 'Silence a rule'],
+    ['config', 'Custom config'],
+  ]
+    .map(
+      ([name, label]) =>
+        `<button type="button" class="demo-button" id="pg-scenario-${name}">${label}</button>`,
+    )
+    .join('\n        ')
+  if (!wasmDemo) {
+    return `<div class="pg-toolbar pg-examples-bar" id="pg-side" hidden>
+      <div class="pg-examples" role="group" aria-label="Clickable examples">
+        <span class="pg-examples-label" id="pg-engine-label">Examples</span>
+        ${buttons}
+      </div>
+      <p class="pg-note" id="pg-scenario-note" data-idle="${escapeHtml(PLAYGROUND_IDLE_NOTE)}">${PLAYGROUND_IDLE_NOTE}</p>
+    </div>`
+  }
+  return `<div class="pg-toolbar pg-examples-bar" id="pg-side" data-engine="starting">
+      <div class="pg-examples" role="group" aria-label="Clickable examples" aria-busy="true">
+        <span class="pg-examples-label" id="pg-engine-label">Examples · starting…</span>
+        ${buttons}
+      </div>
+      <p class="pg-note" id="pg-scenario-note" role="status" data-idle="${escapeHtml(PLAYGROUND_IDLE_NOTE)}">The in-browser engine is still starting. Tap an example now and it runs as soon as the engine is ready.</p>
+    </div>`
+}
+
+function renderPlaygroundPage() {
+  const main = `
+<main id="main-content" class="home playground-page">
+  <section class="pg" aria-label="Playground">
+    <header class="pg-topbar">
+      <h1 class="pg-title">TSRX Playground</h1>
+      <p class="pg-tagline">Real <code>oxc-tsrx</code> · <code>oxc-tsrx-fmt</code>. <span id="pg-mode-note">On the published static preview, output is pre-generated; run the local development server for live editing.</span></p>
+    </header>
+    ${playgroundControlsHtml()}
+    <div class="pg-panes">
+      <div class="code-panel pg-panel" id="hero-demo">
+        <div class="code-panel-bar">
+          <span class="code-panel-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="code-panel-file">playground.tsrx</span>
+          <span class="code-panel-hint" id="demo-hint"></span>
+          <span class="code-panel-actions" id="demo-actions" hidden>
+            <button type="button" class="demo-button" id="demo-share">Share</button>
+            <button type="button" class="demo-button" id="demo-format">Format</button>
+            <button type="button" class="demo-button" id="demo-reset">Reset</button>
+          </span>
+        </div>
+        <div class="code-panel-editor" id="demo-editor">
+          ${highlightHtml(playgroundCode, 'tsrx')}
+        </div>
+        <div class="code-panel-status">
+          <span id="demo-status" aria-live="polite">pre-generated example · static preview</span>
+          <span id="demo-meta">native lint and format run only on the local development server</span>
+        </div>
+      </div>
+      <div class="code-panel pg-output" id="pg-output" data-explorer hidden>
+        <div class="code-panel-bar pg-output-tabs" role="tablist" aria-label="Engine output">
+          <span class="pg-pane-label" aria-hidden="true">Engine output</span>
+          <button type="button" role="tab" id="pg-tab-projected" aria-controls="pg-panel-projected" aria-selected="true">Projected TSX</button>
+          <button type="button" role="tab" id="pg-tab-structure" aria-controls="pg-panel-structure" aria-selected="false" tabindex="-1">Structure</button>
+          <button type="button" role="tab" id="pg-tab-diagnostics" aria-controls="pg-panel-diagnostics" aria-selected="false" tabindex="-1">Diagnostics</button>
+          <button type="button" role="tab" id="pg-tab-formatted" aria-controls="pg-panel-formatted" aria-selected="false" tabindex="-1">Formatted</button>
+        </div>
+        <div class="pg-output-body">
+          <div role="tabpanel" id="pg-panel-projected" aria-labelledby="pg-tab-projected"><p class="pg-note pg-output-note">The legal TSX the real projection engine hands to OXC: your bytes copied verbatim, TSRX controls replaced by scaffold markers.</p><div class="pg-output-code" id="pg-projected"></div></div>
+          <div role="tabpanel" id="pg-panel-structure" aria-labelledby="pg-tab-structure" hidden><p class="pg-note pg-output-note">The structural overlay from the byte-oriented scan: every TSRX control token and its byte span.</p><div class="pg-output-code" id="pg-structure"></div></div>
+          <div role="tabpanel" id="pg-panel-diagnostics" aria-labelledby="pg-tab-diagnostics" hidden><p class="pg-note pg-output-note">Raw <code>oxc-tsrx --format=json</code> diagnostics, mapped to your original bytes.</p><div class="pg-output-code" id="pg-diagnostics"></div></div>
+          <div role="tabpanel" id="pg-panel-formatted" aria-labelledby="pg-tab-formatted" hidden><p class="pg-note pg-output-note">What <code>oxc-tsrx-fmt</code> produces for the current source.</p><div class="pg-output-code" id="pg-formatted"></div></div>
+        </div>
+        <div class="code-panel-status"><span id="pg-output-status">output follows the editor as you type</span></div>
+      </div>
+    </div>
+  </section>
+</main>`
+  return pageShell({
+    title: 'Playground',
+    description:
+      'A static TSRX preview that becomes an interactive native lint and format playground on the localhost development server.',
+    pathname: '/playground',
+    shell: 'playground',
+    bodyClass: 'home-page',
+    header: headerHtml(),
+    main,
+  })
+}
+
 async function build() {
   execFileSync(process.execPath, [path.join(docsDir, 'render-diagrams.mjs')], { stdio: 'inherit' })
   await validateOutputDirectory()
@@ -2423,6 +2557,7 @@ async function build() {
     path.join(siteDir, 'index.html'),
     dedupeBrandIcons(await renderHomePage({ description: home.data.description })),
   )
+  await writeFile(path.join(siteDir, 'playground.html'), renderPlaygroundPage())
 
   await cp(path.join(docsDir, 'assets'), path.join(siteDir, 'assets'), { recursive: true })
   // Ship one stylesheet per page shell, without comments (the source keeps
@@ -2545,7 +2680,7 @@ async function build() {
     })}\n`,
   )
 
-  const publicPaths = ['/', ...pages.map(({ link }) => link)]
+  const publicPaths = ['/', ...pages.map(({ link }) => link), '/playground']
   await writeFile(
     path.join(outDir, 'robots.txt'),
     `User-agent: *\nAllow: ${base}\nSitemap: ${canonicalUrl('/sitemap.xml')}\n`,

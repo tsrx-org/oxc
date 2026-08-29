@@ -25,6 +25,30 @@ export const heroCode = `export function TaskList({ tasks }: Props) @{
   </section>;
 }`
 
+// Self-contained playground default: declares its own types and components
+// so the opt-in type-check lane starts clean instead of full of TS errors.
+export const playgroundCode = `type Task = { id: string; label: string; done: boolean };
+
+function TaskRow({ task }: { task: Task }) @{
+  <li>{task.label}</li>;
+}
+
+export function TaskList({ tasks }: { tasks: Task[] }) @{
+  const pending = tasks.filter((task) => !task.done);
+
+  <section class="tasks">
+    @if (pending.length > 0) {
+      <ul>
+        @for (const task of pending; key task.id) {
+          <TaskRow task={task} />;
+        }
+      </ul>;
+    } @else {
+      <p>All done!</p>;
+    }
+  </section>;
+}`
+
 // The "Type-aware lint" example. The point is a finding only tsgolint can
 // reach: oxlint alone sees `saveTask(task);` as an ordinary call, and only
 // type information reveals it returns a Promise nobody awaits. A plain
@@ -56,10 +80,10 @@ if (!typeAwareCode.includes(TYPE_AWARE_ANCHOR)) {
   throw new Error('demo-sources: typeAwareCode no longer contains the unawaited call')
 }
 
-// The lint scenario derives its variant from this anchor; assert it so the
+// The lint scenario's anchor lives in both snippets; assert it so the shared
 // "Lint findings" and "Custom config" examples cannot go quiet either.
 const LINT_ANCHOR = 'const pending = tasks.filter((task) => !task.done);'
-for (const [name, snippet] of Object.entries({ heroCode })) {
+for (const [name, snippet] of Object.entries({ heroCode, playgroundCode })) {
   if (!snippet.includes(LINT_ANCHOR)) {
     throw new Error(`demo-sources: ${name} no longer contains the lint example anchor`)
   }

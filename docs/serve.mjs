@@ -2,10 +2,10 @@
 // Binds 127.0.0.1 explicitly so an already-taken port fails loudly instead of
 // silently coexisting on another interface.
 //
-// It also exposes a small demo API for the home-page demo panel, backed by the
+// It also exposes a small demo API for the home-page playground, backed by the
 // REAL native binaries (target/release/oxc-tsrx and oxc-tsrx-fmt) and the same
 // shiki highlighter the build uses. If the binaries are not built, the API
-// reports native: false and the demo panel stays a static example.
+// reports native: false and the playground stays a static example.
 import { execFile } from 'node:child_process'
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'

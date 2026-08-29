@@ -130,19 +130,18 @@ test("static launch build has canonical and social metadata on every public page
   assert.match(result.stdout, new RegExp(`-> ${outDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\n$`, "u"));
 
   const htmlFiles = (await filesUnder(siteDir)).filter((path) => path.endsWith(".html"));
-  // The 17 sidebar pages, plus the home page and the one supplemental page
-  // (the embedded CSS boundary) that is linked to rather than listed. A
-  // literal on purpose: adding or removing a public page should be a
+  // The 17 sidebar pages, plus the home page, the playground, and the one
+  // supplemental page (the embedded CSS boundary) that is linked to rather than
+  // listed. A literal on purpose: adding or removing a public page should be a
   // deliberate edit here, not a number that quietly follows along. It went from
   // 20 to 19 when /integrations/vite-plus was folded into the getting-started
   // guide, and back to 20 when the walkthrough moved out again: that guide was
   // 467 bytes under the page-weight budget with it, so nothing else could be
   // added there. The vercel.json redirect that stood in for the page is gone
-  // with it. It dropped back to 19 when /playground was removed: the
-  // in-browser demo it ran had broken, so the published page rendered empty.
-  assert.equal(htmlFiles.length, 19);
+  // with it. It dropped to 19 again when /playground was removed, and is back
+  // at 20 now that the in-browser engine works and the page is restored.
+  assert.equal(htmlFiles.length, 20);
   assert.equal(htmlFiles.some((path) => path.endsWith(`${sep}logos.html`)), false);
-  assert.equal(htmlFiles.some((path) => path.endsWith(`${sep}playground.html`)), false);
 
   for (const path of htmlFiles) {
     const html = await readFile(path, "utf8");
@@ -166,10 +165,11 @@ test("static launch build has canonical and social metadata on every public page
 
 test("static launch build has a scoped base, crawl metadata, and no internal design gallery", async () => {
   const { outDir, siteDir } = await buildTemporarySite();
-  const [home, robots, sitemap, capabilities, vercel] = await Promise.all([
+  const [home, robots, sitemap, playground, capabilities, vercel] = await Promise.all([
     readFile(join(siteDir, "index.html"), "utf8"),
     readFile(join(outDir, "robots.txt"), "utf8"),
     readFile(join(siteDir, "sitemap.xml"), "utf8"),
+    readFile(join(siteDir, "playground.html"), "utf8"),
     readFile(join(siteDir, "demo-capabilities.json"), "utf8").then(JSON.parse),
     readFile(join(outDir, "vercel.json"), "utf8").then(JSON.parse),
   ]);
@@ -191,9 +191,9 @@ test("static launch build has a scoped base, crawl metadata, and no internal des
     assert.match(landing, /prefers-color-scheme: dark/u);
     assert.match(landing, /color-scheme" content="light dark"/u);
   }
-  assert.equal(home.includes("Everything on this page runs the real"), false);
-  assert.match(home, /static preview/u);
-  assert.match(home, /local development server/u);
+  assert.equal(playground.includes("Everything on this page runs the real"), false);
+  assert.match(playground, /static preview/u);
+  assert.match(playground, /local development server/u);
   assert.match(home, /pre-generated example · static preview/u);
   assert.match(home, /native lint and format run only on the local development server/u);
   assert.doesNotMatch(home, /lint clean · format converged/u);
@@ -205,7 +205,7 @@ test("static launch build has a scoped base, crawl metadata, and no internal des
     `User-agent: *\nAllow: ${base}\nSitemap: ${siteUrl}sitemap.xml\n`,
   );
   assert.match(sitemap, /^<\?xml version="1\.0" encoding="UTF-8"\?>/u);
-  assert.equal([...sitemap.matchAll(/<loc>/gu)].length, 19);
+  assert.equal([...sitemap.matchAll(/<loc>/gu)].length, 20);
   assert.match(sitemap, new RegExp(`<loc>${homeUrl}</loc>`));
   assert.equal(sitemap.includes("logos.html"), false);
   assert.equal(sitemap.includes(".html"), false);

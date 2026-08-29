@@ -797,7 +797,23 @@ function initPage() {
 initPage()
 
 // ---------- delegated one-time handlers (survive SPA content swaps) ----------
+const playgroundHref = () =>
+  document.querySelector('.top-nav a[href$="/playground"]')?.getAttribute('href') ??
+  '/playground'
+
+const toBase64Url = (text) => {
+  const bytes = new TextEncoder().encode(text)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
+}
+
 document.addEventListener('click', async (event) => {
+  const tryButton = event.target.closest('.try-button')
+  if (tryButton) {
+    location.assign(`${playgroundHref()}#code=${toBase64Url(tryButton.dataset.code)}`)
+    return
+  }
   const copyMd = event.target.closest('.copy-md-button')
   if (copyMd) {
     const label = copyMd.dataset.label ?? (copyMd.dataset.label = copyMd.textContent)

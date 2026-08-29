@@ -320,9 +320,11 @@ const shellProbe = () =>
       ruleCount,
       firstSheetIsHeadLink: links.length > 0 && document.styleSheets[0]?.ownerNode === links[0],
       // Each of these is styled by exactly one shell's rules and left at the
-      // browser default by the other.
+      // browser default by the other two.
       style: {
         sidebar: computed('.sidebar', ['width']),
+        pgSide: computed('#pg-side', ['paddingTop', 'paddingLeft', 'borderBottomWidth']),
+        pgTitle: computed('.pg-title', ['fontSize', 'letterSpacing']),
         hero: computed('.hero-name', ['fontSize']),
       },
     }
@@ -339,6 +341,7 @@ const directShells = new Map()
 for (const [route, shell] of [
   ['/', 'home'],
   ['/guide/getting-started', 'doc'],
+  ['/playground', 'playground'],
 ]) {
   await page.goto(`${baseUrl}${route}`, { waitUntil: 'load' })
   const state = await shellProbe()
@@ -388,10 +391,10 @@ await page.waitForFunction(
 )
 checkShell('home to doc', '/guide/getting-started', await shellProbe())
 
-await page.locator('.site-title').first().click()
-await page.waitForURL((url) => url.pathname.replace(/\/$/, '') === basePathname)
-await page.waitForFunction(() => Boolean(document.querySelector('.hero-name')))
-checkShell('doc to home', '/', await shellProbe())
+await page.locator('.top-nav a[href$="/playground"]').first().click()
+await page.waitForURL('**/playground')
+await page.waitForFunction(() => Boolean(document.querySelector('.pg-title')))
+checkShell('doc to playground', '/playground', await shellProbe())
 
 // Back and forward run through the same interceptor, which is exactly why they
 // broke the same way and why they are asserted separately.
@@ -418,9 +421,9 @@ checkShell('forward to doc', '/guide/getting-started', await shellProbe())
 
 // ---------- two taps at once: document.head has exactly one owner ----------
 // Every crossing above is driven to completion before the next one starts, and
-// that is not how a phone gets used. A reader touches the home link (the
+// that is not how a phone gets used. A reader touches the Playground link (the
 // router prefetches it into its page cache on pointerover/touchstart), changes
-// their mind and taps a sidebar doc link, then taps home again a fraction
+// their mind and taps a sidebar doc link, then taps Playground again a fraction
 // of a second later. On the live deploy that left the page with NO stylesheet at
 // all, permanently — body font-family resolved to Times — because the superseded
 // navigation removed the winner's stylesheet using a snapshot of the head taken
@@ -586,20 +589,20 @@ const overlapCase = async ({ label, start, warm, steps, delays, finalRoute, mark
 }
 
 // 1. The live sequence, in order: an uncached doc link, then the prefetched
-//    home page 100 ms later. The home stylesheet is held open past the
+//    playground 100 ms later. The playground stylesheet is held open past the
 //    moment the doc navigation finishes, which is exactly the window in which
 //    the superseded handler used to delete it.
 await overlapCase({
-  label: 'overlapping doc then home',
+  label: 'overlapping doc then playground',
   start: '/guide/getting-started',
-  warm: ['/'],
+  warm: ['/playground'],
   delays: [
     ['/guide/linting', 600],
-    ['/assets/style-home.css', 1200],
+    ['/assets/style-playground.css', 1200],
   ],
-  steps: [{ href: '/guide/linting' }, { href: '/', afterMs: 100 }],
-  finalRoute: '/',
-  marker: { selector: '.hero-name', text: 'OXC for TSRX' },
+  steps: [{ href: '/guide/linting' }, { href: '/playground', afterMs: 100 }],
+  finalRoute: '/playground',
+  marker: { selector: '.pg-title', text: 'TSRX Playground' },
 })
 
 // 2. The other order, and the other failure mode: the first navigation runs to
@@ -607,14 +610,14 @@ await overlapCase({
 //    the stylesheet the loser appended before it was superseded, which no
 //    snapshot taken at the loser's start could account for.
 await overlapCase({
-  label: 'overlapping home then doc',
+  label: 'overlapping playground then doc',
   start: '/guide/introduction',
-  warm: ['/'],
+  warm: ['/playground'],
   delays: [
     ['/guide/getting-started', 600],
-    ['/assets/style-home.css', 1200],
+    ['/assets/style-playground.css', 1200],
   ],
-  steps: [{ href: '/' }, { href: '/guide/getting-started', afterMs: 60 }],
+  steps: [{ href: '/playground' }, { href: '/guide/getting-started', afterMs: 60 }],
   finalRoute: '/guide/getting-started',
   marker: { selector: 'article h1', text: 'Getting Started' },
 })
@@ -626,14 +629,14 @@ await overlapCase({
 await overlapCase({
   label: 'three overlapping navigations',
   start: '/guide/introduction',
-  warm: ['/', '/guide/getting-started'],
+  warm: ['/playground', '/guide/getting-started'],
   delays: [
     ['/guide/linting', 600],
-    ['/assets/style-home.css', 1200],
+    ['/assets/style-playground.css', 1200],
   ],
   steps: [
     { href: '/guide/linting' },
-    { href: '/', afterMs: 60 },
+    { href: '/playground', afterMs: 60 },
     { href: '/guide/getting-started', afterMs: 60 },
   ],
   finalRoute: '/guide/getting-started',
@@ -642,6 +645,189 @@ await overlapCase({
 
 routeDelays.clear()
 await page.unroute(delayedRoute)
+
+// ---------- the playground survives its own boot window ----------
+// The example buttons used to be `hidden` until the demo module had been
+// fetched, parsed, and had answered a capability request. On a Pixel 5 over Fast
+// 3G that took 3.3 s, and a tap inside that window hit nothing and left no
+// trace, which is what "sometimes didn't work at all" was. The page now ships
+// the controls visible and marked as starting, an inline script in the head
+// records a tap that lands before the module does, and the module replays it
+// once it is wired.
+//
+// Those are three separate mechanisms, each of which can be lost on its own
+// while the page still photographs perfectly, so each is asserted on its own,
+// against DOM state and computed style. The module is held at the network layer
+// rather than raced against a timer: the property is "does not depend on the
+// module", and a wall-clock wait would only be testing this machine's speed.
+const bootProbe = (target) =>
+  target.evaluate(() => {
+    const bar = document.getElementById('pg-side')
+    const button = document.getElementById('pg-scenario-lint')
+    if (!bar || !button) return { present: false }
+    const barStyle = getComputedStyle(bar)
+    const buttonStyle = getComputedStyle(button)
+    const rect = button.getBoundingClientRect()
+    return {
+      present: true,
+      engine: bar.dataset.engine ?? null,
+      hidden: bar.hasAttribute('hidden'),
+      busy: bar.querySelector('.pg-examples')?.getAttribute('aria-busy') ?? null,
+      legible:
+        barStyle.display !== 'none' &&
+        barStyle.visibility === 'visible' &&
+        buttonStyle.display !== 'none' &&
+        buttonStyle.visibility === 'visible' &&
+        Number.parseFloat(barStyle.opacity) > 0.25 &&
+        Number.parseFloat(buttonStyle.opacity) > 0.25 &&
+        rect.width > 20 &&
+        rect.height > 10 &&
+        button.textContent.trim() === 'Lint findings',
+      geometry: `${Math.round(rect.width)}x${Math.round(rect.height)} at ${Math.round(rect.x)},${Math.round(rect.y)}`,
+      label: document.getElementById('pg-engine-label')?.textContent.trim() ?? null,
+      note: document.getElementById('pg-scenario-note')?.textContent.trim() ?? null,
+      queued: button.dataset.queued ?? null,
+      moduleRan: Boolean(document.getElementById('demo-input')),
+      source: document.getElementById('demo-input')?.value ?? null,
+    }
+  })
+
+if (mode === 'wasm') {
+  // 1. No script at all. If the controls need JavaScript to become visible,
+  //    they need it to become visible late, which is the whole defect.
+  const scriptless = await browser.newContext({
+    javaScriptEnabled: false,
+    viewport: { width: 1440, height: 900 },
+  })
+  const scriptlessPage = await scriptless.newPage()
+  await scriptlessPage.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
+  const staticBar = await bootProbe(scriptlessPage)
+  check(
+    staticBar.present && staticBar.legible && !staticBar.hidden,
+    'boot window: the playground ships its controls visible in the HTML, before any script',
+    `${staticBar.geometry ?? 'absent'} · hidden=${staticBar.hidden}`,
+  )
+  check(
+    staticBar.engine === 'starting' &&
+      staticBar.busy === 'true' &&
+      /starting/i.test(staticBar.label ?? '') &&
+      /still starting/i.test(staticBar.note ?? ''),
+    'boot window: the controls say they are still starting rather than pretending to be live',
+    `data-engine=${staticBar.engine} aria-busy=${staticBar.busy} label=${staticBar.label} · ${(staticBar.note ?? '').slice(0, 60)}`,
+  )
+  await scriptless.close()
+
+  // 2. Script on, but the demo module held on the wire: this is the real boot
+  //    window, reproduced deterministically.
+  const bootPage = await context.newPage()
+  let releaseModule
+  const moduleHeld = new Promise((resolve) => {
+    releaseModule = resolve
+  })
+  let moduleRequested = false
+  await bootPage.route('**/assets/demo-panel.js*', async (route) => {
+    moduleRequested = true
+    await moduleHeld
+    await route.continue()
+  })
+  const navigationStarted = Date.now()
+  await bootPage.goto(`${baseUrl}/playground`, { waitUntil: 'commit' })
+  await bootPage.waitForFunction(() => Boolean(document.getElementById('pg-scenario-lint')))
+  const controlsAt = Date.now() - navigationStarted
+  const heldState = await bootProbe(bootPage)
+  check(
+    heldState.legible && !heldState.moduleRan && controlsAt < 1500,
+    'boot window: the controls are legible with the demo module still in flight',
+    `${controlsAt} ms, module initialised=${heldState.moduleRan}, ${heldState.geometry}`,
+  )
+
+  // Tolerated rather than awaited: if the controls have gone back to being
+  // hidden, the tap cannot land at all, and that has to read as these checks
+  // failing, not as the whole verification run aborting on a click timeout.
+  let tapError = null
+  try {
+    await bootPage.locator('#pg-scenario-lint').click({ timeout: 5000 })
+    await bootPage.waitForFunction(
+      () => document.getElementById('pg-scenario-lint')?.dataset.queued === '1',
+      null,
+      { timeout: 5000 },
+    )
+  } catch (error) {
+    tapError = error.message.split('\n')[0]
+  }
+  const tapped = await bootProbe(bootPage)
+  check(
+    !tapError &&
+      tapped.queued === '1' &&
+      /queued/i.test(tapped.note ?? '') &&
+      /Lint findings/.test(tapped.note ?? ''),
+    'boot window: a tap taken before the module arrives is acknowledged, not swallowed',
+    tapError ?? `queued=${tapped.queued} · ${(tapped.note ?? 'no note').slice(0, 70)}`,
+  )
+  check(
+    moduleRequested && !tapped.moduleRan,
+    'boot window: that acknowledgement came from the page itself, not from the demo module',
+    `module requested=${moduleRequested}, initialised=${tapped.moduleRan}`,
+  )
+
+  releaseModule()
+  await bootPage
+    .waitForFunction(() => document.getElementById('pg-side')?.dataset.engine === 'ready', null, {
+      timeout: 30_000,
+    })
+    .catch(() => {})
+  const drained = await bootPage
+    .waitForFunction(
+      () => (document.getElementById('demo-input')?.value ?? '').includes('debugger;'),
+      null,
+      { timeout: 30_000 },
+    )
+    .then(() => true)
+    .catch(() => false)
+  const readyState = await bootProbe(bootPage)
+  check(
+    drained,
+    'boot window: the queued tap runs once the engine is up instead of being dropped',
+    `editor holds the "Lint findings" source: ${drained}`,
+  )
+  check(
+    readyState.engine === 'ready' &&
+      readyState.busy === null &&
+      readyState.label === 'Examples' &&
+      readyState.queued === null,
+    'boot window: the pending affordance clears when the controls go live',
+    `data-engine=${readyState.engine} aria-busy=${readyState.busy} label=${readyState.label}`,
+  )
+  await bootPage.unroute('**/assets/demo-panel.js*')
+  await bootPage.close()
+
+  // 3. Arriving through a client-side navigation is the other way in, and the
+  //    page's own inline scripts do not re-run for it. The controls still have
+  //    to be there, and the bar still has to declare a state: a swapped-in
+  //    playground that reverted to `hidden` would be the same six-second hole.
+  await page.locator('.top-nav a[href$="/playground"]').first().click()
+  await page.waitForURL('**/playground')
+  await page.waitForFunction(() => Boolean(document.getElementById('pg-scenario-lint')))
+  const swappedIn = await bootProbe(page)
+  check(
+    swappedIn.legible &&
+      !swappedIn.hidden &&
+      ['starting', 'ready'].includes(swappedIn.engine ?? ''),
+    'boot window: a playground reached by client-side navigation arrives with its controls up',
+    `data-engine=${swappedIn.engine} hidden=${swappedIn.hidden} ${swappedIn.geometry}`,
+  )
+} else {
+  // A build without the in-browser engine must NOT ship a pending affordance:
+  // there the controls never become usable, so promising an engine would be a
+  // lie the reader cannot tell from the live case.
+  await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
+  const staticBar = await bootProbe(page)
+  check(
+    staticBar.present && staticBar.hidden && staticBar.engine === null,
+    'boot window: a build without the in-browser engine promises nothing and stays hidden',
+    `hidden=${staticBar.hidden} data-engine=${staticBar.engine}`,
+  )
+}
 
 // ---------- outline scroll spy ----------
 await page.goto(`${baseUrl}/architecture/rust-oxc-core`, { waitUntil: 'load' })
@@ -705,7 +891,7 @@ check(activeDescendant === 'search-result-0', 'search: arrow keys drive aria-act
 await page.keyboard.press('Enter')
 await page.waitForFunction(() => !document.getElementById('search-dialog').open)
 check(
-  /#|\/(guide|integrations|architecture|reference)\//.test(`${page.url()}/`),
+  /#|\/(guide|integrations|architecture|reference|playground)\//.test(`${page.url()}/`),
   'search: Enter navigates to result',
   page.url(),
 )
@@ -777,6 +963,7 @@ await axeScan(`${baseUrl}/guide/getting-started`)
 await axeScan(`${baseUrl}/guide/getting-started`, { dark: true })
 await axeScan(`${baseUrl}/reference/benchmarks`, { dark: true })
 await axeScan(`${baseUrl}/guide/introduction`, { openDialog: true })
+await axeScan(`${baseUrl}/playground`)
 await axeScan(`${baseUrl}/reference/benchmarks`)
 
 // ---------- interactive demo (real oxlint/oxfmt through the docs server) ----------
@@ -848,7 +1035,7 @@ if (liveDemo) {
   await page.fill('#demo-input', originalDemoInput)
   await page.waitForFunction(() => document.querySelectorAll('.demo-diag').length === 0)
   await page.locator('#hero-demo').scrollIntoViewIfNeeded()
-  check(true, 'demo: the panel activates when the demo API is present')
+  check(true, 'demo: playground activates when the demo API is present')
   const before = await page.inputValue('#demo-input')
   await page.fill('#demo-input', before.replace('const pending', 'debugger;\n  const pending'))
   await page.waitForSelector('.demo-diag', { timeout: 8000 })
@@ -902,7 +1089,7 @@ if (liveDemo) {
     'demo: "Type-aware lint" chip underlines the call with a tsgolint rule finding',
     `${typesDiagCount} underlines · ${typesTip.slice(0, 90)}`,
   )
-  // Every chip has to explain itself on the hero.
+  // Every chip has to explain itself on the hero, not just on the playground.
   const heroNote = (await page.locator('#pg-scenario-note').textContent()).trim()
   check(
     heroNote.length > 0 && /promise|type-aware/i.test(heroNote),
@@ -964,6 +1151,17 @@ if (liveDemo) {
       (await page.locator('#demo-times').textContent()).trim() === '',
     'demo: static home has no timing readout',
   )
+  await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
+  await page.waitForFunction(
+    () => document.getElementById('demo-hint')?.textContent === 'static preview',
+  )
+  check((await page.locator('#demo-input').count()) === 0, 'demo: static playground stays read-only')
+  check(await page.locator('#pg-side').isHidden(), 'demo: native-only controls stay hidden')
+  check(
+    (await page.locator('#demo-times').count()) === 0 ||
+      (await page.locator('#demo-times').textContent()).trim() === '',
+    'demo: static playground has no timing readout',
+  )
   const staticStatus = (await page.locator('#demo-status').textContent()).trim()
   const staticMeta = (await page.locator('#demo-meta').textContent()).trim()
   check(
@@ -982,10 +1180,10 @@ if (liveDemo) {
   for (const byte of bytes) binary += String.fromCharCode(byte)
   const encoded = Buffer.from(binary, 'binary').toString('base64url')
   // Arrive as an actual shared-link navigation. A hash-only navigation on an
-  // already-open page is same-document and intentionally does not rerun
+  // already-open playground is same-document and intentionally does not rerun
   // module initialization.
   await page.goto(`${baseUrl}/guide/introduction`, { waitUntil: 'load' })
-  await page.goto(`${baseUrl}/#code=${encoded}`, { waitUntil: 'load' })
+  await page.goto(`${baseUrl}/playground#code=${encoded}`, { waitUntil: 'load' })
   await page.waitForFunction(
     () => document.getElementById('demo-hint')?.textContent === 'static preview',
   )
@@ -1358,7 +1556,140 @@ check(
   configHoverText.slice(0, 50),
 )
 
-// ---------- home benchmark chart + page menu ----------
+// ---------- try-it buttons ----------
+await page.goto(`${baseUrl}/guide/tsrx-syntax`, { waitUntil: 'load' })
+const fenceCode = await page.evaluate(() => document.querySelector('.try-button').dataset.code)
+await page.locator('.try-button').first().click()
+await page.waitForURL('**/playground#code=*')
+if (liveDemo) {
+  await page.waitForSelector('#demo-input', { timeout: 10000 })
+  const editorValue = await page.inputValue('#demo-input')
+  check(editorValue === fenceCode, 'try-it: fence code lands in the playground editor')
+} else {
+  await page.waitForFunction(
+    () => document.getElementById('demo-hint')?.textContent === 'static preview',
+  )
+  const previewValue = await page.locator('#demo-editor code').textContent()
+  check(previewValue === fenceCode, 'try-it: fence code lands in the static preview')
+  check((await page.locator('#demo-input').count()) === 0, 'try-it: static preview stays read-only')
+}
+
+// ---------- playground: filters, config, share, type-aware ----------
+if (liveDemo) {
+  await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
+  await page.waitForSelector('#demo-input', { timeout: 10000 })
+  if (mode === 'wasm') {
+    const modeNoteText = (await page.locator('#pg-mode-note').textContent()).trim()
+    check(
+      modeNoteText.includes('WebAssembly'),
+      'wasm: playground mode note names the in-browser engine',
+      modeNoteText,
+    )
+  }
+  // "Lint findings" then "Silence a rule": the -A flags run internally.
+  await page.locator('#pg-scenario-lint').click()
+  await page.waitForSelector('.demo-diag', { timeout: 8000 })
+  await page.locator('#pg-scenario-silence').click()
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll('.demo-diag').length === 0 &&
+      document.getElementById('demo-meta').textContent.includes('-A no-debugger'),
+    { timeout: 8000 },
+  )
+  check(true, 'playground: "Silence a rule" example runs real -A severity flags')
+  // "Custom config": no-console becomes an error via --config.
+  await page.locator('#pg-scenario-config').click()
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll('.demo-diag').length > 0 &&
+      document.getElementById('demo-meta').textContent.includes('--config'),
+    { timeout: 8000 },
+  )
+  const configStatus = await page.locator('#demo-status').textContent()
+  check(/error/.test(configStatus), 'playground: "Custom config" example feeds --config', configStatus.trim())
+  // Share link round-trip.
+  await page.locator('#demo-share').click()
+  await page.waitForFunction(() => location.hash.includes('code='))
+  const shareUrl = await page.evaluate(() => navigator.clipboard.readText())
+  check(shareUrl.includes('#code='), 'playground: share copies a snippet URL')
+  const sharedValue = await page.inputValue('#demo-input')
+  await page.goto(shareUrl, { waitUntil: 'load' })
+  await page.waitForSelector('#demo-input', { timeout: 10000 })
+  await page.waitForFunction(
+    (expected) => document.getElementById('demo-input').value === expected,
+    sharedValue,
+  )
+  check(true, 'playground: share URL restores the snippet')
+  if (health.typeAware) {
+    await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
+    await page.waitForSelector('#demo-input', { timeout: 10000 })
+    await page.locator('#pg-scenario-types').click()
+    await page.waitForFunction(
+      () => document.getElementById('demo-meta').textContent.includes('type-aware'),
+      { timeout: 20000 },
+    )
+    check(true, 'playground: "Type-aware lint" example runs the TypeScript-Go lane')
+  } else {
+    check(true, 'playground: type-aware unavailable on this host (skipped)', 'tsgolint missing')
+  }
+  // Format-as-diff on deliberately misformatted code.
+  await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
+  await page.waitForSelector('#demo-input', { timeout: 10000 })
+  await page.fill('#demo-input', 'export function T() @{\n  const x=1;\n  <b/>\n}')
+  await page.locator('#demo-format').click()
+  await page.waitForFunction(() =>
+    document.getElementById('demo-input').value.includes('const x = 1;'),
+  )
+  check(true, 'playground: Format applies real oxfmt output directly')
+
+  const maliciousRule = 'x" onpointerover="window.__shareXss=1" data-x="'
+  await page.goto(
+    `${baseUrl}/playground#filters=${encodeURIComponent(`${maliciousRule}:warn`)}`,
+    { waitUntil: 'load' },
+  )
+  await page.waitForSelector('#demo-input', { timeout: 10000 })
+  check(
+    (await page.locator('#pg-filters [onpointerover]').count()) === 0 &&
+      (await page.evaluate(() => window.__shareXss)) === undefined,
+    'playground: hostile shared filter cannot inject DOM attributes',
+  )
+
+  if (mode === 'native') {
+  await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
+  await page.waitForSelector('#demo-input', { timeout: 10000 })
+  const staleOriginal = 'export function T() @{\n  const value=1;\n  <b/>;\n}'
+  const newerSource = 'export function T() @{\n  const newer = 2;\n  <b/>;\n}'
+  await page.fill('#demo-input', staleOriginal)
+  let releaseFormat
+  let interceptedFormat
+  const formatIntercepted = new Promise((resolve) => {
+    interceptedFormat = resolve
+  })
+  const formatGate = new Promise((resolve) => {
+    releaseFormat = resolve
+  })
+  await page.route(
+    '**/api/format',
+    async (route) => {
+      interceptedFormat()
+      await formatGate
+      await route.continue()
+    },
+    { times: 1 },
+  )
+  await page.locator('#demo-format').click()
+  await formatIntercepted
+  await page.fill('#demo-input', newerSource)
+  releaseFormat()
+  await page.waitForTimeout(500)
+  check(
+    (await page.inputValue('#demo-input')) === newerSource,
+    'playground: stale format response cannot overwrite a newer edit',
+  )
+  }
+}
+
+// ---------- home benchmark chart + page menu + dual-pane output ----------
 await page.goto(`${baseUrl}/`, { waitUntil: 'load' })
 await page.waitForSelector('.home-bench .bench-row')
 const homeRows = await page.locator('.home-bench .bench-row').count()
@@ -1387,8 +1718,24 @@ check(
 )
 await page.keyboard.press('Escape')
 if (liveDemo) {
-  await page.goto(`${baseUrl}/`, { waitUntil: 'load' })
+  await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
   await page.waitForSelector('#demo-input', { timeout: 10000 })
+  await page.waitForFunction(
+    () => document.getElementById('pg-projected').textContent.includes('_t0_'),
+    { timeout: 15000 },
+  )
+  check(true, 'playground: Projected TSX pane shows the real projection')
+  await page.locator('#pg-tab-structure').click()
+  const structureText = await page.locator('#pg-structure').textContent()
+  check(
+    structureText.includes('FunctionBody') && structureText.includes('controls'),
+    'playground: Structure pane lists real overlay tokens',
+  )
+  await page.locator('#pg-tab-formatted').click()
+  await page.waitForFunction(
+    () => document.getElementById('pg-formatted').textContent.includes('TaskList'),
+  )
+  check(true, 'playground: Formatted pane shows real oxfmt output')
   // Tooltip must sit above its trigger.
   const pgSource = await page.inputValue('#demo-input')
   await page.fill('#demo-input', pgSource.replace('const pending', 'debugger;\n  const pending'))
@@ -1404,11 +1751,24 @@ if (liveDemo) {
   )
 }
 
-// ---------- editor features + hover docs ----------
+// ---------- playground workbench + editor features + hover docs ----------
 if (liveDemo) {
-  await page.goto(`${baseUrl}/`, { waitUntil: 'load' })
+  await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
   await page.waitForSelector('#demo-input', { timeout: 10000 })
   await page.waitForTimeout(600)
+  const paneBox = () => page.locator('#pg-output').boundingBox()
+  const paneBefore = await paneBox()
+  await page.locator('#pg-tab-structure').click()
+  await page.locator('#pg-tab-diagnostics').click()
+  const paneAfter = await paneBox()
+  check(
+    JSON.stringify(paneBefore) === JSON.stringify(paneAfter),
+    'workbench: switching output tabs never resizes the panes',
+  )
+  check(
+    !(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight + 1)),
+    'workbench: playground fills the viewport without page scroll',
+  )
   await page.fill('#demo-input', '')
   await page.click('#demo-input')
   await page.keyboard.type('<div>')
@@ -1439,7 +1799,7 @@ check(
 
 // ---------- @-snippet completions (Markless catalog) ----------
 if (liveDemo) {
-  await page.goto(`${baseUrl}/`, { waitUntil: 'load' })
+  await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
   await page.waitForSelector('#demo-input', { timeout: 10000 })
   await page.fill('#demo-input', '')
   await page.click('#demo-input')
@@ -1553,7 +1913,7 @@ check(projGlossary.length > 10, 'glossary: hover shows the definition tooltip', 
 
 // ---------- snippet caret + TypeScript completions ----------
 if (liveDemo) {
-  await page.goto(`${baseUrl}/`, { waitUntil: 'load' })
+  await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
   await page.waitForSelector('#demo-input', { timeout: 10000 })
   await page.fill('#demo-input', '')
   await page.click('#demo-input')
@@ -1625,7 +1985,7 @@ check(
 if (mode === 'native') {
   const quick = await page.evaluate(async () => {
     const source = 'export function V({items}:{items:string[]}) @{\n  const x = items\n  <b/>;\n}'
-    const response = await fetch(new URL('api/quickinfo', document.querySelector('.site-title').href), {
+    const response = await fetch(document.querySelector('.top-nav a[href$="/playground"]').href.replace(/\/playground$/, '/api/quickinfo'), {
       method: 'POST',
       body: JSON.stringify({ source, offset: source.indexOf('items\n') + 3 }),
     })
@@ -1636,7 +1996,7 @@ if (mode === 'native') {
     'hover types: quickinfo returns the real TypeScript type',
     quick.info?.display ?? 'none',
   )
-  await page.goto(`${baseUrl}/`, { waitUntil: 'load' })
+  await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
   await page.waitForSelector('#demo-input', { timeout: 10000 })
   const hoverSource = 'export function V({items}:{items:string[]}) @{\n  const x = items\n  <b/>;\n}'
   await page.fill('#demo-input', hoverSource)
@@ -1671,7 +2031,7 @@ if (mode === 'native') {
 
 // ---------- guided scenarios + completion menu layout ----------
 if (liveDemo) {
-  await page.goto(`${baseUrl}/`, { waitUntil: 'load' })
+  await page.goto(`${baseUrl}/playground`, { waitUntil: 'load' })
   await page.waitForSelector('#demo-input', { timeout: 10000 })
   await page.locator('#pg-scenario-lint').click()
   await page.waitForSelector('.demo-diag', { timeout: 8000 })

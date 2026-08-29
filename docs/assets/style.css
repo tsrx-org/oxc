@@ -2,10 +2,10 @@
 
 /* Page-scoped bundles. Most of this file only ever matches one kind of page:
    the sidebar, article typography and doc components never render on the home
-   page, and the hero, comparative chart and demo panel never render inside the
-   docs. So a region opened by a `#css-pages:` comment and closed by
+   page, and the hero, comparative chart and playground workbench never render
+   inside the docs. So a region opened by a `#css-pages:` comment and closed by
    a `#css-pages-end` comment ships only to the shells its opening line names.
-   The shells are `doc` and `home`, plus `none` for a region no
+   The shells are `doc`, `home` and `playground`, plus `none` for a region no
    page renders any more. Everything outside a region is shared chrome and
    ships everywhere.
 
@@ -1092,6 +1092,31 @@ html.dark .copy-button.copied {
   text-decoration: none;
 }
 
+/* ---------- try-it button on tsrx fences ---------- */
+.try-button {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-brand);
+  background: var(--c-bg-elv);
+  border: 1px solid var(--c-divider);
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.code-block:hover .try-button,
+.try-button:focus {
+  opacity: 1;
+}
+.try-button:hover {
+  border-color: var(--c-brand);
+}
+
 /* ---------- benchmark charts (ECharts SVG rendered at build time) ---------- */
 /* Each release-gate family publishes every one of its gates, which is a lot of
    page for a reader who only wanted the verdict in the summary line. The
@@ -1702,7 +1727,7 @@ html.dark .hero-name {
   display: none;
 }
 /* #css-pages-end */
-/* #css-pages: home */
+/* #css-pages: home playground */
 .code-panel {
   max-width: 760px;
   margin: 0 auto;
@@ -1789,7 +1814,7 @@ html.dark .hero-name {
   color: #e3b341;
 }
 
-/* ---------- interactive demo panel ---------- */
+/* ---------- interactive playground ---------- */
 .code-panel-hint {
   margin-left: auto;
   font-size: 12px;
@@ -2082,7 +2107,314 @@ html.dark .chart-tooltip .chart-tooltip-fail {
   color: #f87171;
 }
 
-/* #css-pages: home */
+/* #css-pages: playground */
+/* ---------- /playground: full-viewport workbench ---------- */
+.playground-page {
+  padding-top: 0;
+}
+.pg {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding-top: var(--navbar-height);
+  overflow: hidden;
+}
+.pg-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 16px;
+  padding: 10px 20px 8px;
+  border-bottom: 1px solid var(--c-divider);
+}
+.pg-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-brand);
+}
+.pg-tagline {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--c-text-3);
+}
+.pg-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--c-divider);
+}
+.pg-toolbar[hidden] {
+  display: none;
+}
+.pg-control {
+  margin: 0;
+  border: 1px solid var(--c-divider);
+  border-radius: 12px;
+  padding: 10px 14px 12px;
+  min-width: 0;
+}
+.pg-control legend {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 0 6px;
+  color: var(--c-text-2);
+}
+.pg-panes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+.pg-panes .code-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+.pg-panel {
+  border-right: 1px solid rgba(233, 213, 255, 0.18) !important;
+}
+.pg-panel .code-panel-editor {
+  flex: 1;
+  min-height: 0;
+}
+.pg-output[hidden] {
+  display: none;
+}
+.pg-pane-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8f88ab;
+  margin-right: 10px;
+}
+.pg-output-tabs {
+  gap: 2px;
+}
+.pg-output-tabs [role="tab"] {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #b7aed4;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.pg-output-tabs [role="tab"][aria-selected="true"] {
+  color: #e9d5ff;
+  border-bottom-color: #a855f7;
+}
+.pg-output-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.pg-output-note {
+  margin: 10px 16px 0;
+  color: #8f88ab;
+}
+.pg-output-error {
+  margin: 12px 16px;
+  color: #ffa198;
+}
+.pg-output-code .shiki {
+  margin: 0;
+  padding: 12px 16px 16px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.65;
+  background: transparent !important;
+}
+.pg-output-code .shiki,
+.pg-output-code .shiki span {
+  color: var(--shiki-dark);
+}
+/* Projected TSX wraps within the pane instead of scrolling horizontally.
+   The code element drops to white-space: normal so the newline text nodes
+   between shiki's line spans collapse instead of rendering as blank lines
+   once each .line becomes a block. */
+#pg-panel-projected .shiki,
+#pg-panel-projected .pg-plain {
+  overflow-x: visible;
+}
+#pg-panel-projected .pg-plain {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#pg-panel-projected .shiki code {
+  white-space: normal;
+}
+#pg-panel-projected .shiki .line {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  /* hanging indent: continuation lines clear the 2.2em + 1.1em number gutter */
+  padding-left: 3.3em;
+  text-indent: -3.3em;
+}
+.pg-plain {
+  margin: 0;
+  padding: 12px 16px 16px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #d6d3e1;
+}
+.pg-structure-table {
+  width: calc(100% - 32px);
+  margin: 12px 16px;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  color: #d6d3e1;
+}
+.pg-structure-table th,
+.pg-structure-table td {
+  border-bottom: 1px solid rgba(233, 213, 255, 0.12);
+  padding: 5px 8px;
+  text-align: left;
+}
+.pg-structure-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.pg-structure-table code {
+  font-family: var(--font-mono);
+  color: #f0abfc;
+}
+.pg-output .pg-note {
+  padding: 0 16px 8px;
+  margin: 8px 0 0;
+  color: #8f88ab;
+}
+.pg-note {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--c-text-3);
+}
+.pg-check {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 13.5px;
+  margin-bottom: 6px;
+}
+.pg-filter-form {
+  display: flex;
+  gap: 6px;
+}
+.pg-filter-form input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  background: var(--c-bg);
+  border: 1px solid var(--c-divider);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+.pg-filter-form select {
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  background: var(--c-bg);
+  border: 1px solid var(--c-divider);
+  border-radius: 6px;
+  padding: 5px 6px;
+}
+.pg-toolbar .demo-button {
+  color: var(--c-brand);
+  background: var(--c-brand-soft);
+  border-color: var(--c-divider);
+}
+.pg-filters {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pg-filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  border: 1px solid var(--c-divider);
+  border-radius: 8px;
+  padding: 5px 10px;
+}
+.pg-filter-chip code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.pg-filter-chip button {
+  margin-left: auto;
+  font: inherit;
+  font-size: 12px;
+  color: var(--c-text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.pg-filter-chip button:hover {
+  color: #dc2626;
+}
+#pg-config {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: inherit;
+  background: var(--c-bg);
+  border: 1px solid var(--c-divider);
+  border-radius: 8px;
+  padding: 10px;
+  resize: vertical;
+}
+@media (max-width: 1099px) {
+  .pg-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .pg {
+    height: auto;
+    overflow: visible;
+  }
+  .pg-panes {
+    grid-template-columns: 1fr;
+  }
+  .pg-panes .code-panel {
+    height: auto;
+  }
+  .pg-panel .code-panel-editor {
+    min-height: 320px;
+  }
+  .pg-output-body {
+    max-height: 60vh;
+  }
+}
+
+/* #css-pages-end */
+/* #css-pages: home playground */
 /* ---------- demo controls in the panel bar ---------- */
 .demo-check {
   display: inline-flex;
@@ -2922,7 +3254,7 @@ html.dark .gate-status {
 }
 
 /* #css-pages-end */
-/* #css-pages: home */
+/* #css-pages: home playground */
 /* ---------- completion menu layout (name + kind) ---------- */
 .demo-completions li {
   display: flex;
@@ -2935,7 +3267,7 @@ html.dark .gate-status {
   color: #8f88ab;
 }
 
-/* ---------- demo scenarios ---------- */
+/* ---------- playground scenarios ---------- */
 .pg-scenario-row {
   display: flex;
   flex-wrap: wrap;
@@ -3240,7 +3572,7 @@ html.dark .explorer-panel .shiki span {
 }
 
 /* #css-pages-end */
-/* #css-pages: home */
+/* #css-pages: home playground */
 /* ---------- clickable examples bar ---------- */
 .pg-examples-bar {
   display: block;
