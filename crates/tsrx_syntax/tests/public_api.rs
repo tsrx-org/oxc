@@ -2,7 +2,7 @@ use std::fmt::Write as _;
 
 use tsrx_syntax::{
     ProjectionError, StructuralKind, lift_formatted, project, project_for_format, project_for_lint,
-    project_for_types, scan,
+    project_for_types, scan, scan_for_parser,
 };
 
 #[test]
@@ -112,6 +112,64 @@ fn type_projection_preserves_loop_bindings_and_identity_fix_boundaries() {
     );
     let wrapper = u32::try_from(projection.source().find("W0_").unwrap()).unwrap();
     assert!(projection.map_fix_range(wrapper..wrapper + 3).is_none());
+}
+
+/// An annotated `@for` rewrites its header clause by clause, and the type lane rewrites it a
+/// second, different way. Both have to spend the lazy sigil: the shared action queue skips every
+/// lazy pattern the header already passed, so a `&` the type lane copies verbatim is a `&` nothing
+/// downstream will ever rewrite, and the projection lands on TypeScript that cannot parse.
+#[test]
+fn type_projection_rewrites_lazy_sigils_in_annotated_for_headers() {
+    let source = concat!(
+        "declare const items:{id:string;label:string}[];",
+        "function View() @{<ol>@for(&{id, label} of items;index i;key id){",
+        "<li>{i}{label}</li>}</ol>}"
+    );
+    let overlay = scan_for_parser(source).unwrap();
+    let projection = project_for_types(source, &overlay).unwrap();
+
+    assert!(!projection.source().contains('&'), "{}", projection.source());
+    assert!(!projection.source().contains("const &"), "{}", projection.source());
+    assert!(projection.source().contains(" of items)"), "{}", projection.source());
+    assert!(projection.source().contains("let i = 0;"), "{}", projection.source());
+
+    // The pattern's own bindings survive the rewrite, so type checking still sees them.
+    assert!(projection.source().contains("label"), "{}", projection.source());
+
+    // Rewriting the sigil must not shear the mapping: `label` inside the body still points at the
+    // authored `label` it came from, not at an offset shifted by the marker comment.
+    let projected = u32::try_from(projection.source().rfind("label").unwrap()).unwrap();
+    let authored = u32::try_from(source.rfind("label").unwrap()).unwrap();
+    assert_eq!(
+        projection.map_range(projected..projected + 5),
+        Some(authored..authored + 5),
+        "{}",
+        projection.source()
+    );
+
+    // An array pattern reaches the same rewrite through a different sigil position, and an
+    // `index`-only header exercises it without a `key` clause following.
+    let array = concat!(
+        "declare const pairs:string[][];",
+        "function View() @{<ul>@for(&[head] of pairs;index j){<li>{j}{head}</li>}</ul>}"
+    );
+    let array_projection = project_for_types(array, &scan_for_parser(array).unwrap()).unwrap();
+    assert!(!array_projection.source().contains('&'), "{}", array_projection.source());
+    assert!(
+        array_projection.source().contains("[head] of pairs)"),
+        "{}",
+        array_projection.source()
+    );
+
+    // A header with no lazy sigil is untouched by the rewrite, so the marker only ever appears
+    // where the author wrote an ampersand.
+    let plain = concat!(
+        "declare const items:{id:string}[];",
+        "function View() @{<ol>@for(const item of items;index i){<li>{i}{item.id}</li>}</ol>}"
+    );
+    let plain_projection = project_for_types(plain, &scan_for_parser(plain).unwrap()).unwrap();
+    assert!(plain_projection.source().contains("for(const item of items)"));
+    assert!(!plain_projection.source().contains("Y0__"), "{}", plain_projection.source());
 }
 
 #[test]
@@ -495,6 +553,54 @@ fn checked_lift_rejects_changed_wrapper_identity() {
         lift_formatted(&changed, source, &projection),
         Err(ProjectionError::ScaffoldMismatch { .. })
     ));
+}
+
+/// The parser lane backs format and lint, so a decorator whose name merely starts with a control
+/// keyword has to stay an identifier there too. Escaped continuations are the sharp edge: `\` is
+/// not an identifier byte, so a boundary check that only reads raw bytes sees `@for` in
+/// `@for\u{03c0}` and then rejects the file for a missing `(`.
+#[test]
+fn unicode_identifier_suffixes_do_not_form_tsrx_controls_on_the_parser_lane() {
+    const KEYWORDS: [&str; 11] = [
+        "if", "else", "for", "empty", "switch", "case", "default", "try", "pending", "catch",
+        "await",
+    ];
+    const SUFFIXES: [(&str, &str); 14] = [
+        ("raw pi", "\u{03c0}"),
+        ("escaped pi", "\\u03c0"),
+        ("raw combining mark", "\u{0301}"),
+        ("escaped combining mark", "\\u0301"),
+        ("raw ZWNJ", "\u{200c}"),
+        ("escaped ZWNJ", "\\u200c"),
+        ("raw ZWJ", "\u{200d}"),
+        ("escaped ZWJ", "\\u200d"),
+        ("escaped digit", "\\u0030"),
+        ("escaped underscore", "\\u005f"),
+        ("escaped dollar", "\\u0024"),
+        ("raw astral identifier", "\u{1D49C}"),
+        ("escaped astral identifier", r"\u{1D49C}"),
+        ("long braced escape with leading zeroes", r"\u{000003c0}"),
+    ];
+
+    for keyword in KEYWORDS {
+        for (case, suffix) in SUFFIXES {
+            let source = format!("@{keyword}{suffix}\nclass Decorated {{ method() {{}} }}\n");
+            let overlay = scan_for_parser(&source)
+                .unwrap_or_else(|error| panic!("{case} after @{keyword}: {error}"));
+            assert!(overlay.tokens().is_empty(), "{case} after @{keyword}");
+        }
+    }
+
+    for suffix in ["\u{03c0}", "\\u03c0", "\u{200d}", r"\u{1D49C}"] {
+        let source = format!("function View() @{{<main>@if{suffix} is JSX text</main>}}");
+        let overlay =
+            scan_for_parser(&source).unwrap_or_else(|error| panic!("JSX text {suffix}: {error}"));
+        assert_eq!(
+            overlay.tokens().iter().map(|token| token.kind).collect::<Vec<_>>(),
+            [StructuralKind::FunctionBody],
+            "JSX text {suffix}"
+        );
+    }
 }
 
 #[test]

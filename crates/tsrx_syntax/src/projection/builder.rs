@@ -471,7 +471,11 @@ impl<'a> Builder<'a> {
         {
             self.output.push_str("const ");
         }
-        self.copy_original(header.left)?;
+        // The lazy sigil has to be spent here, exactly as the non-type header spends it. Rewriting
+        // the header at all moves the cursor past the whole clause, and `PendingActions::next`
+        // then skips every lazy pattern behind that cursor — so an `&` copied verbatim is an `&`
+        // no later action will rewrite, and the type projection emits `const &{…}`.
+        self.copy_original_with_lazy_markers(header.left)?;
         self.output.push_str(" of ");
         self.copy_original(header.right)?;
         self.output.push(')');

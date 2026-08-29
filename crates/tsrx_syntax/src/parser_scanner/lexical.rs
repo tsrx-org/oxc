@@ -705,13 +705,13 @@ impl Scanner<'_> {
         let end = index + 1 + keyword.len();
         self.bytes.get(index) == Some(&b'@')
             && self.bytes.get(index + 1..end) == Some(keyword)
-            && identifier_continue_width(self.bytes, end).is_none()
+            && keyword_boundary(self.bytes, end)
     }
 
     pub(super) fn bare_keyword_at(&self, index: usize, keyword: &[u8]) -> bool {
         let end = index + keyword.len();
         self.bytes.get(index..end) == Some(keyword)
-            && identifier_continue_width(self.bytes, end).is_none()
+            && keyword_boundary(self.bytes, end)
             && !identifier_continue_before(self.bytes, index)
     }
 
@@ -783,9 +783,8 @@ pub(super) fn unsupported_at_construct(bytes: &[u8], index: usize) -> Option<&'s
     const UNSUPPORTED: [(&[u8], &str); 1] = [(b"await", "@await control flow")];
     UNSUPPORTED.iter().find_map(|(keyword, construct)| {
         let end = index + 1 + keyword.len();
-        (bytes.get(index + 1..end) == Some(*keyword)
-            && identifier_continue_width(bytes, end).is_none())
-        .then_some(*construct)
+        (bytes.get(index + 1..end) == Some(*keyword) && keyword_boundary(bytes, end))
+            .then_some(*construct)
     })
 }
 
@@ -817,6 +816,71 @@ pub(super) fn identifier_continue_width(bytes: &[u8], index: usize) -> Option<us
         return None;
     }
     decode_non_ascii_utf8(bytes, index).map(|(_, width)| width)
+}
+
+/// Reports whether a keyword ending at `index` actually ends there.
+///
+/// `identifier_continue_width` answers that for raw bytes, but `\` is neither an identifier byte
+/// nor the start of a UTF-8 scalar, so on its own it reads a trailing `\u` escape as a boundary
+/// and turns the decorator `@for\u{03c0}` into the `@for` keyword — which then demands the `(` of a
+/// loop header. The base scanner decodes the escape for exactly this reason, and the parser lane
+/// has to agree with it, or format and lint reject a decorator the parser accepts.
+#[inline]
+fn keyword_boundary(bytes: &[u8], index: usize) -> bool {
+    if identifier_continue_width(bytes, index).is_some() {
+        return false;
+    }
+    bytes.get(index) != Some(&b'\\') || !escaped_identifier_continue(&bytes[index..])
+}
+
+/// Reports whether a leading `\uXXXX` or `\u{...}` escape names a scalar that continues an
+/// identifier. Classification deliberately mirrors `identifier_continue_width`'s raw-byte answer
+/// rather than the stricter `ID_Continue` table, so an escape and the character it spells always
+/// land on the same side of a keyword boundary. A malformed, incomplete, or out-of-range escape is
+/// not an identifier continuation, which leaves the keyword ending where it looked like it ended.
+#[cold]
+#[inline(never)]
+fn escaped_identifier_continue(suffix: &[u8]) -> bool {
+    let Some(character) = decode_unicode_escape(suffix).and_then(char::from_u32) else {
+        return false;
+    };
+    if character.is_ascii() { is_identifier_continue(character as u8) } else { true }
+}
+
+/// Decodes the code point of a leading `\uXXXX` or `\u{...}` escape, without validating that it is
+/// a scalar value; lone surrogates fall out at the `char::from_u32` that follows.
+fn decode_unicode_escape(suffix: &[u8]) -> Option<u32> {
+    if suffix.first() != Some(&b'\\') || suffix.get(1) != Some(&b'u') {
+        return None;
+    }
+    if suffix.get(2) != Some(&b'{') {
+        return suffix
+            .get(2..6)?
+            .iter()
+            .try_fold(0_u32, |value, &byte| Some(value * 16 + hex_digit(byte)?));
+    }
+    let mut value = 0_u32;
+    let mut has_digit = false;
+    for &byte in suffix.get(3..)? {
+        if byte == b'}' {
+            return has_digit.then_some(value);
+        }
+        value = value.checked_mul(16)?.checked_add(hex_digit(byte)?)?;
+        if value > 0x10_FFFF {
+            return None;
+        }
+        has_digit = true;
+    }
+    None
+}
+
+const fn hex_digit(byte: u8) -> Option<u32> {
+    match byte {
+        b'0'..=b'9' => Some((byte - b'0') as u32),
+        b'a'..=b'f' => Some((byte - b'a' + 10) as u32),
+        b'A'..=b'F' => Some((byte - b'A' + 10) as u32),
+        _ => None,
+    }
 }
 
 fn identifier_continue_before(bytes: &[u8], index: usize) -> bool {
@@ -862,4 +926,84 @@ pub(crate) const fn is_identifier_start(byte: u8) -> bool {
 
 pub(crate) const fn is_identifier_continue(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{super::Scanner, keyword_boundary, unsupported_at_construct};
+
+    fn boundary(suffix: &[u8]) -> bool {
+        let mut bytes = b"if".to_vec();
+        bytes.extend_from_slice(suffix);
+        keyword_boundary(&bytes, 2)
+    }
+
+    #[test]
+    fn malformed_escapes_and_non_identifier_scalars_remain_boundaries() {
+        for suffix in [
+            b"(".as_slice(),
+            b"",
+            b"\\u{}",
+            b"\\u{110000}",
+            b"\\u{2d}",
+            b"\\u002d",
+            b"\\x70",
+            b"\\u{xyz}",
+            b"\\u{3c0",
+            b"\\u03c",
+            b"\\",
+            b"\\n",
+        ] {
+            assert!(boundary(suffix), "{suffix:?}");
+        }
+    }
+
+    #[test]
+    fn escaped_identifier_continuations_are_not_boundaries() {
+        for suffix in [
+            b"\\u03c0".as_slice(),
+            b"\\u0301",
+            b"\\u200c",
+            b"\\u200d",
+            b"\\u0030",
+            b"\\u005f",
+            b"\\u0024",
+            b"\\u{1D49C}",
+            b"\\u{000003c0}",
+        ] {
+            assert!(!boundary(suffix), "{suffix:?}");
+        }
+    }
+
+    /// The escape and the character it spells have to land on the same side of the boundary, so
+    /// the parser lane keeps `identifier_continue_width`'s conservative reading of a lone
+    /// surrogate: `\uD800` decodes to no scalar and ends the keyword, exactly as the raw bytes do.
+    #[test]
+    fn lone_surrogate_escapes_end_the_keyword() {
+        assert!(boundary(b"\\uD800"));
+    }
+
+    #[test]
+    fn keyword_checks_reject_escaped_identifier_suffixes() {
+        for source in ["@for\\u03c0", "@for\u{03c0}", r"@try\u{1D49C}", "@try\u{1D49C}"] {
+            assert!(!Scanner::new_for_parser(source).keyword_at(0, b"for"), "{source}");
+            assert!(!Scanner::new_for_parser(source).keyword_at(0, b"try"), "{source}");
+        }
+        assert!(Scanner::new_for_parser("@for (").keyword_at(0, b"for"));
+
+        for source in ["is\\u03c0", "is\u{03c0}"] {
+            assert!(!Scanner::new_for_parser(source).bare_keyword_at(0, b"is"), "{source}");
+        }
+        assert!(Scanner::new_for_parser("is string").bare_keyword_at(0, b"is"));
+    }
+
+    /// `@await` is refused by name, so its boundary has to agree with every other keyword's:
+    /// `@awaitπ` is a decorator, not an unsupported control.
+    #[test]
+    fn unsupported_construct_detection_shares_the_keyword_boundary() {
+        for source in ["@await\\u03c0", "@await\u{03c0}", r"@await\u{1D49C}"] {
+            assert!(unsupported_at_construct(source.as_bytes(), 0).is_none(), "{source}");
+        }
+        assert_eq!(unsupported_at_construct(b"@await (", 0), Some("@await control flow"));
+    }
 }

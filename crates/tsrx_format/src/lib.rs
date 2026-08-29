@@ -1107,6 +1107,25 @@ mod tests {
         assert!(!first.code.contains("_t"), "{}", first.code);
     }
 
+    /// Formatting runs the parser scan, so a decorator whose name only begins with a control
+    /// keyword has to survive it. The escaped spellings are the ones that regressed: `\` ends no
+    /// identifier, so a raw-byte keyword boundary read `@for` out of `@forπ` and rejected the
+    /// file for a missing `(`. A `.tsrx` file has to format exactly as the same bytes do as `.tsx`.
+    #[test]
+    fn decorators_named_after_control_keywords_format_like_ordinary_tsx() {
+        for source in [
+            "@if\u{03c0}\nclass Decorated{method( ){return 1}}\n",
+            "@for\\u03c0\nclass Decorated{method( ){return 1}}\n",
+            "@try\\u{1D49C}\nclass Decorated{method( ){return 1}}\n",
+        ] {
+            let through_tsrx = format_text(Path::new("Decorated.tsrx"), source)
+                .unwrap_or_else(|error| panic!("{source:?}: {error}"));
+            let canonical = format_text(Path::new("Decorated.tsx"), source)
+                .unwrap_or_else(|error| panic!("{source:?}: {error}"));
+            assert_eq!(through_tsrx.code, canonical.code, "{source:?}");
+        }
+    }
+
     #[test]
     fn embedded_css_boundary_is_keep_raw_without_hidden_work() {
         let payload = "/* spacing is authored */ .card{color:oklch(62% .2 25);  margin:0  1rem}";
