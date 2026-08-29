@@ -50,6 +50,25 @@ async function filesUnder(directory) {
   return files.sort();
 }
 
+// The published inventory, derived from the site's own sources: the home page,
+// the generated playground, and one page per markdown file under the section
+// directories the sidebar navigates (docs/build.mjs emits one HTML file for
+// each, including supplemental pages it links to rather than lists).
+const docsDir = join(root, "docs");
+const sidebarLinks = siteConfig.sidebar.flatMap((group) => group.items.map((item) => item.link));
+const sectionDirectories = [...new Set(sidebarLinks.map((link) => link.split("/")[1]))];
+const expectedPages = [
+  "index.html",
+  "playground.html",
+  ...(await Promise.all(sectionDirectories.map((name) => filesUnder(join(docsDir, name)))))
+    .flat()
+    .filter((path) => path.endsWith(".md"))
+    .map((path) => `${relative(docsDir, path).split(sep).join("/").slice(0, -".md".length)}.html`),
+].sort();
+
+const canonicalFor = (pagePath) =>
+  pagePath === "index.html" ? homeUrl : `${siteUrl}${pagePath.replace(/\.html$/u, "")}`;
+
 async function buildTemporarySite(environment = {}) {
   const outDir = await mkdtemp(join(tmpdir(), "oxc-tsrx-site-"));
   const result = await run(process.execPath, ["docs/build.mjs"], {
@@ -130,25 +149,21 @@ test("static launch build has canonical and social metadata on every public page
   assert.match(result.stdout, new RegExp(`-> ${outDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\n$`, "u"));
 
   const htmlFiles = (await filesUnder(siteDir)).filter((path) => path.endsWith(".html"));
-  // The 17 sidebar pages, plus the home page, the playground, and the one
-  // supplemental page (the embedded CSS boundary) that is linked to rather than
-  // listed. A literal on purpose: adding or removing a public page should be a
-  // deliberate edit here, not a number that quietly follows along. It went from
-  // 20 to 19 when /integrations/vite-plus was folded into the getting-started
-  // guide, and back to 20 when the walkthrough moved out again: that guide was
-  // 467 bytes under the page-weight budget with it, so nothing else could be
-  // added there. The vercel.json redirect that stood in for the page is gone
-  // with it. It dropped to 19 again when /playground was removed, and is back
-  // at 20 now that the in-browser engine works and the page is restored. Down
-  // to 19 once more with the upstreaming-to-OXC guide retired.
-  assert.equal(htmlFiles.length, 19);
+  // The build emits exactly the derived inventory: nothing the site claims is
+  // missing, and nothing it never claimed ships.
+  assert.deepEqual(
+    htmlFiles.map((path) => relative(siteDir, path).split(sep).join("/")).sort(),
+    expectedPages,
+  );
+  for (const link of sidebarLinks) {
+    assert.ok(expectedPages.includes(`${link.slice(1)}.html`), `sidebar link without a page: ${link}`);
+  }
   assert.equal(htmlFiles.some((path) => path.endsWith(`${sep}logos.html`)), false);
 
   for (const path of htmlFiles) {
     const html = await readFile(path, "utf8");
     const pagePath = relative(siteDir, path).split(sep).join("/");
-    const canonical =
-      pagePath === "index.html" ? homeUrl : `${siteUrl}${pagePath.replace(/\.html$/u, "")}`;
+    const canonical = canonicalFor(pagePath);
     assert.match(html, new RegExp(`<link rel="canonical" href="${canonical}"`), pagePath);
     assert.match(html, /<meta property="og:type" content="website" \/>/u, pagePath);
     assert.match(html, new RegExp(`<meta property="og:url" content="${canonical}"`), pagePath);
@@ -206,7 +221,10 @@ test("static launch build has a scoped base, crawl metadata, and no internal des
     `User-agent: *\nAllow: ${base}\nSitemap: ${siteUrl}sitemap.xml\n`,
   );
   assert.match(sitemap, /^<\?xml version="1\.0" encoding="UTF-8"\?>/u);
-  assert.equal([...sitemap.matchAll(/<loc>/gu)].length, 19);
+  assert.deepEqual(
+    [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(([, url]) => url).sort(),
+    expectedPages.map(canonicalFor).sort(),
+  );
   assert.match(sitemap, new RegExp(`<loc>${homeUrl}</loc>`));
   assert.equal(sitemap.includes("logos.html"), false);
   assert.equal(sitemap.includes(".html"), false);
