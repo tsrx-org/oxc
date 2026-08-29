@@ -1,19 +1,15 @@
-// The oracle for every ```tsrx fence in the docs.
+// The oracle for the "Try in playground" button.
 //
-// Each fence is presented as real TSRX a reader can paste into their own
-// project, so a fence the engines reject is a sample that lands them on a
-// parse error. That is exactly how `@catch (error; reset)` shipped on the
-// syntax page: a one-character typo no test could see, because nothing ever
-// ran the samples.
+// docs/build.mjs puts that button on every ```tsrx fence, and clicking it
+// hands the fence bytes straight to the same native binaries the playground
+// runs (docs/serve.mjs apiLint and apiFormat). So a fence the engines reject
+// is a button that lands the reader on a parse error, which is exactly how
+// `@catch (error; reset)` shipped on the syntax page: a one-character typo no
+// test could see, because nothing ever ran the samples.
 //
-// This file runs them, through the same native binaries docs/serve.mjs drives
-// for the home-page demo (apiLint and apiFormat). A sample that is
-// deliberately not a whole file, or is showing what invalid TSRX looks like,
-// opts out with ```tsrx no-playground and is skipped here.
-//
-// The flag keeps its name from the /playground page it was written for; that
-// page is gone, but the markers are spread across the docs and mean the same
-// thing here.
+// This file runs them. A sample that is deliberately not a whole file, or is
+// showing what invalid TSRX looks like, opts out of the button with
+// ```tsrx no-playground and is skipped here too.
 //
 // It lives in `pnpm test` rather than `test:site:unit` because it needs the
 // release binary, and the site workflow deliberately builds no Rust
@@ -79,37 +75,37 @@ async function playgroundFences() {
 
 const fences = await playgroundFences();
 
-test("the native binary the docs samples run through is built", () => {
+test("the native binary the playground runs is built", () => {
   assert.ok(
     existsSync(binary),
     `missing ${binary}. Build it with:\n  cargo build --release --locked -p oxc_tsrx_cli --bins\nor point OXLINT_BIN at an existing binary.`,
   );
 });
 
-test("the docs still carry runnable tsrx samples", () => {
-  assert.ok(fences.length > 0, "no runnable ```tsrx fence left in docs/");
+test("the docs still carry samples for the button to send", () => {
+  assert.ok(fences.length > 0, "no ```tsrx fence in docs/ offers the button");
 });
 
 for (const fence of fences) {
-  test(`the engine lints ${fence.where}`, async () => {
+  test(`the playground lints ${fence.where}`, async () => {
     const dir = await mkdtemp(join(tmpdir(), "oxc-tsrx-snippet-"));
     try {
-      // Byte-for-byte what a reader pasting the fence into a file gets.
+      // Byte-for-byte what the playground does with the pasted fence.
       const file = join(dir, "demo.tsrx");
       await writeFile(file, fence.source);
       const { code, stdout, stderr } = await run(["--format=json", file]);
       assert.ok(
         code !== 2 && stdout.trim().startsWith("{"),
-        `${fence.where} is presented as runnable TSRX but the engine refuses it:\n` +
+        `${fence.where} carries the "Try in playground" button but the engine refuses it:\n` +
           `  ${(stderr.trim() || stdout.trim() || "lint failed").split("\n")[0]}\n` +
-          "Fix the sample, or opt out with ```tsrx no-playground.",
+          "Fix the sample, or drop the button with ```tsrx no-playground.",
       );
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
-  test(`the engine formats ${fence.where}`, async () => {
+  test(`the playground formats ${fence.where}`, async () => {
     const { code, stderr } = await run(
       ["fmt", "--stdin-filepath=demo.tsrx"],
       fence.source,
@@ -117,9 +113,9 @@ for (const fence of fences) {
     assert.equal(
       code,
       0,
-      `${fence.where} is presented as runnable TSRX but the formatter refuses it:\n` +
+      `${fence.where} reaches the playground's Format button but the formatter refuses it:\n` +
         `  ${(stderr.trim() || "format failed").split("\n")[0]}\n` +
-        "Fix the sample, or opt out with ```tsrx no-playground.",
+        "Fix the sample, or drop the button with ```tsrx no-playground.",
     );
   });
 }

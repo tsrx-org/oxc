@@ -1,7 +1,7 @@
-// TSRX demo engine. Powers the home-page demo panel: editable overlay editor,
-// live lint via the real oxc-tsrx binary, oxfmt formatting shown as a
-// reviewable diff, opt-in type-aware runs, rule severity filters, Oxlint
-// config, and shareable URL snippets.
+// TSRX demo engine. Powers the home-page demo panel and the /playground page:
+// editable overlay editor, live lint via the real oxc-tsrx binary, oxfmt
+// formatting shown as a reviewable diff, opt-in type-aware runs, rule
+// severity filters, Oxlint config, and shareable URL snippets.
 
 // app.js imports this module with the ?v=<hash> stamp it was itself loaded
 // with, but `new URL('./x.js', import.meta.url)` drops the query, so a lazy

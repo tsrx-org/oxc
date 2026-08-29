@@ -33,6 +33,7 @@ export default {
   repository: 'https://github.com/tsrx-org/oxc',
   nav: [
     { text: 'Guide', link: '/guide/introduction' },
+    { text: 'Playground', link: '/playground' },
     { text: 'Integrations', link: '/integrations/configuration' },
     { text: 'Architecture', link: '/architecture/rust-oxc-core' },
     { text: 'Reference', link: '/reference/cli' },

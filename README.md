@@ -24,7 +24,7 @@ written in Rust. This package teaches them to read `.tsrx` too.
 
 _OXC for TSRX is the official OXC integration maintained by the TSRX project._
 
-[**Docs**](https://compiled.run/oxc-tsrx) &nbsp;·&nbsp; [**Getting started**](https://compiled.run/oxc-tsrx/guide/getting-started)
+[**Docs**](https://compiled.run/oxc-tsrx) &nbsp;·&nbsp; [**Getting started**](https://compiled.run/oxc-tsrx/guide/getting-started) &nbsp;·&nbsp; [**Playground**](https://compiled.run/oxc-tsrx/playground)
 
 ## Install
 
