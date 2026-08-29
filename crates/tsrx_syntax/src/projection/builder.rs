@@ -515,14 +515,39 @@ impl<'a> Builder<'a> {
 
     /// Reports whether the header's iteration target is a lazy pattern with no declaration keyword
     /// of its own, which is the shape `Scanner::register_lazy_loop_target` records.
+    ///
+    /// The scan has to step over full trivia rather than whitespace alone, because the scanner
+    /// reaches the sigil through `Scanner::skip_trivia`: in `@for (/* note */ &{cell} of rows)` the
+    /// `&` is registered behind a comment, and a whitespace-only scan stops at the `/` and never
+    /// matches the recorded position — so the type lane would omit the `const` the sigil stands in
+    /// for. That scanner helper is private to the scanner, so its comment handling is mirrored
+    /// here, bounded by the header span the scanner already balanced.
     fn has_bare_lazy_loop_target(&self, inner: ByteSpan) -> bool {
-        let Some(text) = self.source.get(inner.start as usize..inner.end as usize) else {
-            return false;
+        let bytes = self.source.as_bytes();
+        let end = (inner.end as usize).min(bytes.len());
+        let mut index = (inner.start as usize).min(end);
+        let target = loop {
+            while index < end && bytes[index].is_ascii_whitespace() {
+                index += 1;
+            }
+            let rest = &bytes[index..end];
+            if rest.starts_with(b"//") {
+                index += 2;
+                while index < end && !matches!(bytes[index], b'\n' | b'\r') {
+                    index += 1;
+                }
+            } else if rest.starts_with(b"/*") {
+                // An unterminated block comment never reaches projection — the scanner rejects it
+                // before an overlay exists — so a missing `*/` only means there is no target here.
+                let Some(close) = rest[2..].windows(2).position(|pair| pair == b"*/") else {
+                    return false;
+                };
+                index += 2 + close + 2;
+            } else {
+                break index;
+            }
         };
-        let Some(offset) = text.find(|byte: char| !byte.is_ascii_whitespace()) else {
-            return false;
-        };
-        let Ok(target) = u32::try_from(inner.start as usize + offset) else {
+        let Ok(target) = u32::try_from(target) else {
             return false;
         };
         self.overlay.parser_lazy_patterns.iter().any(|pattern| pattern.ampersand == target)
