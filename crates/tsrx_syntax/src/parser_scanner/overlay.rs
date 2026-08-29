@@ -36,6 +36,7 @@ impl Scanner<'_> {
         Overlay {
             source_len,
             source_fingerprint: source_fingerprint(self.bytes),
+            parser_metadata: true,
             tokens: self.tokens,
             nodes: self.nodes,
             clauses: self.clauses,

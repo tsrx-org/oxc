@@ -73,6 +73,7 @@ impl<'a> Scanner<'a> {
         Ok(Overlay {
             source_len,
             source_fingerprint: source_fingerprint(self.bytes),
+            parser_metadata: false,
             tokens: self.tokens,
             nodes: self.nodes,
             clauses: self.clauses,

@@ -329,6 +329,43 @@ mod tests {
     }
 
     #[test]
+    fn parser_only_scaffolds_remain_lintable_and_map_authored_diagnostics() {
+        let source = concat!(
+            "export function View(props: Props) @{\n",
+            "  const title = @{ console.log(props.name); props.name };\n",
+            "  const &{ value = 1, ...rest } = props;\n",
+            "  &[first, ...tail] = props.items;\n",
+            "  <main {title}>@{ debugger; <p>{value}{rest.label}{first}{tail.length}</p> }</main>\n",
+            "}\n",
+        );
+        let session = LintSession::new(
+            Path::new("."),
+            None,
+            &[
+                RuleFilter { severity: RuleSeverity::Deny, name: "no-console".to_string() },
+                RuleFilter { severity: RuleSeverity::Deny, name: "no-debugger".to_string() },
+            ],
+            false,
+        )
+        .unwrap();
+        let output = session.lint_text(Path::new("parser-scaffolds.tsrx"), source).unwrap();
+        for (rule, needle) in [("no-console", "console.log"), ("no-debugger", "debugger")] {
+            let diagnostic = output
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.rule == rule)
+                .unwrap_or_else(|| panic!("missing {rule}: {:?}", output.diagnostics));
+            assert!(
+                diagnostic
+                    .labels
+                    .iter()
+                    .any(|label| label.span.offset as usize == source.find(needle).unwrap()),
+                "{diagnostic:?}"
+            );
+        }
+    }
+
+    #[test]
     fn one_unprojectable_file_keeps_the_rest_of_the_batch_reporting() {
         let directory = std::env::temp_dir().join("oxc-tsrx-lint-batch-continues");
         std::fs::create_dir_all(&directory).expect("temp directory");

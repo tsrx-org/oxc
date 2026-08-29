@@ -8,6 +8,7 @@ use crate::{
 use super::{
     builder::{ProjectionPurpose, build_projection_with_purpose},
     mapping::TypeProjection,
+    parser_overlay,
 };
 
 /// Builds the Rust-native TypeScript-Go projection.
@@ -15,6 +16,8 @@ use super::{
 /// Synthetic helpers are declared after the projected module. Keeping the declarations at the end
 /// preserves every authored/scaffold offset shared with the normal syntax-lint projection, which
 /// lets one OXC parse supply disable-directive spans without a second parser pass.
+/// A base [`crate::scan`] overlay is upgraded for compatibility; hot paths
+/// should pass [`crate::scan_for_parser`] output.
 ///
 /// # Errors
 ///
@@ -23,6 +26,8 @@ pub fn project_for_types(
     source: &str,
     overlay: &Overlay,
 ) -> Result<TypeProjection, ProjectionError> {
+    let overlay = parser_overlay(source, overlay)?;
+    let overlay = overlay.as_ref();
     let built = build_projection_with_purpose(source, overlay, true, ProjectionPurpose::Types)?;
     let mut projected = built.mapped.projected;
     append_type_helper_declarations(&mut projected, overlay, &built.prefix);

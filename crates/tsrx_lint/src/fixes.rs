@@ -3,7 +3,7 @@
 use std::{cmp::Reverse, collections::HashSet, fs, path::Path};
 
 use oxc_adapter::{DynamicTagContract, EngineDiagnostic, LintRequest, SourceKind};
-use tsrx_syntax::{MappedProjection, project_for_lint, scan};
+use tsrx_syntax::{MappedProjection, project_for_lint, scan_for_parser};
 
 use crate::{
     error::LintError,
@@ -107,7 +107,8 @@ fn validate_fixed(
     is_tsrx: bool,
     source_kind: SourceKind,
 ) -> Result<(), LintError> {
-    let projection = if is_tsrx { Some(project_for_lint(fixed, &scan(fixed)?)?) } else { None };
+    let projection =
+        if is_tsrx { Some(project_for_lint(fixed, &scan_for_parser(fixed)?)?) } else { None };
     let parse_source = projection.as_ref().map_or(fixed, MappedProjection::source);
     session.engine.lint(&LintRequest {
         path,

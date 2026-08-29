@@ -2,7 +2,7 @@
 //! the ones that landed in generated scaffolding the author never wrote.
 
 use oxc_adapter::EngineDiagnostic;
-use tsrx_syntax::{MappedProjection, TypeProjection, project_for_lint, scan};
+use tsrx_syntax::{MappedProjection, TypeProjection, project_for_lint, scan_for_parser};
 
 /// One diagnostic label range, in bytes.
 ///
@@ -34,7 +34,7 @@ impl PluginProjection {
     /// projected. The native lane reports that failure as the file's own diagnostic already, so
     /// the plugin lane simply contributes nothing for such a file.
     pub fn new(source: &str) -> Result<Self, String> {
-        let overlay = scan(source).map_err(|error| error.to_string())?;
+        let overlay = scan_for_parser(source).map_err(|error| error.to_string())?;
         let projection = project_for_lint(source, &overlay).map_err(|error| error.to_string())?;
         Ok(Self { projection })
     }

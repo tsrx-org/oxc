@@ -339,7 +339,7 @@ fn index_scaffolds(
                 };
                 set_scaffold_span(target, span, node as usize)?;
             }
-            b'D' | b'A' | b'Z' | b'Q' | b'S' => {}
+            b'D' | b'A' | b'Z' | b'Q' | b'S' | b'L' => {}
             _ => return Err(ProjectionError::MarkerResidual),
         }
         cursor = suffix_start + 1;

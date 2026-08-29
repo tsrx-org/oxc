@@ -65,7 +65,8 @@ pub fn scan(source: &str) -> Result<Overlay, ProjectionError> {
     Scanner::new(source).finish()
 }
 
-/// Performs the parser-specific scan, including nested dynamic names and JSX code blocks.
+/// Performs the parser/tooling scan, including nested dynamic names, JSX code blocks,
+/// shorthand attributes, lazy patterns, and raw script regions.
 ///
 /// # Errors
 ///

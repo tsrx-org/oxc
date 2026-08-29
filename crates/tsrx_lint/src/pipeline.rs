@@ -11,7 +11,9 @@ use oxc_adapter::{
     DynamicTagContract, EngineDiagnostic, LintRequest, LintResult, OXC_REVISION, SourceKind,
     TypeBatchFile,
 };
-use tsrx_syntax::{MappedProjection, TypeProjection, project_for_lint, project_for_types, scan};
+use tsrx_syntax::{
+    MappedProjection, TypeProjection, project_for_lint, project_for_types, scan_for_parser,
+};
 
 use crate::{
     error::LintError,
@@ -237,7 +239,7 @@ fn prepare_source(
         });
     }
     let started = Instant::now();
-    let overlay = scan(source)?;
+    let overlay = scan_for_parser(source)?;
     timings.scan_ns = elapsed_ns(started);
     let started = Instant::now();
     let projection = project_for_lint(source, &overlay)?;

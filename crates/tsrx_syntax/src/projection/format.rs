@@ -1,9 +1,12 @@
 use crate::{
     diagnostics::{ProjectionError, to_u32},
-    model::{ByteSpan, ControlContext, NONE, Overlay, StructuralKind},
+    model::{
+        ByteSpan, ControlContext, NONE, Overlay, ParserCodeBlock, ParserLazyPattern,
+        ParserShorthandAttribute, StructuralKind,
+    },
 };
 
-use super::{builder::build_projection, marker::structural_fingerprint};
+use super::{builder::build_projection, marker::structural_fingerprint, parser_overlay};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct WrapperManifest {
@@ -38,6 +41,11 @@ pub(super) struct DynamicManifest {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct StyleManifest {
+    pub(super) payload: ByteSpan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct ScriptManifest {
     pub(super) payload: ByteSpan,
 }
 
@@ -79,6 +87,10 @@ pub struct FormatProjection {
     dynamic_offsets: Vec<u32>,
     pub(super) dynamic_comments: Vec<ByteSpan>,
     pub(super) styles: Vec<StyleManifest>,
+    pub(super) scripts: Vec<ScriptManifest>,
+    pub(super) parser_code_blocks: Vec<ParserCodeBlock>,
+    pub(super) parser_shorthand_attributes: Vec<ParserShorthandAttribute>,
+    pub(super) parser_lazy_patterns: Vec<ParserLazyPattern>,
     pub(super) shape_fingerprint: u128,
 }
 
@@ -90,7 +102,14 @@ impl FormatProjection {
 
     #[must_use]
     pub fn marker_count(&self) -> usize {
-        self.tokens.len() + self.dynamics.len() + self.dynamic_comments.len() + self.styles.len()
+        self.tokens.len()
+            + self.dynamics.len()
+            + self.dynamic_comments.len()
+            + self.styles.len()
+            + self.scripts.len()
+            + self.parser_code_blocks.len()
+            + self.parser_shorthand_attributes.len()
+            + self.parser_lazy_patterns.len()
     }
 
     #[must_use]
@@ -111,6 +130,10 @@ impl FormatProjection {
 
 /// Builds a legal-TSX formatter projection and checked lift manifest.
 ///
+/// A base [`crate::scan`] overlay is upgraded to the richer parser/tooling
+/// overlay for compatibility. Hot paths should pass [`crate::scan_for_parser`]
+/// output to avoid a second scan.
+///
 /// # Errors
 ///
 /// Returns an error for a stale overlay or a projection scaffold collision.
@@ -118,6 +141,8 @@ pub fn project_for_format(
     source: &str,
     overlay: &Overlay,
 ) -> Result<FormatProjection, ProjectionError> {
+    let overlay = parser_overlay(source, overlay)?;
+    let overlay = overlay.as_ref();
     let built = build_projection(source, overlay, false)?;
     let mut try_slots = vec![NONE; overlay.nodes.len()];
     for (slot, manifest) in built.tries.iter().enumerate() {
@@ -125,6 +150,11 @@ pub fn project_for_format(
     }
     let styles =
         overlay.style_blocks.iter().map(|style| StyleManifest { payload: style.content }).collect();
+    let scripts = overlay
+        .script_blocks
+        .iter()
+        .map(|script| ScriptManifest { payload: script.content })
+        .collect();
     let dynamic_count = to_u32(overlay.dynamic_tags.len())?;
     Ok(FormatProjection {
         projected: built.mapped.projected,
@@ -147,6 +177,10 @@ pub fn project_for_format(
         dynamic_offsets: overlay.dynamic_tags.iter().map(|tag| tag.expression.start).collect(),
         dynamic_comments: overlay.dynamic_comments.clone(),
         styles,
+        scripts,
+        parser_code_blocks: overlay.parser_code_blocks.clone(),
+        parser_shorthand_attributes: overlay.parser_shorthand_attributes.clone(),
+        parser_lazy_patterns: overlay.parser_lazy_patterns.clone(),
         shape_fingerprint: structural_fingerprint(overlay),
     })
 }
@@ -156,7 +190,8 @@ mod layout_tests {
     use std::mem::size_of;
 
     use super::{
-        DynamicManifest, HeaderManifest, StyleManifest, TokenManifest, TryManifest, WrapperManifest,
+        DynamicManifest, HeaderManifest, ScriptManifest, StyleManifest, TokenManifest, TryManifest,
+        WrapperManifest,
     };
 
     #[test]
@@ -167,5 +202,6 @@ mod layout_tests {
         assert_eq!(size_of::<TryManifest>(), 8);
         assert_eq!(size_of::<DynamicManifest>(), 1);
         assert_eq!(size_of::<StyleManifest>(), 8);
+        assert_eq!(size_of::<ScriptManifest>(), 8);
     }
 }

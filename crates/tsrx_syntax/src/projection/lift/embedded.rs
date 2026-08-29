@@ -19,15 +19,23 @@ pub(super) fn lift_embedded(
     let dynamic_close = format!("</{}D", projection.prefix);
     let comment_marker = format!("{{/*{}Q", projection.prefix);
     let style_marker = format!("{{/*{}S", projection.prefix);
+    let script_marker = format!("{{/*{}L", projection.prefix);
     let mut expressions = vec![ScaffoldSpan::MISSING; projection.dynamics.len()];
     let mut opened = vec![false; projection.dynamics.len()];
     let mut closed = vec![false; projection.dynamics.len()];
     let mut comments = vec![false; projection.dynamic_comments.len()];
     let mut styles = vec![false; projection.styles.len()];
+    let mut scripts = vec![false; projection.scripts.len()];
     let restored_bytes = projection
         .styles
         .iter()
         .map(|manifest| (manifest.payload.end - manifest.payload.start) as usize)
+        .chain(
+            projection
+                .scripts
+                .iter()
+                .map(|manifest| (manifest.payload.end - manifest.payload.start) as usize),
+        )
         .chain(projection.dynamic_comments.iter().map(|span| (span.end - span.start) as usize))
         .fold(0usize, usize::saturating_add);
     let mut output = String::with_capacity(source.len().saturating_add(restored_bytes));
@@ -150,6 +158,28 @@ pub(super) fn lift_embedded(
             styles[index] = true;
             continue;
         }
+        if source[cursor..].starts_with(&script_marker) {
+            let digits_start = cursor + script_marker.len();
+            let (ordinal, digits_end) =
+                parse_decimal(bytes, digits_start).ok_or(ProjectionError::MarkerResidual)?;
+            let index = ordinal as usize;
+            let manifest = projection.scripts.get(index).ok_or(ProjectionError::MarkerResidual)?;
+            if scripts[index] || source.as_bytes().get(digits_end..digits_end + 4) != Some(b"__*/")
+            {
+                return Err(ProjectionError::ScaffoldMismatch { index });
+            }
+            let mut end = expect_word_after_whitespace(source, digits_end + 4, b"null", index)?;
+            end = expect_byte_after_whitespace(source, end, b'}', index)?;
+            let payload = original_source
+                .get(manifest.payload.start as usize..manifest.payload.end as usize)
+                .ok_or(ProjectionError::StructuralMismatch)?;
+            output.push_str(&source[copied..cursor]);
+            output.push_str(payload);
+            copied = end;
+            cursor = end;
+            scripts[index] = true;
+            continue;
+        }
         cursor += source[cursor..].chars().next().map_or(1, char::len_utf8);
     }
     output.push_str(&source[copied..]);
@@ -165,6 +195,10 @@ pub(super) fn lift_embedded(
     }
     if comments.iter().any(|seen| !seen) {
         let index = comments.iter().position(|seen| !seen).unwrap_or(0);
+        return Err(ProjectionError::ScaffoldMismatch { index });
+    }
+    if scripts.iter().any(|seen| !seen) {
+        let index = scripts.iter().position(|seen| !seen).unwrap_or(0);
         return Err(ProjectionError::ScaffoldMismatch { index });
     }
     Ok(output)

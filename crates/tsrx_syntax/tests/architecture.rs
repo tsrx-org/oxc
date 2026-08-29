@@ -86,10 +86,10 @@ fn the_parser_lanes_mirror_the_base_scanner_and_projection_module_boundaries() {
 
 #[test]
 fn the_parser_lanes_carry_no_switch_between_a_configuration_they_are_never_built_in() {
-    // `scan()` and every `project*` entry point but `scan_for_parser` / `project_for_parser` run
-    // the base lanes in `src/scanner` and `src/projection`. The parser lanes therefore only ever
-    // run in one configuration, and a switch naming the other one is dead code rustc cannot see,
-    // because a comparison counts as a use.
+    // `scan_for_parser` supplies the richer overlay used by the parser and tooling projections;
+    // compatibility calls that pass a base `scan()` overlay to lint/format are upgraded before
+    // projection. The parser lanes still only ever run in one configuration, and a switch naming
+    // another one is dead code rustc cannot see, because a comparison counts as a use.
     let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     for (lane, switch) in [
         ("src/parser_scanner", "parser_mode"),

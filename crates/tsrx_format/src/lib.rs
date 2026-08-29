@@ -16,7 +16,7 @@ use oxc_adapter::{
 };
 use serde::Deserialize;
 use serde_json::Value;
-use tsrx_syntax::{lift_formatted, project_for_format, scan};
+use tsrx_syntax::{lift_formatted, project_for_format, scan_for_parser};
 
 pub use error::{ConfigScope, FormatError, GlobField};
 pub use oxc_adapter::OXC_REVISION;
@@ -577,7 +577,7 @@ fn format_text_with_options(
 
     let mut timings = FormatTimings::default();
     let started = Instant::now();
-    let overlay = scan(source)?;
+    let overlay = scan_for_parser(source)?;
     timings.scan_ns = elapsed_ns(started);
 
     let started = Instant::now();
@@ -1107,6 +1107,25 @@ mod tests {
         assert!(!first.code.contains("_t"), "{}", first.code);
     }
 
+    /// Formatting runs the parser scan, so a decorator whose name only begins with a control
+    /// keyword has to survive it. The escaped spellings are the ones that regressed: `\` ends no
+    /// identifier, so a raw-byte keyword boundary read `@for` out of `@forπ` and rejected the
+    /// file for a missing `(`. A `.tsrx` file has to format exactly as the same bytes do as `.tsx`.
+    #[test]
+    fn decorators_named_after_control_keywords_format_like_ordinary_tsx() {
+        for source in [
+            "@if\u{03c0}\nclass Decorated{method( ){return 1}}\n",
+            "@for\\u03c0\nclass Decorated{method( ){return 1}}\n",
+            "@try\\u{1D49C}\nclass Decorated{method( ){return 1}}\n",
+        ] {
+            let through_tsrx = format_text(Path::new("Decorated.tsrx"), source)
+                .unwrap_or_else(|error| panic!("{source:?}: {error}"));
+            let canonical = format_text(Path::new("Decorated.tsx"), source)
+                .unwrap_or_else(|error| panic!("{source:?}: {error}"));
+            assert_eq!(through_tsrx.code, canonical.code, "{source:?}");
+        }
+    }
+
     #[test]
     fn embedded_css_boundary_is_keep_raw_without_hidden_work() {
         let payload = "/* spacing is authored */ .card{color:oklch(62% .2 25);  margin:0  1rem}";
@@ -1136,6 +1155,31 @@ mod tests {
         assert!(first.code.contains("function View({ ready }: { ready: boolean }) @{"));
         assert!(first.code.contains("@if (ready) {"));
         assert!(first.code.contains("} @else {"));
+
+        let second = format_text(Path::new("View.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
+    fn formats_parser_only_code_blocks_shorthand_and_lazy_patterns() {
+        let source = concat!(
+            "export function View(props:Props) @{\n",
+            "const title=@{const prefix='Hi';`${prefix} ${props.name}`};\n",
+            "const &{value=1,...rest}=props;\n",
+            "&[first,...tail]=props.items;\n",
+            "<main {title}><script>if (ready) console.log(\"raw\");</script>",
+            "@{const label=rest.label;<p>{label}{value}{first}{tail.length}</p>}</main>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("View.tsrx"), source).unwrap();
+        assert!(first.code.contains("const title = @{"), "{}", first.code);
+        assert!(first.code.contains("const &{ value = 1, ...rest } = props;"), "{}", first.code);
+        assert!(first.code.contains("&[first, ...tail] = props.items;"), "{}", first.code);
+        assert!(first.code.contains("<main {title}>"), "{}", first.code);
+        assert!(first.code.contains("if (ready) console.log(\"raw\");"), "{}", first.code);
+        assert!(first.code.contains("@{"), "{}", first.code);
+        assert!(!first.code.contains("_t"), "{}", first.code);
 
         let second = format_text(Path::new("View.tsrx"), &first.code).unwrap();
         assert_eq!(second.code, first.code);

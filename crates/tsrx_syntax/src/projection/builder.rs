@@ -4,7 +4,7 @@ use crate::{
     diagnostics::{ProjectionError, to_u32},
     model::{
         ByteSpan, ClauseRole, ControlContext, ControlKind, EmbeddedKind, NONE, Overlay,
-        StructuralKind,
+        ParserCodeBlockKind, StructuralKind,
     },
 };
 
@@ -18,12 +18,15 @@ use crate::projection_view::ProjectionSegment;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Action {
     TryEnd(u32),
+    ParserCodeBlockEnd(u32),
     WrapperEnd(u32),
     WrapperStart(u32),
     Token(u32),
     Header { clause: u32, ordinal: u32 },
     ForBody(u32),
     Embedded(u32),
+    ParserShorthand(u32),
+    ParserLazyPattern(u32),
     StatementBoundary(u32),
 }
 
@@ -31,6 +34,9 @@ impl Action {
     fn key(self, overlay: &Overlay) -> (u32, u8) {
         match self {
             Self::TryEnd(node) => (overlay.nodes[node as usize].span.end, 0),
+            Self::ParserCodeBlockEnd(block) => {
+                (overlay.parser_code_blocks[block as usize].body.end.saturating_sub(1), 0)
+            }
             Self::WrapperEnd(node) => (overlay.nodes[node as usize].span.end, 1),
             Self::WrapperStart(node) => (overlay.nodes[node as usize].span.start, 2),
             Self::Token(token) => (overlay.tokens[token as usize].span.start, 3),
@@ -39,6 +45,12 @@ impl Action {
                 (overlay.clauses[clause as usize].body.start.saturating_add(1), 0)
             }
             Self::Embedded(token) => (overlay.embedded_tokens[token as usize].span.start, 3),
+            Self::ParserShorthand(attribute) => {
+                (overlay.parser_shorthand_attributes[attribute as usize].span.start, 2)
+            }
+            Self::ParserLazyPattern(pattern) => {
+                (overlay.parser_lazy_patterns[pattern as usize].ampersand, 2)
+            }
             // The boundary precedes everything else written at the same markup opening.
             Self::StatementBoundary(boundary) => {
                 (overlay.statement_boundaries[boundary as usize], 0)
@@ -167,6 +179,20 @@ impl<'a> Builder<'a> {
         Ok(())
     }
 
+    fn copy_original_with_lazy_markers(&mut self, span: ByteSpan) -> Result<(), ProjectionError> {
+        let mut cursor = span.start;
+        for (index, pattern) in self.overlay.parser_lazy_patterns.iter().enumerate() {
+            if pattern.ampersand < span.start || pattern.ampersand >= span.end {
+                continue;
+            }
+            self.copy_original(ByteSpan::new(cursor, pattern.ampersand))?;
+            write!(self.output, "/*{}Y{index}__*/", self.prefix)
+                .expect("writing to a String cannot fail");
+            cursor = pattern.ampersand.saturating_add(1);
+        }
+        self.copy_original(ByteSpan::new(cursor, span.end))
+    }
+
     fn wrapper_start(&mut self, node_index: u32) -> Result<(), ProjectionError> {
         let node = self.overlay.nodes[node_index as usize];
         self.copy_to(node.span.start as usize)?;
@@ -229,6 +255,12 @@ impl<'a> Builder<'a> {
             return Err(ProjectionError::SourceChanged { offset: token.span.start });
         }
         match token.kind {
+            StructuralKind::FunctionBody if self.parser_code_block_index(token_index).is_some() => {
+                let block_index = self
+                    .parser_code_block_index(token_index)
+                    .ok_or(ProjectionError::StructuralMismatch)?;
+                self.parser_code_block_start(token_index, block_index, start)?;
+            }
             StructuralKind::FunctionBody if self.type_semantic => {
                 write!(self.output, "/*{}{token_index}*/", self.prefix)
                     .expect("writing to a String cannot fail");
@@ -292,6 +324,81 @@ impl<'a> Builder<'a> {
         Ok(())
     }
 
+    fn parser_code_block_index(&self, token: u32) -> Option<u32> {
+        self.overlay
+            .parser_code_blocks
+            .binary_search_by_key(&token, |block| block.token)
+            .ok()
+            .and_then(|index| u32::try_from(index).ok())
+    }
+
+    fn parser_code_block_start(
+        &mut self,
+        token_index: u32,
+        block_index: u32,
+        start: usize,
+    ) -> Result<(), ProjectionError> {
+        let block = self
+            .overlay
+            .parser_code_blocks
+            .get(block_index as usize)
+            .ok_or(ProjectionError::StructuralMismatch)?;
+        self.cursor = start + 1;
+        match block.kind {
+            ParserCodeBlockKind::JsxChild => {
+                self.copy_to(start + 2)?;
+                write!(
+                    self.output,
+                    "/*{}X{block_index}P__*/(async function*(){{/*{}{token_index}*//*{}X{block_index}S__*/",
+                    self.prefix, self.prefix, self.prefix
+                )
+                .expect("writing to a String cannot fail");
+            }
+            ParserCodeBlockKind::Expression => {
+                write!(self.output, "/*{}X{block_index}P__*/void async function*()", self.prefix)
+                    .expect("writing to a String cannot fail");
+                self.copy_to(start + 2)?;
+                write!(
+                    self.output,
+                    "/*{}{token_index}*//*{}X{block_index}S__*/",
+                    self.prefix, self.prefix
+                )
+                .expect("writing to a String cannot fail");
+            }
+        }
+        Ok(())
+    }
+
+    fn parser_code_block_end(&mut self, block_index: u32) -> Result<(), ProjectionError> {
+        let block = self
+            .overlay
+            .parser_code_blocks
+            .get(block_index as usize)
+            .ok_or(ProjectionError::StructuralMismatch)?;
+        let closing =
+            block.body.end.checked_sub(1).ok_or(ProjectionError::StructuralMismatch)? as usize;
+        if self.source.as_bytes().get(closing) != Some(&b'}') {
+            return Err(ProjectionError::SourceChanged {
+                offset: block.body.end.saturating_sub(1),
+            });
+        }
+        self.copy_to(closing)?;
+        write!(self.output, "/*{}X{block_index}C__*/", self.prefix)
+            .expect("writing to a String cannot fail");
+        match block.kind {
+            ParserCodeBlockKind::JsxChild => {
+                write!(self.output, "}})/*{}X{block_index}E__*/", self.prefix)
+                    .expect("writing to a String cannot fail");
+            }
+            ParserCodeBlockKind::Expression => {
+                self.copy_to(block.body.end as usize)?;
+                write!(self.output, "/*{}X{block_index}E__*/", self.prefix)
+                    .expect("writing to a String cannot fail");
+            }
+        }
+        Ok(())
+    }
+
     fn catch_has_header(&self, node: u32) -> Result<bool, ProjectionError> {
         let mut clause = self.overlay.nodes[node as usize].first_clause;
         while clause != NONE {
@@ -315,7 +422,7 @@ impl<'a> Builder<'a> {
         }
         self.copy_to(clause.header.start as usize)?;
         self.output.push('(');
-        self.copy_original(header.left)?;
+        self.copy_original_with_lazy_markers(header.left)?;
         write!(self.output, " of {}H{ordinal}_(/*{}R{ordinal}S__*/", self.prefix, self.prefix)
             .expect("writing to a String cannot fail");
         self.copy_original(header.right)?;
@@ -364,7 +471,11 @@ impl<'a> Builder<'a> {
         {
             self.output.push_str("const ");
         }
-        self.copy_original(header.left)?;
+        // The lazy sigil has to be spent here, exactly as the non-type header spends it. Rewriting
+        // the header at all moves the cursor past the whole clause, and `PendingActions::next`
+        // then skips every lazy pattern behind that cursor — so an `&` copied verbatim is an `&`
+        // no later action will rewrite, and the type projection emits `const &{…}`.
+        self.copy_original_with_lazy_markers(header.left)?;
         self.output.push_str(" of ");
         self.copy_original(header.right)?;
         self.output.push(')');
@@ -501,9 +612,70 @@ impl<'a> Builder<'a> {
                 self.cursor = span_end;
             }
             EmbeddedKind::ScriptContent => {
-                return Err(ProjectionError::StructuralMismatch);
+                let script = self
+                    .overlay
+                    .script_blocks
+                    .get(token.owner as usize)
+                    .ok_or(ProjectionError::StructuralMismatch)?;
+                if script.content != token.span {
+                    return Err(ProjectionError::StructuralMismatch);
+                }
+                write!(self.output, "{{/*{}L{}__*/ null}}", self.prefix, token.owner)
+                    .expect("writing to a String cannot fail");
+                self.cursor = span_end;
             }
         }
+        Ok(())
+    }
+
+    fn parser_shorthand(&mut self, attribute_index: u32) -> Result<(), ProjectionError> {
+        let attribute = self
+            .overlay
+            .parser_shorthand_attributes
+            .get(attribute_index as usize)
+            .ok_or(ProjectionError::StructuralMismatch)?;
+        if attribute.span.start.saturating_add(1) != attribute.identifier.start
+            || attribute.identifier.end.saturating_add(1) != attribute.span.end
+            || self.source.as_bytes().get(attribute.span.start as usize) != Some(&b'{')
+            || self.source.as_bytes().get(attribute.identifier.end as usize) != Some(&b'}')
+        {
+            return Err(ProjectionError::StructuralMismatch);
+        }
+        self.copy_to(attribute.span.start as usize)?;
+        if self.type_semantic {
+            let name = self
+                .source
+                .get(attribute.identifier.start as usize..attribute.identifier.end as usize)
+                .ok_or(ProjectionError::SourceChanged { offset: attribute.identifier.start })?;
+            self.output.push_str(name);
+            self.output.push('=');
+        } else {
+            write!(self.output, "{}V{attribute_index}_=", self.prefix)
+                .expect("writing to a String cannot fail");
+        }
+        self.copy_original(attribute.span)?;
+        self.cursor = attribute.span.end as usize;
+        Ok(())
+    }
+
+    fn parser_lazy_pattern(&mut self, pattern_index: u32) -> Result<(), ProjectionError> {
+        let pattern = self
+            .overlay
+            .parser_lazy_patterns
+            .get(pattern_index as usize)
+            .ok_or(ProjectionError::StructuralMismatch)?;
+        if pattern.pattern_start <= pattern.ampersand
+            || self.source.as_bytes().get(pattern.ampersand as usize) != Some(&b'&')
+        {
+            return Err(ProjectionError::StructuralMismatch);
+        }
+        self.copy_to(pattern.ampersand as usize)?;
+        if pattern.standalone {
+            self.output.push_str("var ");
+        }
+        write!(self.output, "/*{}Y{pattern_index}__*/", self.prefix)
+            .expect("writing to a String cannot fail");
+        self.cursor = pattern.ampersand.saturating_add(1) as usize;
         Ok(())
     }
 }
@@ -522,6 +694,137 @@ pub(super) enum ProjectionPurpose {
     Types,
 }
 
+struct PendingActions<'a> {
+    overlay: &'a Overlay,
+    wrappers: &'a [Action],
+    try_ends: &'a [Action],
+    code_block_ends: &'a [Action],
+    headers: &'a [Action],
+    wrapper: usize,
+    try_end: usize,
+    code_block_end: usize,
+    token: usize,
+    header: usize,
+    embedded: usize,
+    shorthand: usize,
+    lazy_pattern: usize,
+    statement_boundary: usize,
+}
+
+impl<'a> PendingActions<'a> {
+    fn new(
+        overlay: &'a Overlay,
+        wrappers: &'a [Action],
+        try_ends: &'a [Action],
+        code_block_ends: &'a [Action],
+        headers: &'a [Action],
+    ) -> Self {
+        Self {
+            overlay,
+            wrappers,
+            try_ends,
+            code_block_ends,
+            headers,
+            wrapper: 0,
+            try_end: 0,
+            code_block_end: 0,
+            token: 0,
+            header: 0,
+            embedded: 0,
+            shorthand: 0,
+            lazy_pattern: 0,
+            statement_boundary: 0,
+        }
+    }
+
+    fn next(&mut self, original_cursor: usize) -> Result<Option<Action>, ProjectionError> {
+        while self.overlay.parser_lazy_patterns.get(self.lazy_pattern).is_some_and(|pattern| {
+            usize::try_from(pattern.ampersand).is_ok_and(|ampersand| ampersand < original_cursor)
+        }) {
+            self.lazy_pattern += 1;
+        }
+        let token = (self.token < self.overlay.tokens.len())
+            .then(|| to_u32(self.token).map(Action::Token))
+            .transpose()?;
+        let embedded = (self.embedded < self.overlay.embedded_tokens.len())
+            .then(|| to_u32(self.embedded).map(Action::Embedded))
+            .transpose()?;
+        let shorthand = (self.shorthand < self.overlay.parser_shorthand_attributes.len())
+            .then(|| to_u32(self.shorthand).map(Action::ParserShorthand))
+            .transpose()?;
+        let lazy_pattern = (self.lazy_pattern < self.overlay.parser_lazy_patterns.len())
+            .then(|| to_u32(self.lazy_pattern).map(Action::ParserLazyPattern))
+            .transpose()?;
+        let statement_boundary = (self.statement_boundary
+            < self.overlay.statement_boundaries.len())
+        .then(|| to_u32(self.statement_boundary).map(Action::StatementBoundary))
+        .transpose()?;
+        Ok([
+            self.wrappers.get(self.wrapper).copied(),
+            self.try_ends.get(self.try_end).copied(),
+            self.code_block_ends.get(self.code_block_end).copied(),
+            token,
+            self.headers.get(self.header).copied(),
+            embedded,
+            shorthand,
+            lazy_pattern,
+            statement_boundary,
+        ]
+        .into_iter()
+        .flatten()
+        .min_by_key(|action| action.key(self.overlay)))
+    }
+
+    fn apply(&mut self, builder: &mut Builder<'_>, action: Action) -> Result<(), ProjectionError> {
+        match action {
+            Action::TryEnd(node) => {
+                self.try_end += 1;
+                builder.try_end(node)
+            }
+            Action::ParserCodeBlockEnd(block) => {
+                self.code_block_end += 1;
+                builder.parser_code_block_end(block)
+            }
+            Action::WrapperEnd(node) => {
+                self.wrapper += 1;
+                builder.wrapper_end(node)
+            }
+            Action::WrapperStart(node) => {
+                self.wrapper += 1;
+                builder.wrapper_start(node)
+            }
+            Action::Token(token) => {
+                self.token += 1;
+                builder.token(token)
+            }
+            Action::Header { clause, ordinal } => {
+                self.header += 1;
+                builder.header(clause, ordinal)
+            }
+            Action::ForBody(clause) => {
+                self.header += 1;
+                builder.for_body(clause)
+            }
+            Action::Embedded(token) => {
+                self.embedded += 1;
+                builder.embedded(token)
+            }
+            Action::ParserShorthand(attribute) => {
+                self.shorthand += 1;
+                builder.parser_shorthand(attribute)
+            }
+            Action::ParserLazyPattern(pattern) => {
+                self.lazy_pattern += 1;
+                builder.parser_lazy_pattern(pattern)
+            }
+            Action::StatementBoundary(boundary) => {
+                self.statement_boundary += 1;
+                builder.statement_boundary(boundary)
+            }
+        }
+    }
+}
+
 pub(super) fn build_projection_with_purpose(
     source: &str,
     overlay: &Overlay,
@@ -536,6 +839,13 @@ pub(super) fn build_projection_with_purpose(
 
     let (header_actions, headers) =
         build_header_actions(overlay, purpose == ProjectionPurpose::Types)?;
+    let mut parser_code_block_end_actions = overlay
+        .parser_code_blocks
+        .iter()
+        .enumerate()
+        .map(|(index, _)| to_u32(index).map(Action::ParserCodeBlockEnd))
+        .collect::<Result<Vec<_>, _>>()?;
+    parser_code_block_end_actions.sort_unstable_by_key(|action| action.key(overlay));
 
     let mut builder = Builder::new(
         source,
@@ -544,66 +854,15 @@ pub(super) fn build_projection_with_purpose(
         record_segments,
         purpose == ProjectionPurpose::Types,
     );
-    let mut wrapper_cursor = 0usize;
-    let mut try_end_cursor = 0usize;
-    let mut token_cursor = 0usize;
-    let mut header_cursor = 0usize;
-    let mut embedded_cursor = 0usize;
-    let mut statement_boundary_cursor = 0usize;
-    loop {
-        let wrapper = wrapper_actions.get(wrapper_cursor).copied();
-        let try_end = try_end_actions.get(try_end_cursor).copied();
-        let token = (token_cursor < overlay.tokens.len())
-            .then(|| to_u32(token_cursor).map(Action::Token))
-            .transpose()?;
-        let header = header_actions.get(header_cursor).copied();
-        let embedded = (embedded_cursor < overlay.embedded_tokens.len())
-            .then(|| to_u32(embedded_cursor).map(Action::Embedded))
-            .transpose()?;
-        let statement_boundary = (statement_boundary_cursor < overlay.statement_boundaries.len())
-            .then(|| to_u32(statement_boundary_cursor).map(Action::StatementBoundary))
-            .transpose()?;
-        let Some(action) = [wrapper, try_end, token, header, embedded, statement_boundary]
-            .into_iter()
-            .flatten()
-            .min_by_key(|action| action.key(overlay))
-        else {
-            break;
-        };
-        match action {
-            Action::TryEnd(node) => {
-                try_end_cursor += 1;
-                builder.try_end(node)?;
-            }
-            Action::WrapperEnd(node) => {
-                wrapper_cursor += 1;
-                builder.wrapper_end(node)?;
-            }
-            Action::WrapperStart(node) => {
-                wrapper_cursor += 1;
-                builder.wrapper_start(node)?;
-            }
-            Action::Token(token) => {
-                token_cursor += 1;
-                builder.token(token)?;
-            }
-            Action::Header { clause, ordinal } => {
-                header_cursor += 1;
-                builder.header(clause, ordinal)?;
-            }
-            Action::ForBody(clause) => {
-                header_cursor += 1;
-                builder.for_body(clause)?;
-            }
-            Action::Embedded(token) => {
-                embedded_cursor += 1;
-                builder.embedded(token)?;
-            }
-            Action::StatementBoundary(boundary) => {
-                statement_boundary_cursor += 1;
-                builder.statement_boundary(boundary)?;
-            }
-        }
+    let mut pending = PendingActions::new(
+        overlay,
+        &wrapper_actions,
+        &try_end_actions,
+        &parser_code_block_end_actions,
+        &header_actions,
+    );
+    while let Some(action) = pending.next(builder.cursor)? {
+        pending.apply(&mut builder, action)?;
     }
     let mut mapped = builder.finish()?;
     mapped.synthetic_generator_spans = overlay

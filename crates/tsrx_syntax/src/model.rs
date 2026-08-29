@@ -294,6 +294,7 @@ pub struct OverlayView<'a> {
 pub struct Overlay {
     pub(crate) source_len: u32,
     pub(crate) source_fingerprint: u128,
+    pub(crate) parser_metadata: bool,
     pub(crate) tokens: Vec<StructuralToken>,
     pub(crate) nodes: Vec<SyntaxNode>,
     pub(crate) clauses: Vec<Clause>,
@@ -315,6 +316,10 @@ pub struct Overlay {
 }
 
 impl Overlay {
+    pub(crate) const fn has_parser_metadata(&self) -> bool {
+        self.parser_metadata
+    }
+
     /// Borrows every reconstruction-relevant flat table without allocating another graph.
     #[must_use]
     pub fn view(&self) -> OverlayView<'_> {
