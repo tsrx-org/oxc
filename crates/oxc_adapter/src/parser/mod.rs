@@ -45,6 +45,13 @@ impl RejectionMetadata {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ProjectedParseRecovery {
+    #[default]
+    None,
+    Editor,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ProjectedParseRequest<'a> {
     pub filename: &'a str,
@@ -54,6 +61,8 @@ pub struct ProjectedParseRequest<'a> {
     pub ranges: bool,
     pub preserve_parens: Option<bool>,
     pub show_semantic_errors: bool,
+    /// Retain OXC's partial Program when syntax diagnostics are present.
+    pub recovery: ProjectedParseRecovery,
     /// Private metadata retained solely for rare UTF-16 rejection arbitration.
     pub rejection_metadata: RejectionMetadata,
     pub dynamic_tags: Option<DynamicTagContract<'a>>,
@@ -219,7 +228,7 @@ impl From<TapeBuildError> for ProjectedParseError {
 /// Parses one legal projected TSX source into an owned revision-neutral flat tape.
 ///
 /// The OXC allocator, AST, parser return, and serializer borrow all die before this function
-/// returns. Syntax diagnostics fail closed and never return a partial tape.
+/// returns. Syntax diagnostics fail closed unless the request explicitly enables recovery.
 ///
 /// # Errors
 ///
@@ -271,7 +280,7 @@ fn parse_to_projected_tape_with_retention(
     let (has_retained_diagnostics, suppressed_diagnostics) =
         append_tsrx_grammar_diagnostics(&mut errors, request.source, &parsed.diagnostics)?;
     let syntax_failed = parsed.panicked || has_retained_diagnostics;
-    if syntax_failed {
+    if syntax_failed && (request.recovery != ProjectedParseRecovery::Editor || parsed.panicked) {
         let rejection_module_names = match request.rejection_metadata {
             RejectionMetadata::None => RejectionModuleNames::default(),
             RejectionMetadata::ModuleNames => {
@@ -325,7 +334,7 @@ fn parse_to_projected_tape_with_retention(
             _ => Err(ProjectedParseError::Invariant(error.to_string())),
         };
     }
-    if request.show_semantic_errors {
+    if request.show_semantic_errors && !syntax_failed {
         let semantic = SemanticBuilder::new_compiler().build(&parsed.program);
         append_diagnostics(&mut errors, semantic.diagnostics.iter(), DiagnosticPhase::Semantic)?;
     }
@@ -344,8 +353,8 @@ fn parse_to_projected_tape_with_retention(
         errors,
         suppressed_diagnostics,
         authored_grammar: None,
-        syntax_failed: false,
-        panicked: false,
+        syntax_failed,
+        panicked: parsed.panicked,
     })
 }
 

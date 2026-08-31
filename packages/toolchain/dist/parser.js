@@ -107,7 +107,7 @@ const capabilities = Object.freeze({
 	oxcRevision: OXC_REVISION,
 	lazy: true,
 	async: true,
-	editorRecovery: false,
+	editorRecovery: true,
 	cssMaterialization: false,
 	rawTransfer: false
 });
@@ -239,7 +239,7 @@ function expectedCapabilities() {
 	return {
 		lazy: true,
 		async: true,
-		editorRecovery: false,
+		editorRecovery: true,
 		cssMaterialization: false,
 		rawTransfer: false
 	};

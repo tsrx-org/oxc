@@ -176,25 +176,26 @@ test("active lone surrogates fail closed at their exact UTF-16 unit and null is 
   });
 });
 
-test("unavailable transports and recovery fail before parsing with stable operational codes", async () => {
-  await withParser(async ({ ParserOperationalError, parse, parseSync }) => {
+test("unavailable raw transport fails before parsing with a stable operational code", async () => {
+  await withParser(async ({ ParserOperationalError, parseSync }) => {
     assert.throws(
       () => parseSync("x.js", "let x", { experimentalRawTransfer: true }),
       (error) =>
         error instanceof ParserOperationalError &&
         error.code === "ERR_TSRX_CAPABILITY_RAW_TRANSFER",
     );
-    assert.throws(
-      () => parseSync("x.tsrx", "const x=1", { recovery: "editor" }),
-      (error) =>
-        error instanceof ParserOperationalError &&
-        error.code === "ERR_TSRX_CAPABILITY_RECOVERY",
-    );
-    await assert.rejects(
-      parse("x.tsrx", "const x=1", { recovery: "editor" }),
-      (error) =>
-        error instanceof ParserOperationalError &&
-        error.code === "ERR_TSRX_CAPABILITY_RECOVERY",
-    );
+  });
+});
+
+test("editor recovery returns authored partial programs through sync and async APIs", async () => {
+  await withParser(async ({ parse, parseSync }) => {
+    const source = "export function View() @{";
+    const sync = parseSync("View.tsrx", source, { recovery: "editor" });
+    assert.notEqual(sync.program, null);
+    assert.equal(sync.program.end, source.length);
+    assert.ok(sync.errors.length > 0);
+
+    const asyncResult = await parse("View.tsrx", source, { recovery: "editor" });
+    assert.deepEqual(asyncResult, sync);
   });
 });

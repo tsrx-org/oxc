@@ -231,7 +231,7 @@ test("untouched packed parser and host-native tarballs load, parse, and preserve
     oxcRevision: "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
     lazy: true,
     async: true,
-    editorRecovery: false,
+    editorRecovery: true,
     cssMaterialization: false,
     rawTransfer: false,
     });

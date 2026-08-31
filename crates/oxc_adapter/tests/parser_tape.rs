@@ -1,8 +1,8 @@
 use oxc_adapter::{
     DynamicTagContract,
     parser::{
-        OrdinaryParseRequest, ProjectedParseRequest, RejectionMetadata, parse_ordinary,
-        parse_to_projected_tape,
+        OrdinaryParseRequest, ProjectedParseRecovery, ProjectedParseRequest, RejectionMetadata,
+        parse_ordinary, parse_to_projected_tape,
     },
 };
 use tsrx_tape_schema::{FlatTape, ValueKind, ValueRef};
@@ -56,6 +56,7 @@ fn projected_dynamic_scaffold_is_validated_and_serialized_in_one_parse() {
         ranges: false,
         preserve_parens: None,
         show_semantic_errors: false,
+        recovery: ProjectedParseRecovery::None,
         rejection_metadata: RejectionMetadata::None,
         dynamic_tags: Some(DynamicTagContract {
             prefix: "_t0_",
@@ -98,6 +99,7 @@ fn flat_serializer_matches_public_oxc_estree_serialization() {
         ranges: false,
         preserve_parens: None,
         show_semantic_errors: false,
+        recovery: ProjectedParseRecovery::None,
         rejection_metadata: RejectionMetadata::None,
         dynamic_tags: None,
         synthetic_callee_spans: &[],

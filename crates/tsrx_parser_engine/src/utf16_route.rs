@@ -55,7 +55,7 @@ pub(super) fn parse_tsrx_utf16_with_options_and_observer<W: Utf16WorkObserver>(
             prepared.source(),
             Some(&prepared),
         )? {
-            if result.status != ParseCompleteness::Failed {
+            if result.status == ParseCompleteness::Complete {
                 return Err(TsrxParseError::Adapter(
                     "complete parse retained an earlier grammar diagnostic".to_string(),
                 ));

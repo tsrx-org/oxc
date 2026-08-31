@@ -63,11 +63,12 @@ impl<'source, 'original> FixupLedger<'source, 'original> {
     }
 
     pub(super) fn finish(mut self, status: ParseCompleteness) -> Result<(), TsrxParseError> {
-        if status == ParseCompleteness::Failed {
+        if status != ParseCompleteness::Complete {
             for state in &mut self.states {
                 if *state == 0 {
-                    // No Program/module value is public on failure; classify the remaining source
-                    // substitutions as deliberately discarded rather than semantic owners.
+                    // Failed results expose no Program, while recovered Programs may omit the
+                    // malformed tail. Classify every unowned substitution as deliberately
+                    // discarded rather than requiring a semantic owner.
                     *state = 3;
                 }
             }
