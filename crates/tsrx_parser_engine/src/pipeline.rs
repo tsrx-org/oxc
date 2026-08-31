@@ -9,10 +9,11 @@ use oxc_adapter::{
         parse_to_projected_tape_program_only, render_diagnostic_codeframes,
     },
 };
-use tsrx_syntax::{Overlay, OverlayView, ProjectionView, project_for_parser, scan_for_parser};
-use tsrx_tape_schema::{
-    CommentTable, DiagnosticTable, FlatTape, ModuleTable, ParseCompleteness, TapeSpan,
+use tsrx_syntax::{
+    Overlay, OverlayView, PARSER_RECOVERY_DIAGNOSTIC, ProjectionView, project_for_parser,
+    recover_for_parser, scan_for_parser,
 };
+use tsrx_tape_schema::{CommentTable, DiagnosticTable, FlatTape, ModuleTable, TapeSpan};
 
 use crate::{
     TsrxParseError, TsrxParseOptions, TsrxParseRecovery, TsrxParseResult,
@@ -36,53 +37,43 @@ pub(super) fn parse_tsrx_utf8_source<W: Utf16WorkObserver>(
     observer: &mut W,
 ) -> Result<TsrxParseResult, TsrxParseError> {
     let recovery_source = (options.recovery == TsrxParseRecovery::Editor)
-        .then(|| recovery::prepare(source))
+        .then(|| recover_for_parser(source).map_err(TsrxParseError::from))
         .transpose()?
         .flatten();
-    let initial = match parse_tsrx_utf8_source_once(
-        source,
-        options,
-        defer_compaction,
-        retain_rejection_module_names,
-        retain_module,
-        observer,
-    ) {
-        Ok(result) if result.status != ParseCompleteness::Failed || recovery_source.is_none() => {
-            return Ok(result);
-        }
-        Ok(result) => result,
-        Err(error) if recovery_source.is_some() => {
-            let recovery_source = recovery_source
-                .as_ref()
-                .ok_or(TsrxParseError::Unsupported("missing prepared editor recovery"))?;
-            let message = error.to_string();
-            grammar_result(
-                source,
-                options.filename,
-                CommentTable::default(),
-                &message,
-                Some(TapeSpan::new(
-                    recovery_source.diagnostic_offset(),
-                    recovery_source.diagnostic_offset(),
-                )),
-            )?
-        }
-        Err(error) => return Err(error),
+    let Some(recovery_source) = recovery_source else {
+        return parse_tsrx_utf8_source_once(
+            source,
+            options,
+            defer_compaction,
+            retain_rejection_module_names,
+            retain_module,
+            observer,
+        );
     };
-    let recovery_source =
-        recovery_source.ok_or(TsrxParseError::Unsupported("missing prepared editor recovery"))?;
+    let failure = grammar_result(
+        source,
+        options.filename,
+        CommentTable::default(),
+        PARSER_RECOVERY_DIAGNOSTIC,
+        Some(TapeSpan::new(
+            recovery_source.diagnostic_offset(),
+            recovery_source.diagnostic_offset(),
+        )),
+    )?;
     let mut recovery_options = options;
     recovery_options.recovery = TsrxParseRecovery::None;
     recovery_options.show_semantic_errors = false;
-    let recovered = parse_tsrx_utf8_source_once(
+    let Ok(recovered) = parse_tsrx_utf8_source_once(
         recovery_source.source(),
         recovery_options,
         defer_compaction,
         retain_rejection_module_names,
         retain_module,
         observer,
-    )?;
-    recovery::finish(recovered, initial, &recovery_source)
+    ) else {
+        return Ok(failure);
+    };
+    recovery::finish(recovered, failure, &recovery_source)
 }
 
 fn parse_tsrx_utf8_source_once<W: Utf16WorkObserver>(
