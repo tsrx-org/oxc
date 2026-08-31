@@ -79,6 +79,16 @@ fn editor_recovery_reconstructs_tsrx_nodes_in_partial_programs() {
 }
 
 #[test]
+fn editor_recovery_does_not_rewrite_at_signs_inside_regex_literals() {
+    let source = "const pattern = /@/;";
+    let result = recover(source);
+
+    assert_eq!(result.status, ParseCompleteness::Complete);
+    assert!(result.completeness.contains(Completeness::COMPLETE));
+    assert!(result.errors.is_empty());
+}
+
+#[test]
 fn editor_recovery_still_fails_when_oxc_cannot_return_a_usable_program() {
     let source = "function View() @{ const value = ; <main /> }";
     let result = recover(source);
@@ -97,6 +107,7 @@ fn editor_recovery_completes_common_in_progress_tsrx_snapshots() {
         "export function View() @{ @if (",
         "export function View() @{ @ }",
         "export function View() @{\n  <div>\n}",
+        "export function View() @{\n  <div>",
     ] {
         if let Ok(strict) = parse_tsrx(&TsrxParseRequest { source }) {
             assert_eq!(strict.status, ParseCompleteness::Failed, "{source}");

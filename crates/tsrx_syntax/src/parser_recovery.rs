@@ -73,15 +73,39 @@ impl ParserRecovery {
 #[doc(hidden)]
 pub fn recover_for_parser(source: &str) -> Result<Option<ParserRecovery>, ProjectionError> {
     let mut recovered = ParserRecovery::new(source)?;
-    let Some(mut changed) = blank_bare_at_tokens(&mut recovered) else {
+    let Some(mut changed) = blank_active_bare_at_tokens(&mut recovered) else {
         return Ok(None);
     };
 
     for _ in 0..16 {
         match scan_for_parser(recovered.source()) {
-            Ok(_) => break,
+            Ok(_) => {
+                let Some(blanked_at) = blank_active_bare_at_tokens(&mut recovered) else {
+                    return Ok(None);
+                };
+                if blanked_at {
+                    changed = true;
+                    continue;
+                }
+                let Some(completed_tail) = complete_delimited_tail(&mut recovered) else {
+                    return Ok(None);
+                };
+                changed |= completed_tail;
+                break;
+            }
             Err(ProjectionError::UnterminatedSyntax { offset, construct: "JSX element" }) => {
                 if !close_unterminated_jsx(&mut recovered, offset) {
+                    return Ok(None);
+                }
+                changed = true;
+            }
+            Err(ProjectionError::UnterminatedSyntax {
+                construct: "delimited expression", ..
+            }) => {
+                let Some(completed_tail) = complete_delimited_tail(&mut recovered) else {
+                    return Ok(None);
+                };
+                if !completed_tail {
                     return Ok(None);
                 }
                 changed = true;
@@ -101,40 +125,37 @@ pub fn recover_for_parser(source: &str) -> Result<Option<ParserRecovery>, Projec
     if scan_for_parser(recovered.source()).is_err() {
         return Ok(None);
     }
-    let Some(completed_tail) = complete_tail(&mut recovered) else {
-        return Ok(None);
-    };
-    changed |= completed_tail;
     Ok(changed.then_some(recovered))
 }
 
-fn blank_bare_at_tokens(source: &mut ParserRecovery) -> Option<bool> {
-    let mut offsets = Vec::new();
+fn blank_active_bare_at_tokens(source: &mut ParserRecovery) -> Option<bool> {
     let bytes = source.text.as_bytes();
-    let mut index = 0;
-    while index < bytes.len() {
-        match bytes[index] {
-            b'\'' | b'"' | b'`' => index = skip_quoted(bytes, index, bytes[index]),
-            b'/' if bytes.get(index + 1) == Some(&b'/') => {
-                index = skip_line_comment(bytes, index + 2);
-            }
-            b'/' if bytes.get(index + 1) == Some(&b'*') => {
-                index = skip_block_comment(bytes, index + 2);
-            }
-            b'@' => {
-                let next = bytes.get(index + 1).copied();
-                if !matches!(next, Some(b'{' | b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_')) {
-                    offsets.push(index);
-                }
-                index += 1;
-            }
-            _ => index += 1,
-        }
+    let offsets = bytes
+        .iter()
+        .enumerate()
+        .filter_map(|(index, byte)| {
+            let next = bytes.get(index + 1).copied();
+            (*byte == b'@'
+                && !matches!(next, Some(b'{' | b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_')))
+            .then(|| u32::try_from(index).ok())
+            .flatten()
+        })
+        .collect::<Vec<_>>();
+    let classification = crate::classify_wtf8_surrogates_detailed(source.text.as_bytes(), &offsets);
+    if classification.earlier_error.is_some() {
+        return Some(false);
     }
-    for offset in offsets.into_iter().rev() {
+    let active = offsets
+        .into_iter()
+        .zip(classification.contexts)
+        .filter_map(|(offset, context)| context.is_none().then_some(offset))
+        .collect::<Vec<_>>();
+    let changed = !active.is_empty();
+    for offset in active.into_iter().rev() {
+        let offset = usize::try_from(offset).ok()?;
         source.replace(offset, offset + 1, " ")?;
     }
-    Some(source.diagnostic_offset != u32::try_from(source.text.len()).unwrap_or(u32::MAX))
+    Some(changed)
 }
 
 fn blank_incomplete_control(source: &mut ParserRecovery, failure_offset: u32) -> bool {
@@ -169,60 +190,58 @@ fn close_unterminated_jsx(source: &mut ParserRecovery, opening_offset: u32) -> b
     source.insert(insertion, &format!("</{name}>")).is_some()
 }
 
-fn complete_tail(source: &mut ParserRecovery) -> Option<bool> {
-    let bytes = source.text.as_bytes();
+fn complete_expression_tail(source: &mut ParserRecovery) -> Option<bool> {
+    if !source.text.trim_end().ends_with('=') {
+        return Some(false);
+    }
+    source.insert(source.text.len(), " undefined")?;
+    Some(true)
+}
+
+fn complete_delimited_tail(source: &mut ParserRecovery) -> Option<bool> {
+    let mut changed = complete_expression_tail(source)?;
+    let delimiters = source
+        .text
+        .as_bytes()
+        .iter()
+        .enumerate()
+        .filter_map(|(index, byte)| {
+            matches!(*byte, b'(' | b'[' | b'{' | b')' | b']' | b'}')
+                .then(|| u32::try_from(index).ok().map(|offset| (offset, *byte)))
+                .flatten()
+        })
+        .collect::<Vec<_>>();
+    let offsets = delimiters.iter().map(|(offset, _)| *offset).collect::<Vec<_>>();
+    let classification = crate::classify_wtf8_surrogates_detailed(source.text.as_bytes(), &offsets);
     let mut stack = Vec::new();
-    let mut index = 0;
-    let mut last_significant = None;
-    while index < bytes.len() {
-        match bytes[index] {
-            byte @ (b'\'' | b'"' | b'`') => {
-                index = skip_quoted(bytes, index, byte);
-                last_significant = Some(byte);
-            }
-            b'/' if bytes.get(index + 1) == Some(&b'/') => {
-                index = skip_line_comment(bytes, index + 2);
-            }
-            b'/' if bytes.get(index + 1) == Some(&b'*') => {
-                index = skip_block_comment(bytes, index + 2);
-            }
-            byte @ (b'(' | b'[' | b'{') => {
+    for ((_, byte), context) in delimiters.into_iter().zip(classification.contexts) {
+        if context.is_some() {
+            continue;
+        }
+        match byte {
+            b'(' | b'[' | b'{' => {
                 stack.push(match byte {
                     b'(' => b')',
                     b'[' => b']',
                     b'{' => b'}',
                     _ => unreachable!(),
                 });
-                last_significant = Some(byte);
-                index += 1;
             }
-            byte @ (b')' | b']' | b'}') => {
+            b')' | b']' | b'}' => {
                 if stack.last() == Some(&byte) {
                     stack.pop();
                 }
-                last_significant = Some(byte);
-                index += 1;
             }
-            byte if byte.is_ascii_whitespace() => index += 1,
-            byte => {
-                last_significant = Some(byte);
-                index += 1;
-            }
+            _ => unreachable!(),
         }
     }
-    let mut suffix = String::new();
-    if matches!(
-        last_significant,
-        Some(b'=' | b'.' | b'+' | b'-' | b'*' | b'/' | b'%' | b'?' | b':' | b',')
-    ) {
-        suffix.push_str(" undefined");
-    }
-    suffix.extend(stack.into_iter().rev().map(char::from));
+    let suffix = stack.into_iter().rev().map(char::from).collect::<String>();
     if suffix.is_empty() {
-        return Some(false);
+        return Some(changed);
     }
     source.insert(source.text.len(), &suffix)?;
-    Some(true)
+    changed = true;
+    Some(changed)
 }
 
 fn last_control_start(source: &str, limit: usize) -> Option<usize> {
@@ -230,37 +249,6 @@ fn last_control_start(source: &str, limit: usize) -> Option<usize> {
         .into_iter()
         .filter_map(|keyword| source[..limit].rfind(keyword))
         .max()
-}
-
-fn skip_quoted(bytes: &[u8], start: usize, quote: u8) -> usize {
-    let mut index = start + 1;
-    while index < bytes.len() {
-        if bytes[index] == b'\\' {
-            index = (index + 2).min(bytes.len());
-        } else if bytes[index] == quote {
-            return index + 1;
-        } else {
-            index += 1;
-        }
-    }
-    bytes.len()
-}
-
-fn skip_line_comment(bytes: &[u8], mut index: usize) -> usize {
-    while index < bytes.len() && !matches!(bytes[index], b'\r' | b'\n') {
-        index += 1;
-    }
-    index
-}
-
-fn skip_block_comment(bytes: &[u8], mut index: usize) -> usize {
-    while index + 1 < bytes.len() {
-        if bytes[index..index + 2] == *b"*/" {
-            return index + 2;
-        }
-        index += 1;
-    }
-    bytes.len()
 }
 
 #[cfg(test)]
@@ -275,6 +263,7 @@ mod tests {
             "export function View() @{ @if (",
             "export function View() @{ @ }",
             "export function View() @{\n  <div>\n}",
+            "export function View() @{\n  <div>",
         ] {
             let recovered = recover_for_parser(source)
                 .expect("bounded recovery")
@@ -285,5 +274,24 @@ mod tests {
             assert_eq!(recovered.map_endpoint(recovered_len), Some(source_len));
             assert!(crate::scan_for_parser(recovered.source()).is_ok());
         }
+    }
+
+    #[test]
+    fn parser_recovery_blanks_only_lexically_active_bare_at_tokens() {
+        for source in [
+            "const value = /@/;",
+            "const value = /[{}()]/;",
+            "const value = '@';",
+            "const value = `@`;",
+            "const value = 1; // @",
+        ] {
+            assert!(recover_for_parser(source).expect("bounded recovery").is_none(), "{source}");
+        }
+
+        let source = "export function View() @{ const value = /@/; @ }";
+        let recovered =
+            recover_for_parser(source).expect("bounded recovery").expect("recoverable active `@`");
+        assert!(recovered.source().contains("/@/"));
+        assert!(recovered.source().contains(";   }"));
     }
 }
