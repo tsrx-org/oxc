@@ -26,7 +26,8 @@ use tsrx_parser_engine::{
     parse_tsrx_with_options_for_transfer_observed,
 };
 use tsrx_parser_engine::{
-    TsrxParseError, TsrxParseOptions, TsrxParseRequest, TsrxParseResult, TsrxUtf16ParseRequest,
+    TsrxParseError, TsrxParseOptions, TsrxParseRecovery, TsrxParseRequest, TsrxParseResult,
+    TsrxUtf16ParseRequest,
 };
 #[cfg(not(feature = "stage4-observer"))]
 use tsrx_parser_engine::{
@@ -286,16 +287,19 @@ fn validate_tsrx_options(options: &NativeParserOptions) -> napi::Result<()> {
     }
     if let Some(value) = options.recovery.as_deref() {
         match value {
-            "none" => {}
-            "editor" => {
-                return Err(napi::Error::from_reason(
-                    "ERR_TSRX_CAPABILITY_RECOVERY: editor recovery is not available".to_string(),
-                ));
-            }
+            "none" | "editor" => {}
             _ => return Err(invalid(format!("unsupported recovery `{value}`"))),
         }
     }
     Ok(())
+}
+
+fn tsrx_recovery(options: &NativeParserOptions) -> TsrxParseRecovery {
+    if options.recovery.as_deref() == Some("editor") {
+        TsrxParseRecovery::Editor
+    } else {
+        TsrxParseRecovery::None
+    }
 }
 
 fn owned_source(
@@ -358,6 +362,7 @@ fn parse_owned(
                 preserve_parens: if eager_compat { Some(false) } else { options.preserve_parens },
                 show_semantic_errors: !eager_compat
                     && options.show_semantic_errors.unwrap_or(false),
+                recovery: tsrx_recovery(options),
             };
             #[cfg(feature = "stage4-observer")]
             let parsed = if eager_compat {
@@ -393,6 +398,7 @@ fn parse_owned(
                 preserve_parens: if eager_compat { Some(false) } else { options.preserve_parens },
                 show_semantic_errors: !eager_compat
                     && options.show_semantic_errors.unwrap_or(false),
+                recovery: tsrx_recovery(options),
             };
             #[cfg(feature = "stage4-observer")]
             let parsed = if eager_compat {

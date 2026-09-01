@@ -7,7 +7,7 @@ use crate::{TsrxParseError, source_bridge::PreparedSource};
 
 use super::tape_fields::{object_type, record_index};
 
-pub(super) fn program_reachable_objects(tape: &FlatTape) -> Result<Vec<bool>, TsrxParseError> {
+pub(crate) fn program_reachable_objects(tape: &FlatTape) -> Result<Vec<bool>, TsrxParseError> {
     let mut objects = vec![false; tape.object_count()];
     let mut lists = vec![false; tape.list_count()];
     let mut pending = vec![tape.root()];
@@ -54,6 +54,20 @@ pub(super) fn map_program_spans(
     source: &PreparedSource<'_>,
     reachable_objects: &[bool],
 ) -> Result<(), TsrxParseError> {
+    try_map_program_spans(tape, reachable_objects, |byte_offset| {
+        source.map_endpoint(byte_offset).ok_or_else(|| {
+            TsrxParseError::Adapter(format!(
+                "coordinate {byte_offset} is not an exact UTF-8 boundary"
+            ))
+        })
+    })
+}
+
+pub(crate) fn try_map_program_spans(
+    tape: &mut FlatTape,
+    reachable_objects: &[bool],
+    mut map_endpoint: impl FnMut(u32) -> Result<u32, TsrxParseError>,
+) -> Result<(), TsrxParseError> {
     // CSS parser coordinates are relative to the `<style>` payload, not the authored module.
     // Keep the complete StyleSheet-owned graph out of source-global UTF-16 remapping, matching
     // @tsrx/core's coordinate contract while every surrounding JS/TSRX node is still mapped.
@@ -73,12 +87,7 @@ pub(super) fn map_program_spans(
                     let byte_offset = tape.scalar_u32(field.value).ok_or_else(|| {
                         TsrxParseError::Adapter("coordinate field is not u32".to_string())
                     })?;
-                    let utf16_offset = source.map_endpoint(byte_offset).ok_or_else(|| {
-                        TsrxParseError::Adapter(format!(
-                            "coordinate {byte_offset} is not an exact UTF-8 boundary"
-                        ))
-                    })?;
-                    field_updates.push((field_index, utf16_offset));
+                    field_updates.push((field_index, map_endpoint(byte_offset)?));
                 }
                 "range" => {
                     let list = field.value.as_list().ok_or_else(|| {
@@ -88,12 +97,7 @@ pub(super) fn map_program_spans(
                         let byte_offset = tape.scalar_u32(value).ok_or_else(|| {
                             TsrxParseError::Adapter("range endpoint is not u32".to_string())
                         })?;
-                        let utf16_offset = source.map_endpoint(byte_offset).ok_or_else(|| {
-                            TsrxParseError::Adapter(format!(
-                                "range endpoint {byte_offset} is not an exact UTF-8 boundary"
-                            ))
-                        })?;
-                        list_updates.push((entry, utf16_offset));
+                        list_updates.push((entry, map_endpoint(byte_offset)?));
                     }
                 }
                 _ => {}

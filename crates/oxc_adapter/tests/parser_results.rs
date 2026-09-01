@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use oxc_adapter::parser::{
-    OrdinaryParseRequest, ProjectedParseRequest, RejectionMetadata, parse_failed_tsrx_metadata,
-    parse_ordinary, parse_to_projected_tape, render_diagnostic_codeframes,
+    OrdinaryParseRequest, ProjectedParseRecovery, ProjectedParseRequest, RejectionMetadata,
+    parse_failed_tsrx_metadata, parse_ordinary, parse_to_projected_tape,
+    render_diagnostic_codeframes,
 };
 use oxc_allocator::Allocator;
 use oxc_diagnostics::NamedSource;
@@ -24,6 +25,7 @@ fn request(source: &str, show_semantic_errors: bool) -> ProjectedParseRequest<'_
         ranges: false,
         preserve_parens: None,
         show_semantic_errors,
+        recovery: ProjectedParseRecovery::None,
         rejection_metadata: RejectionMetadata::None,
         dynamic_tags: None,
         synthetic_callee_spans: &[],
@@ -158,6 +160,29 @@ fn grammar_diagnostics_are_structured_and_remove_partial_program_and_module() {
     assert_eq!(labels[0].span.end, 23);
     assert!(!labels[0].primary);
     assert!(result.errors.optional_string(labels[0].message).is_none());
+}
+
+#[test]
+fn explicit_recovery_serializes_only_usable_oxc_partial_programs() {
+    let mut recoverable = request("const value; const after = 1;", false);
+    recoverable.recovery = ProjectedParseRecovery::Editor;
+    let recovered = parse_to_projected_tape(recoverable).expect("recoverable grammar result");
+    assert_eq!(recovered.parse_count, 1);
+    assert!(recovered.syntax_failed);
+    assert!(!recovered.panicked);
+    assert!(recovered.program.is_some());
+    assert!(recovered.module.is_some());
+    assert_eq!(recovered.errors.len(), 1);
+
+    let mut panicked = request("export const broken = ;", false);
+    panicked.recovery = ProjectedParseRecovery::Editor;
+    let failed = parse_to_projected_tape(panicked).expect("unrecoverable grammar result");
+    assert_eq!(failed.parse_count, 1);
+    assert!(failed.syntax_failed);
+    assert!(failed.panicked);
+    assert!(failed.program.is_none());
+    assert!(failed.module.is_none());
+    assert_eq!(failed.errors.len(), 1);
 }
 
 #[test]

@@ -4,27 +4,79 @@
 use oxc_adapter::{
     DynamicTagContract,
     parser::{
-        ProjectedParseRequest, ProjectedParseResult, RejectionMetadata, RejectionModuleNames,
-        parse_failed_tsrx_metadata, parse_to_projected_tape, parse_to_projected_tape_program_only,
-        render_diagnostic_codeframes,
+        ProjectedParseRecovery, ProjectedParseRequest, ProjectedParseResult, RejectionMetadata,
+        RejectionModuleNames, parse_failed_tsrx_metadata, parse_to_projected_tape,
+        parse_to_projected_tape_program_only, render_diagnostic_codeframes,
     },
 };
-use tsrx_syntax::{Overlay, OverlayView, ProjectionView, project_for_parser, scan_for_parser};
-use tsrx_tape_schema::{CommentTable, DiagnosticTable, FlatTape, ModuleTable};
+use tsrx_syntax::{
+    Overlay, OverlayView, PARSER_RECOVERY_DIAGNOSTIC, ProjectionView, project_for_parser,
+    recover_for_parser, scan_for_parser,
+};
+use tsrx_tape_schema::{CommentTable, DiagnosticTable, FlatTape, ModuleTable, TapeSpan};
 
 use crate::{
-    TsrxParseError, TsrxParseOptions, TsrxParseResult,
+    TsrxParseError, TsrxParseOptions, TsrxParseRecovery, TsrxParseResult,
     grammar_result::{
-        adapter_grammar_result, authored_grammar_result,
+        adapter_grammar_result, authored_grammar_result, grammar_result,
         grammar_result_with_rejection_module_names, projection_grammar_result,
     },
     lexical, projection,
     reconstruct::{finalize_reachable_spans, reconstruct_projected},
+    recovery,
     results::{reconstruct_diagnostics, reconstruct_module},
     utf16_result::Utf16WorkObserver,
 };
 
 pub(super) fn parse_tsrx_utf8_source<W: Utf16WorkObserver>(
+    source: &str,
+    options: TsrxParseOptions<'_>,
+    defer_compaction: bool,
+    retain_rejection_module_names: bool,
+    retain_module: bool,
+    observer: &mut W,
+) -> Result<TsrxParseResult, TsrxParseError> {
+    let recovery_source = (options.recovery == TsrxParseRecovery::Editor)
+        .then(|| recover_for_parser(source).map_err(TsrxParseError::from))
+        .transpose()?
+        .flatten();
+    let Some(recovery_source) = recovery_source else {
+        return parse_tsrx_utf8_source_once(
+            source,
+            options,
+            defer_compaction,
+            retain_rejection_module_names,
+            retain_module,
+            observer,
+        );
+    };
+    let failure = grammar_result(
+        source,
+        options.filename,
+        CommentTable::default(),
+        PARSER_RECOVERY_DIAGNOSTIC,
+        Some(TapeSpan::new(
+            recovery_source.diagnostic_offset(),
+            recovery_source.diagnostic_offset(),
+        )),
+    )?;
+    let mut recovery_options = options;
+    recovery_options.recovery = TsrxParseRecovery::None;
+    recovery_options.show_semantic_errors = false;
+    let Ok(recovered) = parse_tsrx_utf8_source_once(
+        recovery_source.source(),
+        recovery_options,
+        defer_compaction,
+        retain_rejection_module_names,
+        retain_module,
+        observer,
+    ) else {
+        return Ok(failure);
+    };
+    recovery::finish(recovered, failure, &recovery_source)
+}
+
+fn parse_tsrx_utf8_source_once<W: Utf16WorkObserver>(
     source: &str,
     options: TsrxParseOptions<'_>,
     defer_compaction: bool,
@@ -85,6 +137,11 @@ fn parse_direct<W: Utf16WorkObserver>(
         ranges: options.ranges,
         preserve_parens: options.preserve_parens,
         show_semantic_errors: options.show_semantic_errors,
+        recovery: if options.recovery == TsrxParseRecovery::Editor {
+            ProjectedParseRecovery::Editor
+        } else {
+            ProjectedParseRecovery::None
+        },
         rejection_metadata: rejection_metadata(retain_rejection_module_names),
         dynamic_tags: None,
         synthetic_callee_spans: &[],
@@ -103,7 +160,7 @@ fn parse_direct<W: Utf16WorkObserver>(
     let suppressed_diagnostics = parsed.suppressed_diagnostics;
     render_diagnostic_codeframes(options.filename, source, &mut errors)
         .map_err(TsrxParseError::from)?;
-    if parsed.syntax_failed {
+    if parsed.syntax_failed && parsed.program.is_none() {
         return TsrxParseResult::failed_with_rejection_module_names(
             parsed.comments,
             errors,
@@ -117,7 +174,9 @@ fn parse_direct<W: Utf16WorkObserver>(
     } else {
         None
     };
-    Ok(TsrxParseResult::complete(
+    let build_result =
+        if parsed.syntax_failed { TsrxParseResult::recovered } else { TsrxParseResult::complete };
+    Ok(build_result(
         program,
         module,
         parsed.comments,
@@ -172,6 +231,11 @@ fn parse_projected<W: Utf16WorkObserver>(
         ranges: options.ranges,
         preserve_parens: options.preserve_parens,
         show_semantic_errors: options.show_semantic_errors,
+        recovery: if options.recovery == TsrxParseRecovery::Editor {
+            ProjectedParseRecovery::Editor
+        } else {
+            ProjectedParseRecovery::None
+        },
         rejection_metadata: rejection_metadata(retain_rejection_module_names),
         dynamic_tags: dynamic_contract,
         synthetic_callee_spans: projected.synthetic_callee_spans(),
@@ -223,14 +287,17 @@ fn parse_projected<W: Utf16WorkObserver>(
             rejection_module_names,
         );
     }
-    let (mut errors, projection_suppressed_diagnostics) =
-        reconstruct_diagnostics(projected_errors, projection_view.segments)?;
+    let (mut errors, projection_suppressed_diagnostics) = reconstruct_diagnostics(
+        projected_errors,
+        projection_view.segments,
+        options.recovery == TsrxParseRecovery::Editor,
+    )?;
     let suppressed_diagnostics = parser_suppressed_diagnostics
         .checked_add(projection_suppressed_diagnostics)
         .ok_or(TsrxParseError::Unsupported("suppressed diagnostic count exceeds 4 GiB"))?;
     render_diagnostic_codeframes(options.filename, source, &mut errors)
         .map_err(TsrxParseError::from)?;
-    if syntax_failed {
+    if syntax_failed && program.is_none() {
         return TsrxParseResult::failed_with_rejection_module_names(
             comments,
             errors,
@@ -256,6 +323,7 @@ fn parse_projected<W: Utf16WorkObserver>(
         comments,
         errors,
         suppressed_diagnostics,
+        recovered: syntax_failed,
         defer_compaction,
         rejection_module_names,
     }
@@ -303,6 +371,7 @@ struct ProjectedCompletion<'source, 'filename, 'overlay, 'projection> {
     comments: CommentTable,
     errors: DiagnosticTable,
     suppressed_diagnostics: u32,
+    recovered: bool,
     defer_compaction: bool,
     rejection_module_names: RejectionModuleNames,
 }
@@ -353,7 +422,9 @@ impl ProjectedCompletion<'_, '_, '_, '_> {
         if !self.defer_compaction {
             self.tape.compact_reachable()?;
         }
-        Ok(TsrxParseResult::complete(
+        let build_result =
+            if self.recovered { TsrxParseResult::recovered } else { TsrxParseResult::complete };
+        Ok(build_result(
             self.tape,
             module,
             self.comments,

@@ -19,3 +19,4 @@ pub(super) use observer::RepairCopyLane;
 #[cfg(test)]
 pub(super) use observer::Utf16Work;
 pub(super) use observer::{NoopUtf16WorkObserver, Utf16WorkObserver};
+pub(crate) use reachability::{program_reachable_objects, try_map_program_spans};

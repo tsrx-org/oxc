@@ -248,6 +248,7 @@ fn reconstruct_import_metas(
 pub(super) fn reconstruct_diagnostics(
     mut projected: DiagnosticTable,
     segments: &[ProjectionSegment],
+    recover_mixed_labels: bool,
 ) -> Result<(DiagnosticTable, u32), TsrxParseError> {
     let mut authored = DiagnosticTable::default();
     let mut suppressed = 0_usize;
@@ -268,22 +269,34 @@ pub(super) fn reconstruct_diagnostics(
         for label in labels {
             let _ = mapped_span(segments, label.span, &mut state);
         }
-        if !state.retain("mixed authored and synthetic diagnostic labels")? {
+        let retain = match state.retain("mixed authored and synthetic diagnostic labels") {
+            Ok(retain) => retain,
+            Err(_) if recover_mixed_labels && state.mapped > 0 => true,
+            Err(error) => return Err(error),
+        };
+        if !retain {
             suppressed += 1;
             continue;
         }
         let label_start = authored.begin_labels()?;
+        let mut mapped_labels = 0;
         for label in labels {
-            let span = map_affine_span(segments, label.span).ok_or(TsrxParseError::Unsupported(
-                "authored diagnostic mapping changed between validation and emission",
-            ))?;
+            let Some(span) = map_affine_span(segments, label.span) else {
+                if recover_mixed_labels {
+                    continue;
+                }
+                return Err(TsrxParseError::Unsupported(
+                    "authored diagnostic mapping changed between validation and emission",
+                ));
+            };
             authored.push_labeled(
                 span,
                 optional_string(&projected_strings, label.message)?,
                 label.primary,
             )?;
+            mapped_labels += 1;
         }
-        let labels = authored.finish_labels(label_start, record.labels.length)?;
+        let labels = authored.finish_labels(label_start, mapped_labels)?;
         copy_diagnostic(&projected_strings, &mut authored, record, labels)?;
     }
     drop(labels);
@@ -614,7 +627,7 @@ mod tests {
                 None,
             )
             .expect("coordinate-free diagnostic");
-        let (authored, suppressed) = reconstruct_diagnostics(coordinate_free, &segments)
+        let (authored, suppressed) = reconstruct_diagnostics(coordinate_free, &segments, false)
             .expect("coordinate-free diagnostic survives");
         assert_eq!(suppressed, 0);
         let record = &authored.records()[0];
@@ -644,7 +657,7 @@ mod tests {
             )
             .expect("synthetic diagnostic");
         let (authored, suppressed) =
-            reconstruct_diagnostics(synthetic, &segments).expect("synthetic suppression");
+            reconstruct_diagnostics(synthetic, &segments, false).expect("synthetic suppression");
         assert!(authored.is_empty());
         assert_eq!(suppressed, 1);
 
@@ -669,7 +682,7 @@ mod tests {
                 None,
             )
             .expect("mixed diagnostic");
-        assert!(reconstruct_diagnostics(mixed, &segments).is_err());
+        assert!(reconstruct_diagnostics(mixed, &segments, false).is_err());
     }
 
     #[test]
@@ -703,7 +716,7 @@ mod tests {
                     None,
                 )
                 .expect("projected diagnostic");
-            let (authored, suppressed) = reconstruct_diagnostics(projected, &segments)
+            let (authored, suppressed) = reconstruct_diagnostics(projected, &segments, false)
                 .expect("non-affine diagnostics are suppressed exactly");
             assert!(authored.is_empty());
             assert_eq!(suppressed, 1);

@@ -14,6 +14,16 @@ pub struct TsrxUtf16ParseRequest<'a> {
     pub source: &'a [u16],
 }
 
+/// Whether authored syntax errors may return OXC's partial editor tree.
+///
+/// Recovery is opt-in and never changes the fail-closed compiler path.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum TsrxParseRecovery {
+    #[default]
+    None,
+    Editor,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct TsrxParseOptions<'a> {
     pub filename: &'a str,
@@ -22,6 +32,7 @@ pub struct TsrxParseOptions<'a> {
     pub ranges: bool,
     pub preserve_parens: Option<bool>,
     pub show_semantic_errors: bool,
+    pub recovery: TsrxParseRecovery,
 }
 
 impl Default for TsrxParseOptions<'static> {
@@ -33,6 +44,7 @@ impl Default for TsrxParseOptions<'static> {
             ranges: false,
             preserve_parens: None,
             show_semantic_errors: false,
+            recovery: TsrxParseRecovery::None,
         }
     }
 }

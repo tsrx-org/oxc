@@ -10,6 +10,7 @@ mod parse_result;
 mod pipeline;
 mod projection;
 mod reconstruct;
+mod recovery;
 mod request;
 mod results;
 mod source_bridge;
@@ -32,4 +33,4 @@ pub use error::TsrxParseError;
 #[cfg(feature = "stage4-observer")]
 pub use observer::Stage4WorkCounters;
 pub use parse_result::TsrxParseResult;
-pub use request::{TsrxParseOptions, TsrxParseRequest, TsrxUtf16ParseRequest};
+pub use request::{TsrxParseOptions, TsrxParseRecovery, TsrxParseRequest, TsrxUtf16ParseRequest};

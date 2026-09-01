@@ -3,6 +3,7 @@
 mod diagnostics;
 mod model;
 mod parser_projection;
+mod parser_recovery;
 mod parser_scanner;
 mod projection;
 mod projection_view;
@@ -17,6 +18,7 @@ pub use model::{
     ParserShorthandAttribute, ScriptBlock, StructuralKind, StructuralToken,
 };
 pub use parser_projection::{MappedProjection as ParserProjection, project_for_parser};
+pub use parser_recovery::{PARSER_RECOVERY_DIAGNOSTIC, ParserRecovery, recover_for_parser};
 pub use parser_scanner::OpaqueSurrogateContext;
 pub use projection::{
     FormatProjection, MappedProjection, TypeProjection, lift_formatted, project,

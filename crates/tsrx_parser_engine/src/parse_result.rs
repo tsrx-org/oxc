@@ -24,11 +24,11 @@ pub struct TsrxParseResult {
 }
 
 impl TsrxParseResult {
-    /// Returns the complete Program for production callers that already require parse success.
+    /// Returns the Program for callers that already require a populated result.
     ///
     /// # Panics
     ///
-    /// Panics when called on a failed or future recovered result without a Program.
+    /// Panics when called on a failed result.
     #[must_use]
     pub fn program(&self) -> &FlatTape {
         self.program.as_ref().expect("complete TSRX result must contain a Program")
@@ -43,7 +43,58 @@ impl TsrxParseResult {
         needs_compaction: bool,
         rejection_module_names: RejectionModuleNames,
     ) -> Self {
-        let mut completeness = Completeness::COMPLETE.with(Completeness::HAS_PROGRAM);
+        Self::populated(
+            ParseCompleteness::Complete,
+            Completeness::COMPLETE,
+            program,
+            module,
+            comments,
+            errors,
+            suppressed_diagnostics,
+            needs_compaction,
+            rejection_module_names,
+        )
+    }
+
+    pub(super) fn recovered(
+        program: FlatTape,
+        module: Option<ModuleTable>,
+        comments: CommentTable,
+        errors: DiagnosticTable,
+        suppressed_diagnostics: u32,
+        needs_compaction: bool,
+        rejection_module_names: RejectionModuleNames,
+    ) -> Self {
+        debug_assert!(!errors.is_empty());
+        Self::populated(
+            ParseCompleteness::Recovered,
+            Completeness::EMPTY,
+            program,
+            module,
+            comments,
+            errors,
+            suppressed_diagnostics,
+            needs_compaction,
+            rejection_module_names,
+        )
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the constructor owns each independent result table and status field"
+    )]
+    fn populated(
+        status: ParseCompleteness,
+        initial_completeness: Completeness,
+        program: FlatTape,
+        module: Option<ModuleTable>,
+        comments: CommentTable,
+        errors: DiagnosticTable,
+        suppressed_diagnostics: u32,
+        needs_compaction: bool,
+        rejection_module_names: RejectionModuleNames,
+    ) -> Self {
+        let mut completeness = initial_completeness.with(Completeness::HAS_PROGRAM);
         if module.is_some() {
             completeness = completeness.with(Completeness::HAS_MODULE);
         }
@@ -54,7 +105,7 @@ impl TsrxParseResult {
             completeness = completeness.with(Completeness::HAS_ERRORS);
         }
         Self {
-            status: ParseCompleteness::Complete,
+            status,
             coordinate_domain: CoordinateDomain::AuthoredUtf8Bytes,
             completeness,
             program: Some(program),

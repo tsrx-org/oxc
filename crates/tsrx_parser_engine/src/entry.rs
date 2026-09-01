@@ -28,8 +28,11 @@ pub fn parse_tsrx(request: &TsrxParseRequest<'_>) -> Result<TsrxParseResult, Tsr
 ///
 /// # Errors
 ///
-/// Malformed, unsupported, or OXC-rejected authored grammar is returned as a structured
-/// [`ParseCompleteness::Failed`](tsrx_tape_schema::ParseCompleteness::Failed) result with null `program` and `module` records. Requested
+/// With default options, malformed, unsupported, or OXC-rejected authored grammar is returned as
+/// a structured [`ParseCompleteness::Failed`](tsrx_tape_schema::ParseCompleteness::Failed) result
+/// with null `program` and `module` records. Editor recovery may instead retain a usable OXC
+/// partial tree and mark it
+/// [`ParseCompleteness::Recovered`](tsrx_tape_schema::ParseCompleteness::Recovered). Requested
 /// semantic diagnostics are likewise returned as structured result data. Returns an error only
 /// for operational failures such as unsupported coordinate domains, capacity exhaustion, or an
 /// internal projection/reconstruction invariant.

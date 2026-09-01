@@ -148,7 +148,7 @@ const record = {
   capabilities: {
     lazy: true,
     async: true,
-    editorRecovery: false,
+    editorRecovery: true,
     cssMaterialization: false,
     rawTransfer: false,
   },

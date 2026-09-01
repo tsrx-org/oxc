@@ -413,7 +413,7 @@ test("canonical parser packaging adds one verified schema-2 addon without changi
   assert.deepEqual(record.capabilities, {
     lazy: true,
     async: true,
-    editorRecovery: false,
+    editorRecovery: true,
     cssMaterialization: false,
     rawTransfer: false,
   });
