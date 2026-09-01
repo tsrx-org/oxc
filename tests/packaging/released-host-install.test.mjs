@@ -415,7 +415,7 @@ test(
     await context.test(
       "the default install path: node_modules/.bin intact, PATH untouched, no setup",
       async () => {
-        const { consumer, environment, bin } = await install("default", { "@tsrx/oxc": "0.8.0" });
+        const { consumer, environment, bin } = await install("default", { "@tsrx/oxc": "0.9.0" });
 
         // Nothing ran but the install, so none of the compatibility bridge's
         // package-name facades can exist.
@@ -492,7 +492,7 @@ test(
         assert.equal(await exists(join(consumer, "node_modules/.bin/oxlint")), true);
         assert.deepEqual(
           JSON.parse(await readFile(join(consumer, "package.json"), "utf8")).dependencies,
-          { "@tsrx/oxc": "0.8.0" },
+          { "@tsrx/oxc": "0.9.0" },
         );
       },
     );
@@ -501,7 +501,7 @@ test(
       "Vite+ keeps working on ordinary files and still cannot see .tsrx",
       async () => {
         const { consumer, environment, bin } = await install("vite-plus", {
-          "@tsrx/oxc": "0.8.0",
+          "@tsrx/oxc": "0.9.0",
           "vite-plus": VITE_PLUS,
         });
         await writeFile(
@@ -652,7 +652,7 @@ test(
     let npmWinner;
     await context.test("a project that also pins official oxlint and oxfmt keeps them", async () => {
       const consumer = await install("collision", {
-        "@tsrx/oxc": "0.8.0",
+        "@tsrx/oxc": "0.9.0",
         oxlint: OFFICIAL_OXLINT,
         oxfmt: OFFICIAL_OXFMT,
       });
@@ -668,7 +668,7 @@ test(
         }
         const consumer = await install(
           "collision-pnpm",
-          { "@tsrx/oxc": "0.8.0", oxlint: OFFICIAL_OXLINT, oxfmt: OFFICIAL_OXFMT },
+          { "@tsrx/oxc": "0.9.0", oxlint: OFFICIAL_OXLINT, oxfmt: OFFICIAL_OXFMT },
           "pnpm",
         );
         const pnpmWinner = await assertPinnedToolsUnchanged(consumer, "pnpm");
@@ -683,7 +683,7 @@ test(
 
     await context.test("a declared but uninstalled official package fails loudly", async () => {
       const { consumer, environment, bin } = await install("declared-missing", {
-        "@tsrx/oxc": "0.8.0",
+        "@tsrx/oxc": "0.9.0",
       });
       const manifest = JSON.parse(await readFile(join(consumer, "package.json"), "utf8"));
       manifest.dependencies.oxlint = OFFICIAL_OXLINT;

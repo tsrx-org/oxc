@@ -155,7 +155,7 @@ test(
             name: `oxc-tsrx-${manager.name}-consumer`,
             private: true,
             type: "module",
-            devDependencies: { "@tsrx/oxc": "0.8.0" },
+            devDependencies: { "@tsrx/oxc": "0.9.0" },
           };
           await writeFile(
             join(consumer, "package.json"),
@@ -274,7 +274,7 @@ test(
             assert.deepEqual(facade.oxcTsrxCompatibility, {
               schemaVersion: 1,
               provider: "oxc-tsrx",
-              providerVersion: "0.8.0",
+              providerVersion: "0.9.0",
               capability,
             });
           }

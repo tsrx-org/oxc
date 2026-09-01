@@ -357,7 +357,7 @@ async function runPatchedHostSession({
         name: "oxc-tsrx-patched-host-discovery-proof",
         private: true,
         type: "module",
-        dependencies: { "@tsrx/oxc": "0.8.0" },
+        dependencies: { "@tsrx/oxc": "0.9.0" },
       },
       null,
       2,
@@ -747,7 +747,7 @@ async function main() {
           name: "oxc-tsrx-official-extension-proof",
           private: true,
           type: "module",
-          dependencies: { "@tsrx/oxc": "0.8.0" },
+          dependencies: { "@tsrx/oxc": "0.9.0" },
         },
         null,
         2,
@@ -773,7 +773,7 @@ async function main() {
     const directDependencies = JSON.parse(
       await readFile(join(consumer, "package.json"), "utf8"),
     ).dependencies;
-    assert.deepEqual(directDependencies, { "@tsrx/oxc": "0.8.0" });
+    assert.deepEqual(directDependencies, { "@tsrx/oxc": "0.9.0" });
 
     const { ordinaryPath, tsrxPath } = await writeWorkspaceFixtures(consumer, {
       "oxc.enable.oxlint": true,
@@ -814,7 +814,7 @@ async function main() {
           name: "oxc-tsrx-install-only-discovery-proof",
           private: true,
           type: "module",
-          dependencies: { "@tsrx/oxc": "0.8.0" },
+          dependencies: { "@tsrx/oxc": "0.9.0" },
         },
         null,
         2,

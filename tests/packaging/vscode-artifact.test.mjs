@@ -85,7 +85,7 @@ test("platform VSIX embeds exactly the matching native language server and notic
   assert.equal(packaged.target, hostTarget());
   assert.equal(packaged.extensionId, "thejackshelton.oxc-tsrx-vscode");
   assert.equal(packaged.vsixVerification.extensionId, packaged.extensionId);
-  assert.equal(packaged.vsixVerification.version, "0.8.0");
+  assert.equal(packaged.vsixVerification.version, "0.9.0");
   assert.equal(packaged.vsixVerification.target, packaged.target);
   assert.equal(packaged.vsixVerification.vscodeTarget, packaged.vscodeTarget);
   assert.equal(packaged.vsixVerification.nativeLspSha256, packaged.lspSha256);

@@ -1,6 +1,6 @@
 {
   "name": "@tsrx/oxc-core-compat",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "A dependency-light @tsrx/core parser facade powered by @tsrx/oxc/parser",
   "keywords": [
     "oxc",
@@ -42,7 +42,7 @@
   "sideEffects": false,
   "dependencies": {
     "@oxc-project/types": "0.140.0",
-    "@tsrx/oxc": "0.8.0"
+    "@tsrx/oxc": "0.9.0"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
