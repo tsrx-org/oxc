@@ -1,6 +1,6 @@
 {
   "name": "@tsrx/oxc",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "The official OXC integration for TSRX — Rust-native Oxlint and Oxfmt for .tsrx, JavaScript, TypeScript, and JSX",
   "keywords": [
     "formatter",
@@ -128,14 +128,14 @@
     "tinyglobby": "0.2.17"
   },
   "optionalDependencies": {
-    "@tsrx/oxc-darwin-arm64": "0.8.0",
-    "@tsrx/oxc-darwin-x64": "0.8.0",
-    "@tsrx/oxc-linux-arm64-gnu": "0.8.0",
-    "@tsrx/oxc-linux-arm64-musl": "0.8.0",
-    "@tsrx/oxc-linux-x64-gnu": "0.8.0",
-    "@tsrx/oxc-linux-x64-musl": "0.8.0",
-    "@tsrx/oxc-win32-arm64-msvc": "0.8.0",
-    "@tsrx/oxc-win32-x64-msvc": "0.8.0"
+    "@tsrx/oxc-darwin-arm64": "0.9.0",
+    "@tsrx/oxc-darwin-x64": "0.9.0",
+    "@tsrx/oxc-linux-arm64-gnu": "0.9.0",
+    "@tsrx/oxc-linux-arm64-musl": "0.9.0",
+    "@tsrx/oxc-linux-x64-gnu": "0.9.0",
+    "@tsrx/oxc-linux-x64-musl": "0.9.0",
+    "@tsrx/oxc-win32-arm64-msvc": "0.9.0",
+    "@tsrx/oxc-win32-x64-msvc": "0.9.0"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

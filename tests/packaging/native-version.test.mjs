@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 
 const root = resolve(import.meta.dirname, "../..");
-const version = "0.8.0";
+const version = "0.9.0";
 const revision = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
 
 function run(executable, args) {

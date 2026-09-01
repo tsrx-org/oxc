@@ -685,7 +685,7 @@ test("the real entry point discovers the index and still starts only canonical O
   context.after(() => rm(project, { recursive: true, force: true }));
   await writeFile(
     join(project, "package.json"),
-    `${JSON.stringify({ name: "host", private: true, dependencies: { "@tsrx/oxc": "0.8.0" } })}\n`,
+    `${JSON.stringify({ name: "host", private: true, dependencies: { "@tsrx/oxc": "0.9.0" } })}\n`,
   );
   await mkdir(join(project, "node_modules/@tsrx"), { recursive: true });
   await symlink(toolchainRoot, join(project, "node_modules/@tsrx/oxc"), "dir");
