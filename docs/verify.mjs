@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright-core'
+import { heroCode, playgroundCode } from './demo-sources.mjs'
 
 const positional = process.argv.slice(2).filter((argument) => !argument.startsWith('--'))
 const mode =
@@ -68,46 +69,12 @@ if (mode !== 'static') {
   ])
   const clientHighlighter = createDemoHighlighter()
   const serverHighlighter = await getDocsHighlighter()
+  // The TSRX parity samples are the snippets the site actually renders, so a
+  // change to the hero or playground cannot leave this check exercising a
+  // stale copy.
   const paritySamples = [
-    `export function TaskList({ tasks }: Props) @{
-  const pending = tasks.filter((task) => !task.done);
-
-  <section class="tasks">
-    @if (pending.length > 0) {
-      @for (const task of pending; key task.id) {
-        <TaskRow task={task} />;
-      } @empty {
-        <AllDone />;
-      }
-    } @else {
-      <SignIn />;
-    }
-    <style>
-      .tasks { display: grid; gap: 0.5rem; }
-    </style>
-  </section>;
-}`,
-    `type Task = { id: string; label: string; done: boolean };
-
-function TaskRow({ task }: { task: Task }) @{
-  <li>{task.label}</li>;
-}
-
-export function TaskList({ tasks }: { tasks: Task[] }) @{
-  const pending = tasks.filter((task) => !task.done);
-
-  <section class="tasks">
-    @if (pending.length > 0) {
-      <ul>
-        @for (const task of pending; key task.id) {
-          <TaskRow task={task} />;
-        }
-      </ul>;
-    } @else {
-      <p>All done!</p>;
-    }
-  </section>;
-}`,
+    heroCode,
+    playgroundCode,
     `export const Card = ({ name }: { name: string }) => (
   <section className="card">{\`Hello \${name}!\`}</section>
 )`,
