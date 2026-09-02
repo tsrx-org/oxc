@@ -6,11 +6,16 @@
 
 // Real TSRX hero snippet, highlighted with the actual TSRX grammar. This is
 // oxc-tsrx-fmt's converged output, so the default demo state is format-clean.
-export const heroCode = `export function TaskList({ tasks }: Props) @{
+//
+// The outer @if guards on `user`, not on `pending.length`: the @for already
+// owns the empty case through @empty, and guarding the loop on the list's
+// length made that clause unreachable (issue #65). Every branch shown here
+// must be one the runtime can actually take.
+export const heroCode = `export function TaskList({ user, tasks }: Props) @{
   const pending = tasks.filter((task) => !task.done);
 
   <section class="tasks">
-    @if (pending.length > 0) {
+    @if (user) {
       @for (const task of pending; key task.id) {
         <TaskRow task={task} />;
       } @empty {
