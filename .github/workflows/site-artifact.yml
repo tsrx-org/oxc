@@ -204,8 +204,9 @@ jobs:
       # and never fail this job -- see the continue-on-error note below.
       # -----------------------------------------------------------------------
       - name: Publish the proven demo engine and pin it for oxc.tsrx.dev
-        # This whole path is additive: production at compiled.run/oxc-tsrx is
-        # deployed from the artifact this job uploads and does not depend on any
+        # This whole path is additive: the compiled.run deploy (now a redirect
+        # to oxc.tsrx.dev plus /guessless) ships the artifact this job uploads
+        # and does not depend on any
         # of it. A release API hiccup or a protected branch must therefore leave
         # a warning, not a red build that blocks that deploy. The cost of a miss
         # is bounded and self-correcting: oxc.tsrx.dev keeps serving its last
@@ -389,7 +390,7 @@ jobs:
     permissions: {}
     environment:
       name: production
-      url: https://compiled.run/oxc-tsrx
+      url: https://compiled.run
     env:
       # The static docs project. Vercel's Git integration is deliberately not
       # connected: the site cannot be built on Vercel's image, so the artifact
@@ -424,30 +425,39 @@ jobs:
           set -euo pipefail
           # The project's stable production alias: verification must not depend
           # on custom-domain DNS, which can change independently of a deploy.
-          # The site lives under the /oxc-tsrx base path (docs/site.config.mjs).
-          origin="https://oxc-tsrx-docs.vercel.app/oxc-tsrx"
-          for attempt in 1 2 3 4 5; do
-            if curl -fsS "${origin}/demo-capabilities.json" -o capabilities.json; then
-              break
+          origin="https://oxc-tsrx-docs.vercel.app"
+          # /oxc-tsrx is a legacy location now. The artifact's vercel.json
+          # permanently redirects it, and everything under it, to the same path
+          # on https://oxc.tsrx.dev (docs/site.config.mjs redirectTo). Prove the
+          # redirect rather than the page: a 200 here would mean the old copy of
+          # the docs is live again.
+          expect_redirect() {
+            local from="$1" to="$2" status location
+            for attempt in 1 2 3 4 5; do
+              status="$(curl -sS -o /dev/null -w '%{http_code}' "${from}" || echo 000)"
+              if [ "${status}" = "308" ] || [ "${status}" = "301" ]; then
+                break
+              fi
+              echo "attempt ${attempt}: ${from} returned ${status}, retrying"
+              sleep 5
+            done
+            location="$(curl -sS -o /dev/null -w '%{redirect_url}' "${from}" || echo "")"
+            if { [ "${status}" != "308" ] && [ "${status}" != "301" ]; } || [ "${location}" != "${to}" ]; then
+              echo "::error::${from} answered ${status} -> '${location}', expected a permanent redirect to ${to}"
+              exit 1
             fi
-            echo "attempt ${attempt} could not read the live capabilities, retrying"
-            sleep 5
-          done
-          node -e '
-            const live = require("./capabilities.json")
-            if (!live.ok || !live.wasm || live.mode !== "wasm") {
-              throw new Error(`production is not serving the WebAssembly engine: ${JSON.stringify(live)}`)
-            }
-          '
-          # demo-capabilities.json is byte-identical across builds, so matching
-          # it would also "pass" against a deploy that never took effect. Hash
-          # the actual page instead: that only matches if production is serving
-          # the artifact this run built.
-          # No trailing slash: the deploy redirects /oxc-tsrx/ to /oxc-tsrx
-          # (trailingSlash: false) and curl is not following redirects.
-          curl -fsS "${origin}" -o live-index.html
+            echo "${from} -> ${to} (${status})"
+          }
+          expect_redirect "${origin}/oxc-tsrx" "https://oxc.tsrx.dev/"
+          expect_redirect "${origin}/oxc-tsrx/guide/getting-started" "https://oxc.tsrx.dev/guide/getting-started"
+          expect_redirect "${origin}/oxc-tsrx/playground?share=abc" "https://oxc.tsrx.dev/playground?share=abc"
+          # The redirect alone would also "pass" against the previous deploy
+          # once it is live, so hash a page that is not redirected: the domain
+          # root landing page only matches if production is serving the
+          # artifact this run built.
+          curl -fsS "${origin}/" -o live-index.html
           live="$(shasum -a 256 < live-index.html | cut -d" " -f1)"
-          built="$(shasum -a 256 < dist/oxc-tsrx/index.html | cut -d" " -f1)"
+          built="$(shasum -a 256 < dist/index.html | cut -d" " -f1)"
           if [ "${live}" != "${built}" ]; then
             echo "::error::production serves index.html ${live}, this run built ${built}"
             exit 1

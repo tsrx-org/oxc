@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://compiled.run/oxc-tsrx"><img alt="OXC for TSRX" width="600" src="https://raw.githubusercontent.com/tsrx-org/oxc/HEAD/.github/assets/readme-hero.png"></a>
+  <a href="https://oxc.tsrx.dev"><img alt="OXC for TSRX" width="600" src="https://raw.githubusercontent.com/tsrx-org/oxc/HEAD/.github/assets/readme-hero.png"></a>
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@ written in Rust. This package teaches them to read `.tsrx` too.
 
 _OXC for TSRX is the official OXC integration maintained by the TSRX project._
 
-[**Docs**](https://compiled.run/oxc-tsrx) &nbsp;·&nbsp; [**Getting started**](https://compiled.run/oxc-tsrx/guide/getting-started) &nbsp;·&nbsp; [**Playground**](https://compiled.run/oxc-tsrx/playground)
+[**Docs**](https://oxc.tsrx.dev) &nbsp;·&nbsp; [**Getting started**](https://oxc.tsrx.dev/guide/getting-started) &nbsp;·&nbsp; [**Playground**](https://oxc.tsrx.dev/playground)
 
 ## Install
 
@@ -34,12 +34,12 @@ npm install --save-dev @tsrx/oxc@latest
 
 That is the whole setup, for the command line and for your editor. There is no
 config file to write and no install script to run. [Vite+ needs one more
-command](https://compiled.run/oxc-tsrx/guide/getting-started#try-it-with-vite).
+command](https://oxc.tsrx.dev/guide/getting-started#try-it-with-vite).
 
 You do not need Rust. Installing downloads one ready-built program for your
 computer, one of eight built for macOS, Linux, and Windows. Anything else has
 to build from source. [Platform
-support](https://compiled.run/oxc-tsrx/reference/platform-support) lists all eight
+support](https://oxc.tsrx.dev/reference/platform-support) lists all eight
 targets. You need Node.js 20.19+ (in the 20.x line) or 22.12+.
 
 ## Usage
@@ -74,7 +74,7 @@ npx oxfmt --write src/Cart.tsrx # Tidy it up.
 Give `oxlint` a path. Without one it also checks `node_modules`, the folder your
 installed packages live in, and `--fix` (the flag that lets `oxlint` edit your
 files) will rewrite files in there. The [CLI
-reference](https://compiled.run/oxc-tsrx/reference/cli#npx-oxlint-with-no-path-also-lints-nodemodules)
+reference](https://oxc.tsrx.dev/reference/cli#npx-oxlint-with-no-path-also-lints-nodemodules)
 has every flag.
 
 Your `.js`, `.ts`, `.jsx`, and `.tsx` files are left alone, and go to OXC just
@@ -87,7 +87,7 @@ import { parseSync } from "@tsrx/oxc/parser";
 ```
 
 The parser hands back the structure of your file, so you can build your own
-tools on the same reader the commands use. [Parsing](https://compiled.run/oxc-tsrx/guide/parsing) has the shape it returns.
+tools on the same reader the commands use. [Parsing](https://oxc.tsrx.dev/guide/parsing) has the shape it returns.
 
 ## What works today
 
@@ -107,7 +107,7 @@ build tool reads `.tsrx` as plain TypeScript and stops at the first `@{`.
 Three smaller limits: CSS inside a `<style>` block is left alone rather than
 tidied, your own JavaScript lint rules see a translated copy of the file so each
 one is read once more, and a tag name that itself contains markup is not
-supported yet. [Limitations](https://compiled.run/oxc-tsrx/reference/limitations)
+supported yet. [Limitations](https://oxc.tsrx.dev/reference/limitations)
 explains each one.
 
 ## In your editor
@@ -117,22 +117,22 @@ set up, and your editor underlines the same problems the terminal reports. One
 catch: the TSRX toolchain's own extension owns `.tsrx`, and the OXC extension
 lists no activation event for it, so it does not start on its own. Open any
 JavaScript, TypeScript, or JSON file once, and `.tsrx` works for the rest of the
-session. The [editor guide](https://compiled.run/oxc-tsrx/integrations/editor) has the
+session. The [editor guide](https://oxc.tsrx.dev/integrations/editor) has the
 settings.
 
 ## Documentation
 
-- [Introduction](https://compiled.run/oxc-tsrx/guide/introduction): what this is, in plain terms.
-- [Getting started](https://compiled.run/oxc-tsrx/guide/getting-started): install, first file, first run.
-- [TSRX syntax](https://compiled.run/oxc-tsrx/guide/tsrx-syntax): every supported block.
-- [Configuration](https://compiled.run/oxc-tsrx/integrations/configuration): every supported setting.
+- [Introduction](https://oxc.tsrx.dev/guide/introduction): what this is, in plain terms.
+- [Getting started](https://oxc.tsrx.dev/guide/getting-started): install, first file, first run.
+- [TSRX syntax](https://oxc.tsrx.dev/guide/tsrx-syntax): every supported block.
+- [Configuration](https://oxc.tsrx.dev/integrations/configuration): every supported setting.
 
 ## Contributing
 
 Issues and pull requests are welcome at [the issue
 tracker](https://github.com/tsrx-org/oxc/issues). The source layout and
 the OXC boundary are described in [the Rust and OXC
-core](https://compiled.run/oxc-tsrx/architecture/rust-oxc-core).
+core](https://oxc.tsrx.dev/architecture/rust-oxc-core).
 
 Join the [TSRX Discord community](https://discord.gg/HCYpT5QHQR).
 

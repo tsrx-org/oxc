@@ -203,7 +203,10 @@ test("static launch build has a scoped base, crawl metadata, and no internal des
   if (trimmedBase) {
     // The domain root carries the landing page pointing at the docs.
     const landing = await readFile(join(outDir, "index.html"), "utf8");
-    assert.match(landing, new RegExp(`href="${escapedBase}"`, "u"));
+    // A legacy location points visitors straight at the canonical origin so
+    // the click does not have to bounce through the redirect.
+    const landingHref = siteConfig.redirectTo ? `${siteConfig.redirectTo}/` : trimmedBase;
+    assert.match(landing, new RegExp(`href="${landingHref.replace(/[.]/gu, "\\.")}"`, "u"));
     assert.match(landing, /prefers-color-scheme: dark/u);
     assert.match(landing, /color-scheme" content="light dark"/u);
   }
@@ -257,6 +260,22 @@ test("static launch build has a scoped base, crawl metadata, and no internal des
   // external rewrite is needed. Verify the rewrites array is empty.
   assert.ok(Array.isArray(vercel.rewrites), "vercel.json should have rewrites array");
   assert.equal(vercel.rewrites.length, 0, "vercel.json should have no rewrites");
+  // The default build is the legacy compiled.run/oxc-tsrx location: it must
+  // permanently redirect its base path, and only its base path, to the
+  // canonical origin. A canonical (oxc.tsrx.dev) build redirects nothing.
+  if (siteConfig.redirectTo) {
+    assert.deepEqual(vercel.redirects, [
+      { source: trimmedBase || "/", destination: `${siteConfig.redirectTo}/`, permanent: true },
+      {
+        source: `${trimmedBase}/:path*`,
+        destination: `${siteConfig.redirectTo}/:path*`,
+        permanent: true,
+      },
+    ]);
+    assert.ok(trimmedBase, "a legacy redirect must never claim the whole domain");
+  } else {
+    assert.deepEqual(vercel.redirects, []);
+  }
 });
 
 test("launch build fails closed when the browser WebAssembly artifact is required", async () => {

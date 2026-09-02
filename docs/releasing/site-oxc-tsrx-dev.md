@@ -1,5 +1,14 @@
 # Publishing the docs site at `oxc.tsrx.dev`
 
+> **Status (2026-09-02):** `oxc.tsrx.dev` is live and canonical. The old
+> `compiled.run/oxc-tsrx` location is kept as a **permanent redirect**: the
+> compiled.run build sets `redirectTo` in `docs/site.config.mjs`, `docs/build.mjs`
+> writes matching `redirects` into that artifact's `vercel.json`, and the
+> `deploy` job in `.github/workflows/site-artifact.yml` proves the 308 instead of
+> the page. Only `/oxc-tsrx` and its subpaths are redirected; the compiled.run
+> root and `/guessless` are unaffected. The rest of this document describes the
+> original hand-off and remains accurate for how the two deploys are wired.
+
 This is a hand-off document. Every step below needs access this repository's
 maintainers do not have: the `tsrx.dev` DNS zone and the TSRX Vercel team.
 Nothing here is automated, nothing here has been run, and nothing here can be

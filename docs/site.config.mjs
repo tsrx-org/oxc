@@ -4,7 +4,13 @@
 // (a sub-path of a shared domain) and https://oxc.tsrx.dev (its own domain, so
 // the site sits at the root). Only the origin and the base path differ, so both
 // are read from the environment with the compiled.run values as the defaults.
-// With SITE_ORIGIN and SITE_BASE unset the build is byte-identical to before.
+//
+// https://oxc.tsrx.dev is the canonical home. A build for any other origin is
+// a legacy location and gets `redirectTo` set, which docs/build.mjs turns into
+// permanent redirects from its base path to the same paths on the canonical
+// origin (see the vercel.json it writes). The canonical build itself redirects
+// nothing.
+const CANONICAL_ORIGIN = 'https://oxc.tsrx.dev'
 const DEFAULT_ORIGIN = 'https://compiled.run'
 const DEFAULT_BASE = '/oxc-tsrx/'
 
@@ -30,6 +36,9 @@ export default {
   origin,
   // Root-absolute base path the site is served under, with trailing slash.
   base,
+  // Canonical origin every page under `base` should permanently redirect to,
+  // or null when this build is the canonical one.
+  redirectTo: origin === CANONICAL_ORIGIN ? null : CANONICAL_ORIGIN,
   repository: 'https://github.com/tsrx-org/oxc',
   nav: [
     { text: 'Guide', link: '/guide/introduction' },

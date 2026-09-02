@@ -3,7 +3,7 @@
   "displayName": "OXC for TSRX",
   "version": "0.9.0",
   "description": "Official OXC editor support for TSRX",
-  "homepage": "https://compiled.run/oxc-tsrx",
+  "homepage": "https://oxc.tsrx.dev",
   "publisher": "thejackshelton",
   "license": "MIT",
   "repository": {
