@@ -10,7 +10,7 @@ import { parseNpmPackResponse } from "../helpers/npm-pack-response.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const repository = "https://github.com/tsrx-org/oxc";
-const homepage = "https://compiled.run/oxc-tsrx";
+const homepage = "https://oxc.tsrx.dev";
 // The v0.1.0 launch manifest is a record of the launch as it ran, when the
 // repo lived in its original org and the site at its original domain; it keeps
 // the URL it actually posted.

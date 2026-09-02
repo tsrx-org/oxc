@@ -14,7 +14,7 @@
     "tsrx",
     "typescript"
   ],
-  "homepage": "https://compiled.run/oxc-tsrx",
+  "homepage": "https://oxc.tsrx.dev",
   "bugs": {
     "url": "https://github.com/tsrx-org/oxc/issues"
   },

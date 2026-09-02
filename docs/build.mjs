@@ -2604,12 +2604,24 @@ async function build() {
     `${JSON.stringify({
       cleanUrls: true,
       trailingSlash: false,
-      // /integrations/vite-plus is a real page again, so the redirect that
-      // stood in for it while the walkthrough lived in the getting-started
-      // guide is gone: a redirect here would shadow the page it points at. The
-      // README published in oxc-tsrx@0.1.5 links that path, and an npm tarball
-      // is immutable, so the path itself has to keep resolving.
-      redirects: [],
+      // A legacy location (compiled.run/oxc-tsrx) sends every path under its
+      // base to the same path on the canonical origin, permanently (308), so
+      // published links, npm READMEs, and search results all land on
+      // oxc.tsrx.dev. Only the base path is claimed: the rest of the domain
+      // (the root landing page, /guessless) is untouched. Vercel applies
+      // redirects before the filesystem, so the pages still shipped under the
+      // base stop being reachable at this origin. The canonical build has no
+      // redirectTo and redirects nothing, so it cannot loop.
+      redirects: config.redirectTo
+        ? [
+            { source: trimmedBase || '/', destination: `${config.redirectTo}/`, permanent: true },
+            {
+              source: `${trimmedBase}/:path*`,
+              destination: `${config.redirectTo}/:path*`,
+              permanent: true,
+            },
+          ]
+        : [],
       // Guessless docs are now embedded as static files under /guessless/ during
       // the site build (see .github/workflows/site-artifact.yml), so no rewrites
       // are needed. Vercel's cleanUrls handles /guessless -> /guessless/index.html.
@@ -2670,7 +2682,7 @@ a:hover { border-color: #888; }
 <body>
 <main>
 <h1>${host}</h1>
-<a href="${trimmedBase}">${escapeHtml(config.title)} &rarr;</a>
+<a href="${config.redirectTo ? `${config.redirectTo}/` : trimmedBase}">${escapeHtml(config.title)} &rarr;</a>
 </main>
 </body>
 </html>
