@@ -8,7 +8,7 @@ mod support;
 
 use support::{
     assert_no_scaffold, field, list_field, object_field, one_object, optional_field, program_body,
-    require_type, scalar_field, span,
+    require_type, scalar_field,
 };
 use tsrx_parser_engine::{TsrxParseRequest, TsrxParseResult, parse_tsrx};
 use tsrx_tape_schema::{
@@ -159,8 +159,8 @@ fn assert_style_host(tape: &FlatTape, element: RecordIndex, containers: usize) {
         .iter()
         .copied()
         .filter(|child| scalar_field(tape, *child, "type") == r#""JSXExpressionContainer""#)
-        .collect::<Vec<_>>();
-    assert_eq!(expression_children.len(), containers);
+        .count();
+    assert_eq!(expression_children, containers);
     assert!(optional_field(tape, element, "css").is_none());
 }
 
@@ -170,7 +170,17 @@ fn assert_no_parser_errors(result: &TsrxParseResult) {
 }
 
 fn assert_multiple_outputs(result: &TsrxParseResult, start: u32, end: u32) {
-    assert!(result.program.is_some());
+    assert!(
+        result.program.is_some(),
+        "expected recovered program; status={:?} errors={:?}",
+        result.status,
+        result
+            .errors
+            .records()
+            .iter()
+            .map(|error| result.errors.string(error.message).unwrap_or("<missing>"))
+            .collect::<Vec<_>>(),
+    );
     assert!(result.completeness.contains(Completeness::HAS_PROGRAM));
     assert!(result.completeness.contains(Completeness::HAS_ERRORS));
     let error = result

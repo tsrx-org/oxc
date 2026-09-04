@@ -77,11 +77,11 @@ fn report_code_block_outputs(
     block: RecordIndex,
     diagnostics: &mut Vec<RecoverableDiagnostic>,
 ) -> Result<(), TsrxParseError> {
-    let mut outputs = statement_list_outputs(tape, list_field(tape, block, "body")?)?;
-    if let Some(render) = nullable_object(tape, block, "render")? {
-        if is_jsx_child_type(tape, render) {
-            outputs.push(render);
-        }
+    let mut outputs = statement_list_outputs(tape, list_field(tape, block, "body")?);
+    if let Some(render) = nullable_object(tape, block, "render")?
+        && is_jsx_child_type(tape, render)
+    {
+        outputs.push(render);
     }
     push_later_outputs(tape, &outputs, diagnostics)?;
     Ok(())
@@ -139,14 +139,11 @@ fn report_block_outputs(
     if !has_type(tape, block, r#""BlockStatement""#) {
         return Ok(());
     }
-    let outputs = statement_list_outputs(tape, list_field(tape, block, "body")?)?;
+    let outputs = statement_list_outputs(tape, list_field(tape, block, "body")?);
     push_later_outputs(tape, &outputs, diagnostics)
 }
 
-fn statement_list_outputs(
-    tape: &FlatTape,
-    list: RecordIndex,
-) -> Result<Vec<RecordIndex>, TsrxParseError> {
+fn statement_list_outputs(tape: &FlatTape, list: RecordIndex) -> Vec<RecordIndex> {
     let mut outputs = Vec::new();
     for value in tape.values(list) {
         let Some(object) = value.as_object() else {
@@ -156,7 +153,7 @@ fn statement_list_outputs(
             outputs.push(object);
         }
     }
-    Ok(outputs)
+    outputs
 }
 
 fn push_later_outputs(

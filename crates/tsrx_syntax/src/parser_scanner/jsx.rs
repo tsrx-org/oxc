@@ -212,10 +212,11 @@ impl Scanner<'_> {
 
         // `<style>{expr}</style>` is ordinary JSX: the first non-whitespace child is `{`.
         let raw_style = style && !first_non_whitespace_is_open_brace(self.bytes, index);
-        if style && !raw_style {
-            if let Some(owner) = parser_style_owner {
-                self.abandon_reserved_style(owner)?;
-            }
+        if style
+            && !raw_style
+            && let Some(owner) = parser_style_owner
+        {
+            self.abandon_reserved_style(owner)?;
         }
 
         if raw_style {
