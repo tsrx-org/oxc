@@ -949,7 +949,7 @@ function materializeCompatibilityProgram(program, source, filename, loose, posit
 			if (value.pending != null && value.pendingKeyword == null) value.pendingKeyword = keywordSpan(source, "@pending", value.block?.end ?? value.start, value.pending?.end ?? value.end, positionAt);
 			if (value.handler != null && value.handlerKeyword == null) value.handlerKeyword = keywordSpan(source, "@catch", value.pending?.end ?? value.block?.end ?? value.start, value.handler?.end ?? value.end, positionAt);
 		}
-		if (value.type === "JSXStyleElement" && typeof value.css === "string") {
+		if (value.type === "JSXStyleElement" && typeof value.css === "string" && value.openingElement?.selfClosing !== true) {
 			const style = parse_style(value.css, {
 				filename,
 				line: value.openingElement?.loc?.start?.line ?? value.loc?.start?.line ?? 1,

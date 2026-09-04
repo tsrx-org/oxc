@@ -13,7 +13,10 @@ use tsrx_syntax::{
     Overlay, OverlayView, PARSER_RECOVERY_DIAGNOSTIC, ProjectionView, project_for_parser,
     recover_for_parser, scan_for_parser,
 };
-use tsrx_tape_schema::{CommentTable, DiagnosticTable, FlatTape, ModuleTable, TapeSpan};
+use tsrx_tape_schema::{
+    CommentTable, DiagnosticPhase, DiagnosticSeverity, DiagnosticTable, FlatTape, ModuleTable,
+    TapeSpan,
+};
 
 use crate::{
     TsrxParseError, TsrxParseOptions, TsrxParseRecovery, TsrxParseResult,
@@ -22,7 +25,9 @@ use crate::{
         grammar_result_with_rejection_module_names, projection_grammar_result,
     },
     lexical, projection,
-    reconstruct::{finalize_reachable_spans, reconstruct_projected},
+    reconstruct::{
+        collect_multiple_output_diagnostics, finalize_reachable_spans, reconstruct_projected,
+    },
     recovery,
     results::{reconstruct_diagnostics, reconstruct_module},
     utf16_result::Utf16WorkObserver,
@@ -419,6 +424,30 @@ impl ProjectedCompletion<'_, '_, '_, '_> {
             &authored_starts,
             &finalization_index,
         )?;
+        let multiple_outputs = collect_multiple_output_diagnostics(&self.tape)?;
+        for diagnostic in &multiple_outputs {
+            let labels = self.errors.append_labels([(
+                TapeSpan::new(diagnostic.span.start, diagnostic.span.end),
+                None,
+                true,
+            )])?;
+            self.errors.push_diagnostic(
+                DiagnosticPhase::Grammar,
+                DiagnosticSeverity::Error,
+                diagnostic.message,
+                labels,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )?;
+        }
+        if !multiple_outputs.is_empty() {
+            render_diagnostic_codeframes(self.filename, self.source, &mut self.errors)
+                .map_err(TsrxParseError::from)?;
+        }
         if !self.defer_compaction {
             self.tape.compact_reachable()?;
         }

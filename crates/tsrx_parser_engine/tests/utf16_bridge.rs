@@ -923,7 +923,7 @@ fn style_payload_boundaries_ignore_quoted_greater_than_and_self_closing_attribut
                     == Some(r#""JSXStyleElement""#)
             })
             .expect("self-closing style");
-        assert!(result.program().field_index(style, "css").is_none());
+        assert_eq!(scalar_field(result.program(), style, "css"), "\"\"");
     }
 }
 
