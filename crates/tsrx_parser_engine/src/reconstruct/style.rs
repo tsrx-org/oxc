@@ -89,20 +89,20 @@ fn collect_projected_styles(
         if scalar_field(tape, name, "name")? != r#""style""# {
             continue;
         }
-        let owner = *expected_order
-            .get(next)
-            .ok_or(TsrxParseError::Unsupported("projected style has no authored owner"))?;
+        let start = map_endpoint(segments, scalar_u32(tape, opening, "start")?, true).ok_or(
+            TsrxParseError::Unsupported("projected style start is outside authored source"),
+        )?;
+        // `<style>{expr}</style>` stays an ordinary JSXElement. Skip those openings so they
+        // do not steal a reserved raw-style owner.
+        let Some(&owner) = expected_order.get(next) else {
+            continue;
+        };
         let expected = overlay
             .style_blocks
             .get(owner)
             .ok_or(TsrxParseError::Unsupported("unknown authored style owner"))?;
-        let start = map_endpoint(segments, scalar_u32(tape, opening, "start")?, true).ok_or(
-            TsrxParseError::Unsupported("projected style start is outside authored source"),
-        )?;
         if start != expected.element.start {
-            return Err(TsrxParseError::Unsupported(
-                "projected styles are not in canonical opening order",
-            ));
+            continue;
         }
         let element = parents
             .parent_container(ValueRef::object(opening))
@@ -206,7 +206,7 @@ fn reconstruct_style_element(
                 "self-closing style has projected closing content",
             ));
         }
-        (None, None)
+        (None, "")
     } else {
         let (closing, closing_name, closing_span, css) = consume_paired_style_scaffold(
             tape,
@@ -216,10 +216,10 @@ fn reconstruct_style_element(
             closing_value,
             segments,
         )?;
-        (Some((closing, closing_name, closing_span)), Some(css))
+        (Some((closing, closing_name, closing_span)), css)
     };
     let children =
-        if let Some(css) = css { build_style_children(tape, css, starts)? } else { children };
+        if style.self_closing { children } else { build_style_children(tape, css, starts)? };
 
     rebuild_style_opening(
         tape,
@@ -371,7 +371,7 @@ fn rebuild_style_element_node(
     children: RecordIndex,
     opening: RecordIndex,
     closing: Option<RecordIndex>,
-    css: Option<&str>,
+    css: &str,
     starts: &mut Vec<AuthoredStart>,
 ) -> Result<(), TsrxParseError> {
     tape.clear_fields(element)?;
@@ -385,10 +385,8 @@ fn rebuild_style_element_node(
         tape.push_scalar("null")?
     };
     tape.append_field(element, "closingElement", closing)?;
-    if let Some(css) = css {
-        let css = tape.push_json_string_scalar(css)?;
-        tape.append_field(element, "css", css)?;
-    }
+    let css = tape.push_json_string_scalar(css)?;
+    tape.append_field(element, "css", css)?;
     record_authored_span(starts, element, span);
     Ok(())
 }

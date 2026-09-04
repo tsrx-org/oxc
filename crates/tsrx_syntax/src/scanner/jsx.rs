@@ -134,7 +134,8 @@ impl Scanner<'_> {
             return Ok(index);
         }
 
-        if style {
+        // `<style>{expr}</style>` is ordinary JSX: the first non-whitespace child is `{`.
+        if style && !first_non_whitespace_is_open_brace(self.bytes, index) {
             let Some(relative_close) = find_bytes(&self.bytes[index..], b"</style>") else {
                 return Err(ProjectionError::UnterminatedSyntax {
                     offset: to_u32(start)?,
@@ -583,4 +584,12 @@ impl Scanner<'_> {
         }
         Ok(())
     }
+}
+
+fn first_non_whitespace_is_open_brace(bytes: &[u8], start: usize) -> bool {
+    let mut index = start;
+    while bytes.get(index).is_some_and(u8::is_ascii_whitespace) {
+        index += 1;
+    }
+    bytes.get(index) == Some(&b'{')
 }

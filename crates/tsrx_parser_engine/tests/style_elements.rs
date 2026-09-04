@@ -120,11 +120,11 @@ fn distinguishes_empty_paired_self_closing_and_uppercase_style_elements() {
     require_type(tape, style, "JSXStyleElement");
     assert_eq!(
         field_names(tape, style),
-        ["type", "start", "end", "metadata", "children", "openingElement", "closingElement",]
+        ["type", "start", "end", "metadata", "children", "openingElement", "closingElement", "css",]
     );
     assert!(list_field(tape, style, "children").is_empty());
     assert_eq!(tape.scalar(field(tape, style, "closingElement")), Some("null"));
-    assert!(optional_field(tape, style, "css").is_none());
+    assert_eq!(scalar_field(tape, style, "css"), "\"\"");
     let opening = object_field(tape, style, "openingElement");
     assert_eq!(scalar_field(tape, opening, "selfClosing"), "true");
     assert_eq!(list_field(tape, opening, "attributes").len(), 2);
@@ -195,7 +195,8 @@ fn nested_style_attributes_keep_preorder_owners_and_independent_raw_payloads() {
     let inner = object_field(tape, container, "expression");
     for style in [outer, inner] {
         require_type(tape, style, "JSXStyleElement");
-        assert!(optional_field(tape, style, "css").is_none());
+        assert_eq!(scalar_field(tape, style, "css"), "\"\"");
+        assert!(list_field(tape, style, "children").is_empty());
     }
     assert_eq!(count_type(tape, "JSXStyleElement"), 2);
     assert_no_scaffold(tape);

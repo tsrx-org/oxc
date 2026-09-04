@@ -1268,7 +1268,11 @@ function materializeCompatibilityProgram(program, source, filename, loose, posit
       }
     }
 
-    if (value.type === "JSXStyleElement" && typeof value.css === "string") {
+    if (
+      value.type === "JSXStyleElement" &&
+      typeof value.css === "string" &&
+      value.openingElement?.selfClosing !== true
+    ) {
       const style = parse_style(
         value.css,
         {

@@ -210,7 +210,15 @@ impl Scanner<'_> {
             return Ok(index);
         }
 
-        if style {
+        // `<style>{expr}</style>` is ordinary JSX: the first non-whitespace child is `{`.
+        let raw_style = style && !first_non_whitespace_is_open_brace(self.bytes, index);
+        if style && !raw_style {
+            if let Some(owner) = parser_style_owner {
+                self.abandon_reserved_style(owner)?;
+            }
+        }
+
+        if raw_style {
             let Some(relative_close) = find_bytes(&self.bytes[index..], b"</style>") else {
                 return Err(ProjectionError::UnterminatedSyntax {
                     offset: to_u32(start)?,
@@ -519,6 +527,21 @@ impl Scanner<'_> {
         })
     }
 
+    fn abandon_reserved_style(&mut self, owner: u32) -> Result<(), ProjectionError> {
+        let index = usize::try_from(owner).map_err(|_| ProjectionError::StructuralMismatch)?;
+        if index >= self.style_blocks.len() {
+            return Err(ProjectionError::StructuralMismatch);
+        }
+        self.style_blocks.remove(index);
+        for token in &mut self.embedded_tokens {
+            if token.kind == EmbeddedKind::StyleContent && token.owner > owner {
+                token.owner =
+                    token.owner.checked_sub(1).ok_or(ProjectionError::StructuralMismatch)?;
+            }
+        }
+        Ok(())
+    }
+
     fn jsx_shorthand_identifier(&self, start: usize, end: usize) -> Option<ByteSpan> {
         let identifier_start = start.checked_add(1)?;
         let identifier_end = end.checked_sub(1)?;
@@ -551,6 +574,14 @@ impl Scanner<'_> {
         self.identifier_start_width(index + 1).is_some()
             || self.bytes.get(index + 1).is_some_and(|byte| matches!(byte, b'>' | b'{'))
     }
+}
+
+fn first_non_whitespace_is_open_brace(bytes: &[u8], start: usize) -> bool {
+    let mut index = start;
+    while bytes.get(index).is_some_and(u8::is_ascii_whitespace) {
+        index += 1;
+    }
+    bytes.get(index) == Some(&b'{')
 }
 
 fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {

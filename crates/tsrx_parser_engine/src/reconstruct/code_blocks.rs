@@ -482,28 +482,63 @@ fn take_code_block_render(
     tape: &mut FlatTape,
     body: RecordIndex,
 ) -> Result<ValueRef, TsrxParseError> {
-    let mut render = None;
+    let items: Vec<(RecordIndex, ValueRef)> = tape.values_indexed(body).collect();
+    let mut output_indexes = Vec::new();
+    let mut seen_output = false;
     let mut trailing_semicolon = false;
-    for value in tape.values(body) {
-        if render.is_some() {
-            if !trailing_semicolon && is_dynamic_semicolon(tape, value) {
-                trailing_semicolon = true;
-                continue;
-            }
-            return Err(TsrxParseError::AuthoredGrammar(
-                "render expression precedes another statement".to_string(),
-            ));
+    for (index, (_entry, value)) in items.iter().copied().enumerate() {
+        if render_expression(tape, value)?.is_some() {
+            output_indexes.push(index);
+            seen_output = true;
+            trailing_semicolon = false;
+            continue;
         }
-        render = render_expression(tape, value)?;
+        if !seen_output {
+            continue;
+        }
+        if !trailing_semicolon && is_dynamic_semicolon(tape, value) {
+            trailing_semicolon = true;
+            continue;
+        }
+        return Err(TsrxParseError::AuthoredGrammar(
+            "render expression precedes another statement".to_string(),
+        ));
     }
-    let Some(render) = render else {
+    let Some(&last_output) = output_indexes.last() else {
         return tape.push_scalar("null").map_err(Into::into);
     };
+    for &index in &output_indexes {
+        if index == last_output {
+            continue;
+        }
+        let (entry, value) = items[index];
+        if let Some(expression) = expression_statement_jsx_child(tape, value)? {
+            tape.set_list_value(entry, expression)?;
+        }
+    }
     if trailing_semicolon {
         tape.pop_list_value(body)?;
     }
-    tape.pop_list_value(body)?;
-    Ok(render)
+    let render_value = tape.pop_list_value(body)?;
+    render_expression(tape, render_value)?
+        .ok_or(TsrxParseError::Unsupported("code block render is not a JSX child"))
+}
+
+fn expression_statement_jsx_child(
+    tape: &FlatTape,
+    statement: ValueRef,
+) -> Result<Option<ValueRef>, TsrxParseError> {
+    let Some(statement) = statement.as_object() else {
+        return Ok(None);
+    };
+    if !has_type(tape, statement, r#""ExpressionStatement""#) {
+        return Ok(None);
+    }
+    let expression = field_value(tape, statement, "expression")?;
+    let Some(object) = expression.as_object() else {
+        return Ok(None);
+    };
+    Ok(is_jsx_child_type(tape, object).then_some(expression))
 }
 
 fn block_code_block_placement(
