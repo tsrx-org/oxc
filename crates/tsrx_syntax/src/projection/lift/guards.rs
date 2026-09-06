@@ -39,8 +39,11 @@ pub(super) fn lift_markup_guards(lifted: String) -> Result<(String, Overlay), Pr
         if bytes[semicolon] != b';' {
             continue;
         }
-        let line_start =
-            bytes[..semicolon].iter().rposition(|byte| *byte == b'\n').map_or(0, |at| at + 1);
+        // The scanner's own line terminators: LF, and a bare CR, which `endOfLine: "cr"` prints.
+        let line_start = bytes[..semicolon]
+            .iter()
+            .rposition(|byte| matches!(byte, b'\n' | b'\r'))
+            .map_or(0, |at| at + 1);
         if !bytes[line_start..semicolon].iter().all(u8::is_ascii_whitespace) {
             continue;
         }
@@ -55,6 +58,10 @@ pub(super) fn lift_markup_guards(lifted: String) -> Result<(String, Overlay), Pr
     if guards.is_empty() {
         return Ok((lifted, overlay));
     }
+    // The openings arrive in source order, but the removal below slices forward and must never
+    // trust that: an out-of-order offset would be a panic, not a wrong answer.
+    guards.sort_unstable();
+    guards.dedup();
     let mut output = String::with_capacity(lifted.len());
     let mut copied = 0usize;
     for semicolon in guards {

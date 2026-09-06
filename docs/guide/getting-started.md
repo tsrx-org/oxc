@@ -39,15 +39,19 @@ manager, so `oxlint` and `oxfmt` behave exactly as they did and do not read
 `Expected at least one target file`, and the editor shows no formatter for
 `.tsrx`. You have two ways out:
 
-- Remove the two dependencies. This package bundles both tools and formats or
-  lints `.js`, `.ts`, and `.tsx` byte-for-byte as they would, so nothing else
-  changes. Reinstall from scratch afterwards (`rm -rf node_modules`, then
-  install), because the package manager decided the command names at install
-  time.
+- Remove the two dependencies. This package bundles its own Oxlint and Oxfmt
+  and hands `.js`, `.ts`, and `.tsx` to them unchanged, so the commands keep
+  working, at the versions this package pins rather than the ones you pinned.
+  Reinstall from scratch afterwards (`rm -rf node_modules`, then install),
+  because the package manager decided the command names at install time.
 - Keep them, and run `npx oxc-tsrx setup` once. It leaves your packages alone
   and wires the editor, so the official OXC extension serves `.tsrx` through
-  this package and ordinary files through your own Oxlint. On the command line,
-  `oxc-tsrx-lint` and `oxc-tsrx-fmt` take `.tsrx` files.
+  this package and ordinary files through your own Oxlint, at your version. On
+  the command line, `oxc-tsrx-lint` and `oxc-tsrx-fmt` take `.tsrx` files.
+
+Only a direct `oxlint` affects the editor, because `.tsrx` formatting rides on
+the `oxlint --lsp` connection. A direct `oxfmt` on its own changes nothing in
+the editor and only the `oxfmt` command.
 
 `npx oxc-tsrx status` reports `collision` next to `oxlint` or `oxfmt` whenever
 this applies, and says the same two things.
@@ -69,7 +73,7 @@ This is the complete list of things you have to run to lint and format `.tsrx`.
 | --- | --- | --- |
 | Command line (`oxlint`, `oxfmt`) | 1 | `npm install --save-dev @tsrx/oxc@latest` |
 | Editor, through the released official OXC extension | 1 | the same install, and nothing else |
-| Editor, with `oxlint` or `oxfmt` also declared in `package.json` | 2 | the same install, then `oxc-tsrx setup` |
+| Editor, with `oxlint` also declared in `package.json` | 2 | the same install, then `oxc-tsrx setup` |
 | [Vite+](#try-it-with-vite) (`vp lint`, `vp fmt`) | 2 | the same install, then `oxc-tsrx setup` |
 
 ## Try it with Vite+

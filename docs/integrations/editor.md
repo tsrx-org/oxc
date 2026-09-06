@@ -8,7 +8,7 @@ description: Native formatting, lint diagnostics, and validated quick fixes for 
 Install `@tsrx/oxc` in your project and the official OXC extension in your
 editor. There is no TSRX-specific extension to add and no fork to install. There
 is no setup command either, unless the project is on Vite+ or also declares
-`oxlint` or `oxfmt` itself; then there is exactly one.
+`oxlint` itself; then there is exactly one.
 
 <!-- extension:oxc -->
 
@@ -23,9 +23,9 @@ Two things to know before you start:
 - **It does not wake up on a `.tsrx` file.** Open any JavaScript, TypeScript, or
   JSON file once per session, and `.tsrx` is served from then on.
   [Why](#what-a-plain-install-actually-covers).
-- **In a Vite+ project, or a project that also declares `oxlint` or `oxfmt`
-  directly, the extension's usual lookup does not reach this package**, so it
-  needs one setup command.
+- **In a Vite+ project, or a project that also declares `oxlint` directly,
+  the extension's usual lookup does not reach this package**, so it needs one
+  setup command.
   [Which one](#in-a-vite-project-setup-writes-oxcpathoxlint).
 
 Syntax highlighting and IntelliSense for `.tsrx` are a different job, owned by
@@ -38,10 +38,11 @@ the two run side by side:
 
 1. Install the official OXC extension, `oxc.oxc-vscode`.
 2. Add `@tsrx/oxc` to the project.
-3. If `oxlint` or `oxfmt` are also direct dependencies of the project, run
-   `npx oxc-tsrx setup` once and reload the window. Those packages keep the
+3. If `oxlint` is also a direct dependency of the project, run
+   `npx oxc-tsrx setup` once and reload the window. That package keeps the
    `oxlint` command, so without this step the extension starts your official
-   Oxlint, which serves no `.tsrx`, and says nothing.
+   Oxlint, which serves no `.tsrx`, and says nothing. A direct `oxfmt` alone
+   does not affect the editor.
    [Why](#in-a-vite-project-setup-writes-oxcpathoxlint).
 4. Open a JS, TS, or JSON file once, so the extension starts.
 5. Open a `.tsrx` file. Diagnostics, formatting, and quick fixes come through

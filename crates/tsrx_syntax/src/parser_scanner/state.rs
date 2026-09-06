@@ -30,10 +30,12 @@ pub(crate) struct Scanner<'a> {
     pub(super) style_blocks: Vec<StyleBlock>,
     pub(super) script_blocks: Vec<ScriptBlock>,
     pub(super) statement_boundaries: Vec<u32>,
-    /// Offsets of every markup opening scanned at statement position, in ascending order: the
+    /// Offsets of every markup opening scanned at statement position, in source order: the
     /// `<` that `scan_region` admitted where a statement may begin rather than inside an
-    /// expression or as a JSX child. The formatter lift consults this list before dropping an
-    /// ASI guard Oxfmt printed in front of one.
+    /// expression or as a JSX child. An element nested in another element's expression children
+    /// (a callback body, a render attribute) is recorded after its enclosing element, because
+    /// each opening is pushed before its element is scanned. The formatter lift consults this
+    /// list before dropping an ASI guard Oxfmt printed in front of one.
     pub(super) markup_statements: Vec<u32>,
     pub(super) first_root: u32,
     pub(super) last_root: u32,

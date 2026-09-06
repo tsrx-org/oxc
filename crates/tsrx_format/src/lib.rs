@@ -1034,6 +1034,63 @@ mod tests {
     }
 
     #[test]
+    fn semi_false_lifts_guards_inside_nested_markup_statements() {
+        // A markup statement inside a callback that is itself a child of a markup statement, and
+        // the same inside a render attribute. The enclosing element is recorded before its
+        // children are scanned, so the guard list stays in source order and every guard goes.
+        let options = root_options(&json!({ "semi": false }));
+        let nested = concat!(
+            "export function Outer() @{\n",
+            "  <div>\n",
+            "    {() => {\n",
+            "      <span />\n",
+            "    }}\n",
+            "  </div>\n",
+            "  <List\n",
+            "    render={() => {\n",
+            "      <i />\n",
+            "    }}\n",
+            "  />\n",
+            "}\n",
+        );
+        let first =
+            format_text_with_options(Path::new("Outer.tsrx"), nested, Some(&options)).unwrap();
+        assert!(!first.code.contains(";<"), "{}", first.code);
+        assert!(first.code.contains("      <span />\n"), "{}", first.code);
+        assert!(first.code.contains("      <i />\n"), "{}", first.code);
+        let second =
+            format_text_with_options(Path::new("Outer.tsrx"), &first.code, Some(&options)).unwrap();
+        assert_eq!(second.code, first.code);
+
+        // The same shape under `semi: true` keeps its trailing semicolons and gains no guard.
+        let options = root_options(&json!({ "semi": true }));
+        let first =
+            format_text_with_options(Path::new("Outer.tsrx"), nested, Some(&options)).unwrap();
+        assert!(first.code.contains("      <span />;\n"), "{}", first.code);
+        assert!(first.code.contains("      <i />;\n"), "{}", first.code);
+        assert!(!first.code.contains(";<"), "{}", first.code);
+    }
+
+    #[test]
+    fn semi_false_lifts_guards_under_every_line_ending() {
+        // The scanner treats a bare CR as a line terminator, so the guard pass has to as well:
+        // `endOfLine: "cr"` output is one line per statement exactly like LF output.
+        let source = "export function Pair() @{\n  <a />\n  <b />\n}\n";
+        for (end_of_line, terminator) in [("lf", "\n"), ("crlf", "\r\n"), ("cr", "\r")] {
+            let options = root_options(&json!({ "semi": false, "endOfLine": end_of_line }));
+            let first =
+                format_text_with_options(Path::new("Pair.tsrx"), source, Some(&options)).unwrap();
+            let t = terminator;
+            let expected = format!("export function Pair() @{{{t}  <a />{t}  <b />{t}}}{t}");
+            assert_eq!(first.code, expected, "{end_of_line}");
+            let second =
+                format_text_with_options(Path::new("Pair.tsrx"), &first.code, Some(&options))
+                    .unwrap();
+            assert_eq!(second.code, expected, "{end_of_line}");
+        }
+    }
+
+    #[test]
     fn semi_false_keeps_every_guard_that_is_not_a_line_leading_markup_statement() {
         let options = root_options(&json!({ "semi": false, "useTabs": true }));
         // `[` and `(` are hazards in TSRX exactly as in JavaScript, and a markup statement that

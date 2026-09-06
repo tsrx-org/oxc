@@ -345,3 +345,43 @@ test('a semi: false config prints no ASI guard before a line-leading markup stat
   const dirty = await runFormat([`--config=${configPath}`, '--check', cleanPath]);
   assert.equal(dirty.code, 1, dirty.stderr || dirty.stdout);
 });
+
+test('a semi: false config lifts guards inside nested markup statements and under every line ending', async () => {
+  // tsrx-org/oxc#64 follow-ups from review: a markup statement nested in a callback that is a
+  // child of another markup statement (the guard list must stay in source order), and CR-only
+  // output (the guard pass must treat a bare CR as a line terminator, like the scanner does).
+  const directory = await mkdtemp(join(tmpdir(), 'oxc-tsrx-format-semi-false-nested-'));
+  const nested = [
+    'export function Outer() @{',
+    '  <div>',
+    '    {() => {',
+    '      <span />',
+    '    }}',
+    '  </div>',
+    '  <List',
+    '    render={() => {',
+    '      <i />',
+    '    }}',
+    '  />',
+    '}',
+    '',
+  ].join('\n');
+  for (const [endOfLine, terminator] of [['lf', '\n'], ['crlf', '\r\n'], ['cr', '\r']]) {
+    const configPath = join(directory, `${endOfLine}.oxfmtrc.json`);
+    await writeFile(configPath, `{ "semi": false, "endOfLine": "${endOfLine}" }\n`);
+    const first = await runFormat([`--config=${configPath}`, '--stdin-filepath=Outer.tsrx'], nested);
+    assert.equal(first.code, 0, `${endOfLine}: ${first.stderr || first.stdout}`);
+    assert.equal(first.stderr, '', endOfLine);
+    assert.doesNotMatch(first.stdout, /;</, endOfLine);
+    assert.equal(first.stdout, nested.replaceAll('\n', terminator), endOfLine);
+    // Stock Oxfmt reads a lone CR inside JSX text as ordinary whitespace rather than a line
+    // break, so CR-terminated *input* with expression children reformats with `{" "}` on
+    // every Oxfmt (verified on the pinned stock binary with plain .tsx). That is upstream and
+    // independent of guards, so only LF and CRLF output is asked to converge here; the CR guard
+    // itself is covered above and by the sibling-element case in the Rust suite.
+    if (endOfLine === 'cr') continue;
+    const again = await runFormat([`--config=${configPath}`, '--stdin-filepath=Outer.tsrx'], first.stdout);
+    assert.equal(again.code, 0, `${endOfLine}: ${again.stderr || again.stdout}`);
+    assert.equal(again.stdout, first.stdout, endOfLine);
+  }
+});
