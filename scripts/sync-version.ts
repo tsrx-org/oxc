@@ -273,7 +273,7 @@ const textTargets: any[] = [
   },
 
   { file: "tests/editor/official-oxc-toolchain-run.mjs", slots: [[DEP, 4]] },
-  { file: "tests/editor/oxlint-multiplexer.test.mjs", slots: [[DEP, 1]] },
+  { file: "tests/editor/oxlint-multiplexer.test.mjs", slots: [[DEP, 2]] },
   { file: "tests/editor/package.test.mjs", slots: [[ASSERT_DEP, 1]] },
   { file: "tests/editor/vscode-run.mjs", slots: [[DEP, 1]] },
   {
@@ -318,7 +318,7 @@ const textTargets: any[] = [
   {
     file: "tests/packaging/toolchain-compat.test.mjs",
     slots: [
-      [DEP, 1],
+      [DEP, 2],
       [PROVIDER_VERSION, 1],
     ],
   },
