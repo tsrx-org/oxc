@@ -4,12 +4,44 @@
 )]
 mod support;
 
-use support::{object_field, program_body, require_type, span};
+use support::{list_field, object_field, program_body, require_type, span};
 use tsrx_parser_engine::{
     TsrxParseOptions, TsrxParseRecovery, TsrxParseRequest, TsrxParseResult, TsrxUtf16ParseRequest,
     parse_tsrx, parse_tsrx_utf16_with_options, parse_tsrx_with_options,
 };
-use tsrx_tape_schema::{Completeness, ParseCompleteness};
+use tsrx_tape_schema::{Completeness, DiagnosticPhase, ParseCompleteness};
+
+const MULTIPLE_OUTPUTS: &str =
+    "A code block renders a single node; wrap multiple nodes or text in a fragment '<>…</>'.";
+const RECOVERY_DIAGNOSTIC: &str = "incomplete TSRX editor snapshot";
+
+fn diagnostic_messages(result: &TsrxParseResult) -> Vec<&str> {
+    result
+        .errors
+        .records()
+        .iter()
+        .map(|record| result.errors.string(record.message).expect("diagnostic message"))
+        .collect()
+}
+
+fn multiple_output_label(result: &TsrxParseResult) -> (u32, u32) {
+    let record = result
+        .errors
+        .records()
+        .iter()
+        .find(|record| result.errors.string(record.message) == Some(MULTIPLE_OUTPUTS))
+        .expect("multiple-outputs diagnostic");
+    assert_eq!(record.phase, DiagnosticPhase::Grammar);
+    let labels = result.errors.labels(record.labels).expect("labels");
+    assert_eq!(labels.len(), 1);
+    (labels[0].span.start, labels[0].span.end)
+}
+
+fn expect_span(source: &str, needle: &str) -> (u32, u32) {
+    let start = source.find(needle).expect("needle in source");
+    let start = u32::try_from(start).expect("fixture offset");
+    (start, start + u32::try_from(needle.len()).expect("fixture length"))
+}
 
 fn recover(source: &str) -> TsrxParseResult {
     parse_tsrx_with_options(
@@ -146,4 +178,67 @@ fn editor_recovery_composes_repair_offsets_with_the_utf16_bridge() {
             .labels(diagnostic.labels)
             .is_some_and(|labels| labels.iter().all(|label| label.span.end <= unit_len))
     }));
+}
+
+#[test]
+fn snapshot_repair_keeps_a_multiple_output_tree_and_its_diagnostics() {
+    // The unclosed `@{` is repaired by the editor snapshot recovery; the repaired source still
+    // has two output nodes, which is the recoverable grammar error, not a reason to drop the
+    // repaired tree and its diagnostic.
+    let source = "export function View() @{\n  <style apply={a} />\n  <div />";
+    assert_eq!(
+        parse_tsrx(&TsrxParseRequest { source }).expect("strict").status,
+        ParseCompleteness::Failed
+    );
+
+    let result = recover(source);
+    assert_recovered(&result, source);
+    assert_eq!(diagnostic_messages(&result), [RECOVERY_DIAGNOSTIC, MULTIPLE_OUTPUTS]);
+    assert_eq!(multiple_output_label(&result), expect_span(source, "<div />"));
+
+    let tape = result.program.as_ref().expect("recovered Program");
+    let export = program_body(tape)[0].as_object().expect("export");
+    let function = object_field(tape, export, "declaration");
+    let block = object_field(tape, function, "body");
+    require_type(tape, block, "JSXCodeBlock");
+    let body = list_field(tape, block, "body");
+    assert_eq!(body.len(), 1);
+    let style = body[0].as_object().expect("style statement");
+    require_type(tape, style, "JSXStyleElement");
+    assert_eq!(span(tape, style), expect_span(source, "<style apply={a} />"));
+    let render = object_field(tape, block, "render");
+    require_type(tape, render, "JSXElement");
+    assert_eq!(span(tape, render), expect_span(source, "<div />"));
+}
+
+#[test]
+fn oxc_partial_recovery_keeps_the_multiple_output_diagnostic() {
+    let source = "function View() @{ const value; <style apply={a} /> <main /> }";
+    let result = recover(source);
+    assert_recovered(&result, source);
+    assert!(diagnostic_messages(&result).contains(&MULTIPLE_OUTPUTS));
+    assert_eq!(multiple_output_label(&result), expect_span(source, "<main />"));
+
+    let tape = result.program.as_ref().expect("recovered Program");
+    let function = program_body(tape)[0].as_object().expect("function");
+    let block = object_field(tape, function, "body");
+    require_type(tape, block, "JSXCodeBlock");
+    require_type(tape, object_field(tape, block, "render"), "JSXElement");
+}
+
+#[test]
+fn multiple_outputs_are_recovered_under_every_recovery_option() {
+    let source = "function View() @{ <style apply={a} /> <main /> }";
+    for recovery in [TsrxParseRecovery::None, TsrxParseRecovery::Editor] {
+        let result = parse_tsrx_with_options(
+            &TsrxParseRequest { source },
+            TsrxParseOptions { recovery, ..TsrxParseOptions::default() },
+        )
+        .expect("multiple outputs are result data");
+        assert_eq!(result.status, ParseCompleteness::Recovered, "{recovery:?}");
+        assert!(!result.completeness.contains(Completeness::COMPLETE), "{recovery:?}");
+        assert!(result.completeness.contains(Completeness::HAS_PROGRAM), "{recovery:?}");
+        assert_eq!(diagnostic_messages(&result), [MULTIPLE_OUTPUTS], "{recovery:?}");
+        assert_eq!(multiple_output_label(&result), expect_span(source, "<main />"));
+    }
 }

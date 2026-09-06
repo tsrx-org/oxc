@@ -17,7 +17,11 @@ use crate::{
 /// # Errors
 ///
 /// Malformed, unsupported, or OXC-rejected authored grammar is returned as a structured
-/// [`ParseCompleteness::Failed`](tsrx_tape_schema::ParseCompleteness::Failed) result with null `program` and `module` records. Returns
+/// [`ParseCompleteness::Failed`](tsrx_tape_schema::ParseCompleteness::Failed) result with null `program` and `module` records. One
+/// grammar error is recoverable: a `@{ … }` body or control-flow clause with more than one
+/// output node keeps its reconstructed `Program` and is returned as
+/// [`ParseCompleteness::Recovered`](tsrx_tape_schema::ParseCompleteness::Recovered), never
+/// `COMPLETE`, with a grammar diagnostic on every later output. Returns
 /// [`TsrxParseError`] only for operational failures such as unsupported coordinate domains,
 /// capacity exhaustion, or an internal projection/reconstruction invariant.
 pub fn parse_tsrx(request: &TsrxParseRequest<'_>) -> Result<TsrxParseResult, TsrxParseError> {
@@ -32,7 +36,10 @@ pub fn parse_tsrx(request: &TsrxParseRequest<'_>) -> Result<TsrxParseResult, Tsr
 /// a structured [`ParseCompleteness::Failed`](tsrx_tape_schema::ParseCompleteness::Failed) result
 /// with null `program` and `module` records. Editor recovery may instead retain a usable OXC
 /// partial tree and mark it
-/// [`ParseCompleteness::Recovered`](tsrx_tape_schema::ParseCompleteness::Recovered). Requested
+/// [`ParseCompleteness::Recovered`](tsrx_tape_schema::ParseCompleteness::Recovered). Under every
+/// recovery option, a body with more than one output node is the same recoverable grammar
+/// error: the reconstructed `Program` is kept, the result is `Recovered` rather than
+/// `COMPLETE`, and each later output carries a grammar diagnostic. Requested
 /// semantic diagnostics are likewise returned as structured result data. Returns an error only
 /// for operational failures such as unsupported coordinate domains, capacity exhaustion, or an
 /// internal projection/reconstruction invariant.

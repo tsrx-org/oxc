@@ -167,6 +167,8 @@ fn assert_style_host(tape: &FlatTape, element: RecordIndex, containers: usize) {
 
 fn assert_no_parser_errors(result: &TsrxParseResult) {
     assert_eq!(result.status, ParseCompleteness::Complete, "{:?}", result.errors);
+    assert!(result.completeness.contains(Completeness::COMPLETE));
+    assert!(!result.completeness.contains(Completeness::HAS_ERRORS));
     assert!(result.errors.is_empty(), "{:?}", result.errors);
 }
 
@@ -182,14 +184,16 @@ fn assert_multiple_outputs(result: &TsrxParseResult, start: u32, end: u32) {
             .map(|error| result.errors.string(error.message).unwrap_or("<missing>"))
             .collect::<Vec<_>>(),
     );
+    // The tree is recovered from a grammar error: never a complete parse, even under the
+    // default (non-editor) recovery option.
+    assert_eq!(result.status, ParseCompleteness::Recovered);
+    assert!(!result.completeness.contains(Completeness::COMPLETE));
     assert!(result.completeness.contains(Completeness::HAS_PROGRAM));
     assert!(result.completeness.contains(Completeness::HAS_ERRORS));
-    let error = result
-        .errors
-        .records()
-        .iter()
-        .find(|error| error.phase == DiagnosticPhase::Grammar)
-        .expect("multiple-outputs grammar diagnostic");
+    let records = result.errors.records();
+    assert_eq!(records.len(), 1, "exactly one diagnostic for one later output");
+    let error = &records[0];
+    assert_eq!(error.phase, DiagnosticPhase::Grammar);
     assert_eq!(result.errors.string(error.message), Some(MULTIPLE_OUTPUTS));
     let labels = result.errors.labels(error.labels).expect("grammar labels");
     assert_eq!(labels.len(), 1);
@@ -626,5 +630,33 @@ fn expression_child_style_does_not_steal_a_sibling_raw_style_owner() {
     let children = objects(&list_field(tape, render, "children"));
     assert_style_host(tape, children[0], 1);
     assert_style_body(tape, children[1], ".a{color:red}", &[], None);
+    assert_no_scaffold(tape);
+}
+
+#[test]
+fn adjacent_non_style_jsx_in_code_block_is_multiple_outputs() {
+    let source = "function App() @{ <a /> <b /> }";
+    let result = parse(source);
+    assert_multiple_outputs(&result, 24, 29);
+    let tape = tape_of(&result);
+    let block = component_block(tape);
+    let body = code_block_body(tape, block);
+    assert_eq!(body.len(), 1);
+    assert_element(tape, body[0], "a");
+    assert_element(tape, object_field(tape, block, "render"), "b");
+    assert_no_scaffold(tape);
+}
+
+#[test]
+fn authored_semicolon_between_outputs_is_still_multiple_outputs() {
+    let source = "function App() @{ <a />; <b /> }";
+    let result = parse(source);
+    assert_multiple_outputs(&result, 25, 30);
+    let tape = tape_of(&result);
+    let block = component_block(tape);
+    let body = code_block_body(tape, block);
+    assert_eq!(body.len(), 1);
+    assert_element(tape, body[0], "a");
+    assert_element(tape, object_field(tape, block, "render"), "b");
     assert_no_scaffold(tape);
 }

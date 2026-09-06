@@ -26,7 +26,8 @@ use crate::{
     },
     lexical, projection,
     reconstruct::{
-        collect_multiple_output_diagnostics, finalize_reachable_spans, reconstruct_projected,
+        RecoverableDiagnostic, collect_multiple_output_diagnostics, finalize_reachable_spans,
+        reconstruct_projected,
     },
     recovery,
     results::{reconstruct_diagnostics, reconstruct_module},
@@ -78,7 +79,40 @@ pub(super) fn parse_tsrx_utf8_source<W: Utf16WorkObserver>(
     ) else {
         return Ok(failure);
     };
-    recovery::finish(recovered, failure, &recovery_source)
+    recovery::finish(recovered, failure, &recovery_source, source, options.filename)
+}
+
+/// Records the recoverable multiple-output grammar diagnostics on a result that keeps its
+/// reconstructed `Program`, rendering their codeframes against the authored source.
+pub(super) fn push_multiple_output_diagnostics(
+    errors: &mut DiagnosticTable,
+    diagnostics: &[RecoverableDiagnostic],
+    filename: &str,
+    source: &str,
+) -> Result<(), TsrxParseError> {
+    for diagnostic in diagnostics {
+        let labels = errors.append_labels([(
+            TapeSpan::new(diagnostic.span.start, diagnostic.span.end),
+            None,
+            true,
+        )])?;
+        errors.push_diagnostic(
+            DiagnosticPhase::Grammar,
+            DiagnosticSeverity::Error,
+            diagnostic.message,
+            labels,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )?;
+    }
+    if !diagnostics.is_empty() {
+        render_diagnostic_codeframes(filename, source, errors).map_err(TsrxParseError::from)?;
+    }
+    Ok(())
 }
 
 fn parse_tsrx_utf8_source_once<W: Utf16WorkObserver>(
@@ -424,29 +458,17 @@ impl ProjectedCompletion<'_, '_, '_, '_> {
             &authored_starts,
             &finalization_index,
         )?;
+        // A later output node is authored grammar the reconstruction recovered from, so the
+        // result keeps its Program but is never reported as a complete parse.
         let multiple_outputs = collect_multiple_output_diagnostics(&self.tape)?;
-        for diagnostic in &multiple_outputs {
-            let labels = self.errors.append_labels([(
-                TapeSpan::new(diagnostic.span.start, diagnostic.span.end),
-                None,
-                true,
-            )])?;
-            self.errors.push_diagnostic(
-                DiagnosticPhase::Grammar,
-                DiagnosticSeverity::Error,
-                diagnostic.message,
-                labels,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )?;
-        }
         if !multiple_outputs.is_empty() {
-            render_diagnostic_codeframes(self.filename, self.source, &mut self.errors)
-                .map_err(TsrxParseError::from)?;
+            self.recovered = true;
+            push_multiple_output_diagnostics(
+                &mut self.errors,
+                &multiple_outputs,
+                self.filename,
+                self.source,
+            )?;
         }
         if !self.defer_compaction {
             self.tape.compact_reachable()?;
