@@ -112,13 +112,11 @@ impl Scanner<'_> {
                 {
                     let checkpoint = self.checkpoint();
                     let committed = self.committed_jsx_opening(index);
-                    if !can_start_jsx || previous_token == Some(b'<') {
-                        // Only the line-leading rule admitted this opening, or the previous
-                        // token was a markup element: either way TSRX read a statement boundary
-                        // that legal TSX cannot, so the copy needs an explicit `;`. Two markup
-                        // statements in a row are the second case, and they are what a
-                        // `semi: false` house style writes once the formatter stops printing
-                        // `;` in front of them (tsrx-org/oxc#64).
+                    if !can_start_jsx || !can_start_expression {
+                        // Legal TSX cannot place two JSX trees in one expression. Insert `;`
+                        // when this opening starts a new statement: either the line-leading
+                        // exception (`!can_start_jsx`) or a sibling after a completed JSX
+                        // statement (`!can_start_expression`).
                         self.statement_boundaries.push(to_u32(index)?);
                     }
                     // A markup element that begins a statement, as opposed to one inside an
