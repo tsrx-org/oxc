@@ -8,13 +8,16 @@ try {
 	const { decideCanonicalCommand, deferralNotice, runOfficialCommand } = await import("../canonical-command.js");
 	const args = process.argv.slice(2);
 	const decision = await decideCanonicalCommand("oxlint");
-	if (decision.owner === "project") {
+	if (args.some((argument) => argument.split("=", 1)[0] === "--lsp")) {
+		const { runOxlintLspMultiplexer } = await import("../oxlint-lsp-multiplexer.js");
+		process.exitCode = await runOxlintLspMultiplexer(args, decision.owner === "project" ? { canonical: {
+			binPath: decision.binPath,
+			version: decision.officialVersion
+		} } : {});
+	} else if (decision.owner === "project") {
 		const notice = deferralNotice(decision, args);
 		if (notice !== null) console.error(notice);
 		await runOfficialCommand(decision);
-	} else if (args.some((argument) => argument.split("=", 1)[0] === "--lsp")) {
-		const { runOxlintLspMultiplexer } = await import("../oxlint-lsp-multiplexer.js");
-		process.exitCode = await runOxlintLspMultiplexer(args);
 	} else {
 		const { canRunCanonicalOxlint, importDeclaredPackageBinary, planCanonicalOxlintComposition } = await import("../lint-invocation.js");
 		if (canRunCanonicalOxlint(args)) await importDeclaredPackageBinary("oxlint-current", "oxlint", import.meta.url);

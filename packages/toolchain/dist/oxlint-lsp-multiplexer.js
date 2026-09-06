@@ -566,6 +566,11 @@ async function runOxlintLspMultiplexer(args, options = {}) {
 	const spawnProcess = options.spawn ?? spawn;
 	const clientError = options.clientError ?? process.stderr;
 	const cwd = options.cwd ?? process.cwd();
+	const canonicalBinary = options.canonical?.binPath ?? resolveCanonicalOxlintBinary();
+	if (options.canonical?.binPath) {
+		const version = options.canonical.version ? ` ${options.canonical.version}` : "";
+		clientError.write(`oxlint (oxc-tsrx): ordinary documents are served by the official oxlint${version} this project declares (${options.canonical.binPath}); .tsrx documents by the native server\n`);
+	}
 	const childOptions = {
 		cwd,
 		env: {
@@ -584,7 +589,7 @@ async function runOxlintLspMultiplexer(args, options = {}) {
 		cwd: index.root
 	} : childOptions;
 	const providers = providerLspSessions(index, spawnProcess, providerOptions);
-	const canonical = spawnProcess(process.execPath, [resolveCanonicalOxlintBinary(), ...args], childOptions);
+	const canonical = spawnProcess(process.execPath, [canonicalBinary, ...args], childOptions);
 	const multiplexer = createOxlintLspMultiplexer({
 		providerRoot: providerOptions === childOptions ? null : index.root,
 		clientInput: options.clientInput ?? process.stdin,

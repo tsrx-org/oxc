@@ -6,8 +6,9 @@ description: Native formatting, lint diagnostics, and validated quick fixes for 
 # Editor integration
 
 Install `@tsrx/oxc` in your project and the official OXC extension in your
-editor. There is no TSRX-specific extension to add and no fork to install, and
-outside Vite+ there is no setup command either.
+editor. There is no TSRX-specific extension to add and no fork to install. There
+is no setup command either, unless the project is on Vite+ or also declares
+`oxlint` or `oxfmt` itself; then there is exactly one.
 
 <!-- extension:oxc -->
 
@@ -22,8 +23,9 @@ Two things to know before you start:
 - **It does not wake up on a `.tsrx` file.** Open any JavaScript, TypeScript, or
   JSON file once per session, and `.tsrx` is served from then on.
   [Why](#what-a-plain-install-actually-covers).
-- **In a Vite+ project the extension's usual lookup does not reach this
-  package**, so it needs one setup command.
+- **In a Vite+ project, or a project that also declares `oxlint` or `oxfmt`
+  directly, the extension's usual lookup does not reach this package**, so it
+  needs one setup command.
   [Which one](#in-a-vite-project-setup-writes-oxcpathoxlint).
 
 Syntax highlighting and IntelliSense for `.tsrx` are a different job, owned by
@@ -36,8 +38,13 @@ the two run side by side:
 
 1. Install the official OXC extension, `oxc.oxc-vscode`.
 2. Add `@tsrx/oxc` to the project.
-3. Open a JS, TS, or JSON file once, so the extension starts.
-4. Open a `.tsrx` file. Diagnostics, formatting, and quick fixes come through
+3. If `oxlint` or `oxfmt` are also direct dependencies of the project, run
+   `npx oxc-tsrx setup` once and reload the window. Those packages keep the
+   `oxlint` command, so without this step the extension starts your official
+   Oxlint, which serves no `.tsrx`, and says nothing.
+   [Why](#in-a-vite-project-setup-writes-oxcpathoxlint).
+4. Open a JS, TS, or JSON file once, so the extension starts.
+5. Open a `.tsrx` file. Diagnostics, formatting, and quick fixes come through
    the official client.
 
 To format on save, make the extension the default formatter for whatever
@@ -170,6 +177,15 @@ Vite+ project that lookup does not reach this package: under pnpm it lands on
 Vite+'s own wrapper, which knows nothing about `.tsrx`, and a measured npm Vite+
 tree had no `node_modules/.bin/oxlint` entry at all. Either way you would get no
 `.tsrx` diagnostics and no error explaining why.
+
+A project that declares the official `oxlint` package itself is the same shape.
+That package owns the `oxlint` command, under pnpm it owns
+`node_modules/.bin/oxlint` too, and the extension starts it: ordinary files are
+served, `.tsrx` is not, and nothing says why. The same `setup` command is the
+fix. With the key written, the extension starts this package's launcher, which
+keeps your own Oxlint as the server for ordinary files, the exact version you
+pinned, and routes `.tsrx` to the native server. `oxc-tsrx status` reports
+`oxlint: collision` in that layout and explains it.
 
 `oxc-tsrx setup` handles it by merging one key into your `.vscode/settings.json`:
 

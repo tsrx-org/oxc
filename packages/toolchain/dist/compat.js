@@ -561,14 +561,22 @@ async function inspectSlot(modules, slot, providerVersion, projectManifest) {
 	};
 	const manifest = await readJson(join(destination, "package.json")).catch(() => null);
 	const metadata = compatibilityMetadata(manifest);
+	const occupant = {
+		name: typeof manifest?.name === "string" ? manifest.name : null,
+		version: typeof manifest?.version === "string" ? manifest.version : null
+	};
+	const collision = (kind) => ({
+		slot,
+		destination,
+		state: "collision",
+		metadata: null,
+		collision: kind,
+		occupant
+	});
 	if (!metadata || metadata.capability !== slot.capability) {
-		if (manifest?.name === slot.name && typeof manifest.version === "string" && !directlySelected(projectManifest, slot.name)) {
-			if (await exists(backupPath(modules, slot))) return {
-				slot,
-				destination,
-				state: "collision",
-				metadata: null
-			};
+		if (manifest?.name === slot.name && typeof manifest.version === "string") {
+			if (directlySelected(projectManifest, slot.name)) return collision("direct-dependency");
+			if (await exists(backupPath(modules, slot))) return collision("reinstalled-over-facade");
 			return {
 				slot,
 				destination,
@@ -580,19 +588,9 @@ async function inspectSlot(modules, slot, providerVersion, projectManifest) {
 				}
 			};
 		}
-		return {
-			slot,
-			destination,
-			state: "collision",
-			metadata: null
-		};
+		return collision("foreign-package");
 	}
-	if (metadata.replacedPackage && !await exists(backupPath(modules, slot))) return {
-		slot,
-		destination,
-		state: "collision",
-		metadata: null
-	};
+	if (metadata.replacedPackage && !await exists(backupPath(modules, slot))) return collision("facade-without-backup");
 	return {
 		slot,
 		destination,
@@ -1345,12 +1343,17 @@ async function compatibilityStatus(options = {}) {
 		packageManager: await detectPackageManager(projectRoot, options.userAgent),
 		providerVersion: provider.manifest.version,
 		selectedFrom: provider.selectedFrom,
-		slots: slots.map(({ slot, destination, state, replacedPackage }) => ({
+		slots: slots.map(({ slot, destination, state, replacedPackage, collision, occupant }) => ({
 			name: slot.name,
 			capability: slot.capability,
+			binary: slot.binary,
 			path: destination,
 			state,
-			...replacedPackage ? { replacedPackage } : {}
+			...replacedPackage ? { replacedPackage } : {},
+			...collision ? {
+				collision,
+				occupant
+			} : {}
 		})),
 		editorSlot: await inspectEditorSlot(projectRoot, provider.root, modules, options),
 		languageSupport: await inspectLanguageSupport(projectRoot, modules)
@@ -1358,8 +1361,8 @@ async function compatibilityStatus(options = {}) {
 }
 async function setupCompatibility(options = {}) {
 	const status = await compatibilityStatus(options);
-	const collisions = status.slots.filter((slot) => slot.state === "collision");
-	if (collisions.length > 0) throw new Error(`refusing to replace unowned package slot(s): ${collisions.map((slot) => slot.name).join(", ")}. Installing on top of the existing node_modules does not free the slot, so run rm -rf node_modules, install again, and run ${PROVIDER} setup again`);
+	const refused = status.slots.filter((slot) => slot.state === "collision" && slot.collision !== "direct-dependency");
+	if (refused.length > 0) throw new Error(`refusing to replace unowned package slot(s): ${refused.map((slot) => slot.name).join(", ")}. Installing on top of the existing node_modules does not free the slot, so run rm -rf node_modules, install again, and run ${PROVIDER} setup again`);
 	const modules = join(status.projectRoot, "node_modules");
 	if (!await exists(modules)) throw new Error(`node_modules is missing under ${status.projectRoot}; install dependencies first`);
 	let tsconfigWrite = null;
@@ -1407,7 +1410,7 @@ async function setupCompatibility(options = {}) {
 		languageSupport,
 		...tsconfigWrite ? { tsconfigWrite } : {},
 		changed,
-		unchanged: [...status.slots.filter((slot) => slot.state === "active").map((slot) => slot.name), ...editorWritten ? [] : [status.editorSlot.name]]
+		unchanged: [...status.slots.filter((slot) => slot.state === "active" || slot.state === "collision").map((slot) => slot.name), ...editorWritten ? [] : [status.editorSlot.name]]
 	};
 }
 async function removeCompatibility(options = {}) {
@@ -1466,6 +1469,19 @@ async function removeCompatibility(options = {}) {
 		removed
 	};
 }
+/**
+* What a package-slot collision means for the reader, by kind. Only the direct
+* dependency gets prose in the report, because it is the one a reader can act on
+* two different ways and the one that used to be a silent failure: the command
+* names stay with their package, so the drop-in `oxlint`/`oxfmt` skip `.tsrx`
+* with nothing on the command line saying so under pnpm.
+*/
+const SLOT_COLLISION_EXPLANATION = Object.freeze({ "direct-dependency": (slot) => {
+	const version = slot.occupant?.version ? ` ${slot.occupant.version}` : "";
+	if (!slot.binary) return `${slot.name}${version} is declared in your package.json, so that slot is yours and was left alone. Import @tsrx/oxc/parser for .tsrx.`;
+	const leaf = slot.name === "oxlint" ? "oxc-tsrx-lint" : "oxc-tsrx-fmt";
+	return `${slot.name}${version} is declared in your package.json, so the ${slot.binary} command belongs to it: on the command line it runs exactly as it did before ${PROVIDER} was installed, and it does not read .tsrx files. Run ${leaf} for .tsrx, or remove the direct ${slot.name} dependency and let this package serve both (it bundles ${slot.name} and formats or lints .js, .ts and .tsx unchanged). The editor is wired separately: with "${EDITOR_SLOT.key}" written, the official OXC extension serves .tsrx through this package and keeps ordinary files on your own ${slot.name}.`;
+} });
 const EDITOR_SLOT_EXPLANATION = Object.freeze({
 	active: (slot, projectRoot) => `${toPosix(relative(projectRoot, slot.path))} carries "${slot.key}": "${slot.value}". This is the one file setup writes outside node_modules; it merges that single key and never edits package.json or tsconfig.json.`,
 	stale: (slot, projectRoot) => `${toPosix(relative(projectRoot, slot.path))} carries a "${slot.key}" this package wrote that no longer resolves here; setup refreshes it to "${slot.value}".`,
@@ -1584,6 +1600,12 @@ function formatCompatibilityReport(result) {
 	for (const [name, label, state] of rows) {
 		const gutter = `  ${`${name}:`.padEnd(nameWidth + 1)}  `;
 		lines.push(`${gutter}${paint(label, SLOT_STATE_STYLE[state] ?? "cyan", color)}`);
+	}
+	for (const slot of result.slots) {
+		const explain = slot.state === "collision" ? SLOT_COLLISION_EXPLANATION[slot.collision] : null;
+		if (!explain) continue;
+		lines.push("");
+		for (const line of wrapReportText(explain(slot), "      ", "      ", width)) lines.push(paint(line, "dim", color));
 	}
 	if (editor) {
 		const explain = EDITOR_SLOT_EXPLANATION[editor.state];
