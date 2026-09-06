@@ -112,9 +112,13 @@ impl Scanner<'_> {
                 {
                     let checkpoint = self.checkpoint();
                     let committed = self.committed_jsx_opening(index);
-                    if !can_start_jsx {
-                        // Only the line-leading rule admitted this opening, so the legal-TSX lane
-                        // needs an explicit `;` where TSRX read a statement boundary.
+                    if !can_start_jsx || previous_token == Some(b'<') {
+                        // Only the line-leading rule admitted this opening, or the previous
+                        // token was a markup element: either way TSRX read a statement boundary
+                        // that legal TSX cannot, so the copy needs an explicit `;`. Two markup
+                        // statements in a row are the second case, and they are what a
+                        // `semi: false` house style writes once the formatter stops printing
+                        // `;` in front of them (tsrx-org/oxc#64).
                         self.statement_boundaries.push(to_u32(index)?);
                     }
                     match self.scan_jsx_element(index) {

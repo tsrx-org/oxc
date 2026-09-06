@@ -991,6 +991,49 @@ mod tests {
     }
 
     #[test]
+    fn semi_false_converges_over_consecutive_markup_statements() {
+        // Two markup statements in a row, with nothing between them once the guards are gone.
+        // Legal TSX reads adjacent elements there, so the projection has to write the `;` the
+        // formatter output no longer carries, or the second pass would not even parse.
+        let options = root_options(&json!({ "semi": false, "printWidth": 48, "tabWidth": 4 }));
+        let source = concat!(
+            "export function View({label}:{label:string}) @{ const message=\"hello\"; ",
+            "<button title=\"world\">{label}{message}</button>; ",
+            "<style>.button{color:red}</style>; }\n",
+        );
+        let first =
+            format_text_with_options(Path::new("View.tsrx"), source, Some(&options)).unwrap();
+        let expected = concat!(
+            "export function View({\n",
+            "    label,\n",
+            "}: {\n",
+            "    label: string\n",
+            "}) @{\n",
+            "    const message = \"hello\"\n",
+            "    <button title=\"world\">\n",
+            "        {label}\n",
+            "        {message}\n",
+            "    </button>\n",
+            "    <style>.button{color:red}</style>\n",
+            "}\n",
+        );
+        assert_eq!(first.code, expected);
+        let second =
+            format_text_with_options(Path::new("View.tsrx"), &first.code, Some(&options)).unwrap();
+        assert_eq!(second.code, expected);
+        assert!(!second.changed);
+
+        // Same-line neighbours converge to the same shape.
+        let inline = "export function Pair() @{ <a /> <b /> }\n";
+        let first =
+            format_text_with_options(Path::new("Pair.tsrx"), inline, Some(&options)).unwrap();
+        assert_eq!(first.code, "export function Pair() @{\n    <a />\n    <b />\n}\n");
+        let second =
+            format_text_with_options(Path::new("Pair.tsrx"), &first.code, Some(&options)).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
     fn semi_false_keeps_every_guard_that_is_not_a_line_leading_markup_statement() {
         let options = root_options(&json!({ "semi": false, "useTabs": true }));
         // `[` and `(` are hazards in TSRX exactly as in JavaScript, and a markup statement that
