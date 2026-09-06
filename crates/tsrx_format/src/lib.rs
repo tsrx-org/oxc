@@ -914,6 +914,142 @@ mod tests {
         assert!(bad_shape.contains("sortImports"), "{bad_shape}");
     }
 
+    // tsrx-org/oxc#64. Under `semi: false` Oxfmt prints `;` in front of a statement that starts
+    // with `<`, and the projection writes the same `;` wherever TSRX read a statement boundary that
+    // legal TSX cannot. TSRX has no hazard there: a committed markup opening that leads its line
+    // begins a statement. The lift drops exactly those guards and nothing else.
+    #[test]
+    fn semi_false_prints_no_guard_before_a_line_leading_markup_statement() {
+        let options = root_options(
+            &json!({ "semi": false, "useTabs": true, "tabWidth": 2, "singleQuote": true }),
+        );
+        // The issue's decisive case: the markup is the first statement of its block, so no token
+        // precedes it and no ASI hazard is constructible.
+        let block_initial = concat!(
+            "export function BlockInitial(props: { n: number }) @{\n",
+            "\t@if (props.n) {\n",
+            "\t\t<span>only statement in this block</span>\n",
+            "\t}\n",
+            "}\n",
+        );
+        let formatted =
+            format_text_with_options(Path::new("BlockInitial.tsrx"), block_initial, Some(&options))
+                .unwrap();
+        assert_eq!(formatted.code, block_initial);
+        assert!(!formatted.changed);
+
+        // Every control body, after a sibling statement the house style leaves unterminated.
+        let after_sibling = concat!(
+            "export function Branch(props: { n: number }) @{\n",
+            "\tconst d = get()\n",
+            "\t@if (props.n) {\n",
+            "\t\t<span>{d}</span>\n",
+            "\t} @else {\n",
+            "\t\t<span>fallback</span>\n",
+            "\t}\n",
+            "}\n",
+            "\n",
+            "export function Loop(props: { items: string[] }) @{\n",
+            "\tconst label = get()\n",
+            "\t@for (const x of props.items) {\n",
+            "\t\t<i>\n",
+            "\t\t\t{label}\n",
+            "\t\t\t{x}\n",
+            "\t\t</i>\n",
+            "\t}\n",
+            "}\n",
+            "\n",
+            "export function Pick(props: { n: number }) @{\n",
+            "\tconst label = get()\n",
+            "\t@switch (props.n) {\n",
+            "\t\t@case 1: {\n",
+            "\t\t\t<b>{label}</b>\n",
+            "\t\t}\n",
+            "\t}\n",
+            "}\n",
+            "\n",
+            "function get() {\n",
+            "\treturn 'x'\n",
+            "}\n",
+        );
+        let formatted =
+            format_text_with_options(Path::new("Controls.tsrx"), after_sibling, Some(&options))
+                .unwrap();
+        assert_eq!(formatted.code, after_sibling);
+
+        // The same source authored with the guards the old output printed converges on the
+        // guard-free form, so a corpus formatted before this fix reformats clean.
+        let guarded = after_sibling
+            .replace("\t\t<span", "\t\t;<span")
+            .replace("\t\t<i>", "\t\t;<i>")
+            .replace("\t\t\t<b>", "\t\t\t;<b>");
+        assert_eq!(guarded.matches(";<").count(), 4, "{guarded}");
+        let formatted =
+            format_text_with_options(Path::new("Controls.tsrx"), &guarded, Some(&options)).unwrap();
+        assert_eq!(formatted.code, after_sibling);
+        assert!(formatted.changed);
+    }
+
+    #[test]
+    fn semi_false_keeps_every_guard_that_is_not_a_line_leading_markup_statement() {
+        let options = root_options(&json!({ "semi": false, "useTabs": true }));
+        // `[` and `(` are hazards in TSRX exactly as in JavaScript, and a markup statement that
+        // follows them still needs nothing.
+        let hazards = concat!(
+            "export function Hazards() @{\n",
+            "\tconst a = get()\n",
+            "\t;[a].forEach(use)\n",
+            "\t;(a as number).toFixed()\n",
+            "\t<p>{a}</p>\n",
+            "}\n",
+        );
+        let formatted =
+            format_text_with_options(Path::new("Hazards.tsrx"), hazards, Some(&options)).unwrap();
+        assert_eq!(formatted.code, hazards);
+
+        // A `;` that is content rather than a guard: text before a child element, and a line of a
+        // template literal. Neither opening is at statement position, so neither is touched.
+        let content = concat!(
+            "export function Content() @{\n",
+            "\tconst raw = `\n",
+            ";<b>raw</b>\n",
+            "`\n",
+            "\t<p>\n",
+            "\t\t;<b>{raw}</b>\n",
+            "\t</p>\n",
+            "}\n",
+        );
+        let formatted =
+            format_text_with_options(Path::new("Content.tsrx"), content, Some(&options)).unwrap();
+        assert!(formatted.code.contains("`\n;<b>raw</b>\n`"), "{}", formatted.code);
+        assert_eq!(formatted.code.matches(";<b>{raw}</b>").count(), 1, "{}", formatted.code);
+        let again =
+            format_text_with_options(Path::new("Content.tsrx"), &formatted.code, Some(&options))
+                .unwrap();
+        assert_eq!(again.code, formatted.code);
+
+        // A markup statement that opens inside a plain function body rather than a `@{` container
+        // is a statement in TSRX too, so it loses its guard the same way.
+        let plain = concat!(
+            "function plain() {\n",
+            "\tconst a = get()\n",
+            "\t<p>{a}</p>\n",
+            "\treturn null\n",
+            "}\n",
+        );
+        let formatted =
+            format_text_with_options(Path::new("Plain.tsrx"), plain, Some(&options)).unwrap();
+        assert_eq!(formatted.code, plain);
+
+        // `semi: true` is what it was: a trailing semicolon per statement and no guard.
+        let options = root_options(&json!({ "semi": true, "useTabs": true }));
+        let formatted =
+            format_text_with_options(Path::new("Hazards.tsrx"), hazards, Some(&options)).unwrap();
+        assert!(formatted.code.contains("\t<p>{a}</p>;\n"), "{}", formatted.code);
+        assert!(formatted.code.contains("\t[a].forEach(use);\n"), "{}", formatted.code);
+        assert!(!formatted.code.contains(";<"), "{}", formatted.code);
+    }
+
     #[test]
     fn a_root_config_composes_sort_imports_with_jsdoc_and_semi_and_still_refuses_tailwind() {
         // The configuration the issue reports as failing: three options at once, one of which was

@@ -3,7 +3,7 @@
 
 use crate::{
     diagnostics::{ProjectionError, to_u32},
-    model::{ParserCodeBlockKind, ParserLazyPattern, StructuralKind},
+    model::{ControlContext, ParserCodeBlockKind, ParserLazyPattern, StructuralKind},
 };
 
 use super::Scanner;
@@ -119,6 +119,15 @@ impl Scanner<'_> {
                     }
                     match self.scan_jsx_element(index) {
                         Ok(end) => {
+                            // A markup element that begins a statement, as opposed to one inside
+                            // an expression container or a control header. The lift reads this
+                            // list to tell Oxfmt's ASI guard apart from a `;` that is content.
+                            if matches!(
+                                self.code_context(index, root_control_start),
+                                ControlContext::Statement
+                            ) {
+                                self.markup_statements.push(to_u32(index)?);
+                            }
                             index = end;
                             can_start_expression = false;
                             can_start_jsx = true;

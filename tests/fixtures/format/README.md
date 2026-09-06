@@ -10,3 +10,9 @@ strictly read-only acceptance source.
 `conditional.unformatted.tsrx` is project-owned coverage for the retained
 statement-position `@if/@else` comparison subset and lexical contexts that must
 not be mistaken for TSRX structure. Generalized fixtures live in `../control`.
+
+`semi-false.unformatted.tsrx` is project-owned coverage for tsrx-org/oxc#64: the
+`;<` guards a `semi: false` house style used to receive in front of every markup
+statement, in each control body and after an unterminated sibling, next to the
+`;[` and `;(` guards that are real hazards and stay. The authored guards come
+from the issue's own fixtures.

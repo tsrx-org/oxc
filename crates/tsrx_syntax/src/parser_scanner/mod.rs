@@ -14,4 +14,4 @@ mod surrogates;
 
 pub use surrogates::OpaqueSurrogateContext;
 
-pub(crate) use state::Scanner;
+pub(crate) use state::{Scanner, admits_line_leading_markup};

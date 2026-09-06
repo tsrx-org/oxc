@@ -157,7 +157,9 @@ test('a jsdoc config reflows JSDoc in .tsrx and matches canonical Oxfmt on ordin
   assert.equal(component.code, 0, component.stderr || component.stdout);
   assert.equal(component.stderr, '');
   assert.ok(component.stdout.startsWith(`${reflowed}\n`), component.stdout);
-  assert.match(component.stdout, /@\{\n {2};<p>\{start\}<\/p>\n\}/);
+  // Under `semi: false` the markup statement carries no ASI guard: a line-leading markup
+  // opening is a statement boundary in TSRX (tsrx-org/oxc#64).
+  assert.match(component.stdout, /@\{\n {2}<p>\{start\}<\/p>\n\}/);
   assert.equal(stock.code, 0, stock.stderr || stock.stdout);
   assert.equal(control.stdout, stock.stdout);
 
@@ -310,4 +312,36 @@ test('Unicode decorator identifiers format identically through TSRX and canonica
     assert.equal(tsrx.stdout, tsx.stdout, name);
     assert.equal(tsrx.stderr, '');
   }
+});
+
+test('a semi: false config prints no ASI guard before a line-leading markup statement', async () => {
+  // tsrx-org/oxc#64. The projection writes a `;` wherever TSRX read a statement boundary that
+  // legal TSX cannot, and Oxfmt keeps it as a guard under `semi: false`. TSRX has no hazard
+  // there, so the lift removes exactly those guards; `;[` and `;(` stay.
+  const directory = await mkdtemp(join(tmpdir(), 'oxc-tsrx-format-semi-false-'));
+  const configPath = join(directory, '.oxfmtrc.json');
+  await writeFile(configPath, '{ "semi": false, "useTabs": true, "tabWidth": 2, "singleQuote": true }\n');
+  const source = await fixture('semi-false.unformatted.tsrx');
+  const expected = await fixture('semi-false.formatted.tsrx');
+  assert.equal((source.match(/^\s*;</gm) ?? []).length, 4);
+  assert.equal((expected.match(/^\s*;</gm) ?? []).length, 0);
+
+  const first = await runFormat([`--config=${configPath}`, '--stdin-filepath=Controls.tsrx'], source);
+  assert.equal(first.code, 0, first.stderr || first.stdout);
+  assert.equal(first.stderr, '');
+  assert.equal(first.stdout, expected);
+
+  const again = await runFormat([`--config=${configPath}`, '--stdin-filepath=Controls.tsrx'], first.stdout);
+  assert.equal(again.code, 0, again.stderr || again.stdout);
+  assert.equal(again.stdout, expected);
+
+  // `--check` agrees with `--write`: the guard-free form is the clean one, and the guarded
+  // form is what needs fixing.
+  const cleanPath = join(directory, 'Controls.tsrx');
+  await writeFile(cleanPath, expected);
+  const check = await runFormat([`--config=${configPath}`, '--check', cleanPath]);
+  assert.equal(check.code, 0, check.stderr || check.stdout);
+  await writeFile(cleanPath, source);
+  const dirty = await runFormat([`--config=${configPath}`, '--check', cleanPath]);
+  assert.equal(dirty.code, 1, dirty.stderr || dirty.stdout);
 });
