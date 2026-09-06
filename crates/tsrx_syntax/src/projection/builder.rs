@@ -578,8 +578,10 @@ impl<'a> Builder<'a> {
         Ok(())
     }
 
-    /// Writes the `;` that a line-leading markup opening implies, immediately before the opening
-    /// so the authored `<` is still copied verbatim and every authored byte keeps its segment.
+    /// Writes the `;` that a new statement-level markup opening implies, immediately before the
+    /// opening so the authored `<` is still copied verbatim and every authored byte keeps its
+    /// segment. Used for line-leading markup and for a sibling JSX statement after another JSX
+    /// tree.
     fn statement_boundary(&mut self, boundary: u32) -> Result<(), ProjectionError> {
         let offset = *self
             .overlay

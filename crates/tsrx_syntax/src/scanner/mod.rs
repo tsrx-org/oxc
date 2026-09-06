@@ -159,9 +159,11 @@ impl<'a> Scanner<'a> {
                 {
                     let checkpoint = self.checkpoint();
                     let committed = self.committed_jsx_opening(index);
-                    if !can_start_jsx {
-                        // Only the line-leading rule admitted this opening, so the legal-TSX lane
-                        // needs an explicit `;` where TSRX read a statement boundary.
+                    if !can_start_jsx || !can_start_expression {
+                        // Legal TSX cannot place two JSX trees in one expression. Insert `;`
+                        // when this opening starts a new statement: either the line-leading
+                        // exception (`!can_start_jsx`) or a sibling after a completed JSX
+                        // statement (`!can_start_expression`).
                         self.statement_boundaries.push(to_u32(index)?);
                     }
                     match self.scan_jsx_element(index) {
