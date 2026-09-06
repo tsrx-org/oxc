@@ -923,7 +923,7 @@ fn style_payload_boundaries_ignore_quoted_greater_than_and_self_closing_attribut
                     == Some(r#""JSXStyleElement""#)
             })
             .expect("self-closing style");
-        assert!(result.program().field_index(style, "css").is_none());
+        assert_eq!(scalar_field(result.program(), style, "css"), "\"\"");
     }
 }
 
@@ -1141,4 +1141,28 @@ fn release_dense_module_and_diagnostic_scaling_campaign_is_linear() {
     }
     assert_linear_scaling("module", &counts, &module_medians);
     assert_linear_scaling("diagnostic", &counts, &diagnostic_medians);
+}
+
+#[test]
+fn multiple_output_diagnostics_use_original_utf16_units() {
+    let source = "function App() @{ <a title=\"😀\" /> <b /> }";
+    let units = utf16(source);
+    assert_eq!(units.len(), 42);
+    assert_eq!(source.len(), 44);
+
+    let result = parse_units(&units);
+    assert_eq!(result.status, ParseCompleteness::Recovered);
+    assert_eq!(result.coordinate_domain, CoordinateDomain::OriginalUtf16Units);
+    let tape = result.program();
+    let block = object_at(tape, "JSXCodeBlock", (15, 42));
+    let render = object_field(tape, block, "render");
+    assert_eq!(span(tape, render), (35, 40));
+    object_at(tape, "JSXElement", (18, 34));
+
+    let records = result.errors.records();
+    assert_eq!(records.len(), 1);
+    let labels = result.errors.labels(records[0].labels).expect("labels");
+    assert_eq!(labels.len(), 1);
+    assert_eq!((labels[0].span.start, labels[0].span.end), (35, 40));
+    assert_no_private_markers_in_diagnostics(&result.errors);
 }
