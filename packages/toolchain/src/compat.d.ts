@@ -8,8 +8,22 @@ export type OxcTsrxCompatibilityState =
 export interface OxcTsrxCompatibilitySlot {
   readonly name: "oxc-parser" | "oxlint" | "oxfmt";
   readonly capability: "parser" | "lint" | "format";
+  /** The command name the slot's package publishes, or null for the parser slot. */
+  readonly binary: "oxlint" | "oxfmt" | null;
   readonly path: string;
   readonly state: OxcTsrxCompatibilityState;
+  /**
+   * Why a `collision` slot is left alone. `direct-dependency` is the project's
+   * own official package; `setup` works around it and the report explains it.
+   * The other kinds are trees the bridge no longer owns and `setup` refuses.
+   */
+  readonly collision?:
+    | "direct-dependency"
+    | "foreign-package"
+    | "reinstalled-over-facade"
+    | "facade-without-backup";
+  /** What occupies a `collision` slot, as its own package.json names it. */
+  readonly occupant?: { readonly name: string | null; readonly version: string | null };
   readonly replacedPackage?: {
     readonly name: string;
     readonly version: string;

@@ -422,3 +422,119 @@ test(
     }
   },
 );
+
+/**
+ * tsrx-org/oxc#69. A project that declares the official `oxlint` package itself
+ * is the layout the bridge used to refuse outright. That package keeps its slot
+ * and its command name, which is right; what was wrong is that `setup` stopped
+ * there, so the editor never got the one key that makes the official extension
+ * serve `.tsrx`. The slot is now reported as a `collision` of kind
+ * `direct-dependency`, with prose saying what that means, and everything else
+ * `setup` does still happens: the other facades, and the editor key whenever
+ * `node_modules/.bin/oxlint` is not this package's launcher. Under pnpm it is
+ * the official package's; under npm it is this package's, and then no key is
+ * needed because the launcher composes for `--lsp`.
+ */
+test(
+  "a direct official oxlint dependency is a reported collision setup works around",
+  { timeout: 240_000 },
+  async () => {
+    const managers = packageManagers.filter(
+      (manager) => manager.name !== "bun" && available(manager),
+    );
+    const officialVersion = JSON.parse(
+      await readFile(
+        join(root, "tests/node_modules/oxlint-current/package.json"),
+        "utf8",
+      ),
+    ).version;
+    const temporary = await mkdtemp(join(tmpdir(), "oxc-tsrx-compat-direct-"));
+    const artifacts = join(temporary, "artifacts");
+    const cache = join(temporary, "pack-cache");
+    await mkdir(artifacts, { recursive: true });
+    let registry;
+    try {
+      registry = await startLocalRegistry([await pack("packages/toolchain", artifacts, cache)]);
+      for (const manager of managers) {
+        const consumer = join(temporary, `consumer-${manager.name}`);
+        await mkdir(consumer, { recursive: true });
+        await writeFile(
+          join(consumer, "package.json"),
+          `${JSON.stringify(
+            {
+              name: `oxc-tsrx-${manager.name}-direct-consumer`,
+              private: true,
+              type: "module",
+              devDependencies: { "@tsrx/oxc": "0.9.0", oxlint: officialVersion },
+            },
+            null,
+            2,
+          )}\n`,
+        );
+        const environment = cleanEnvironment(temporary, manager.name, registry.url);
+        await mustRun(manager.executable, manager.args(registry.url), {
+          cwd: consumer,
+          env: environment,
+        });
+        const cli = join(consumer, "node_modules/@tsrx/oxc/bin/oxc-tsrx");
+        const officialManifest = join(consumer, "node_modules/oxlint/package.json");
+        const officialBefore = await readFile(officialManifest, "utf8");
+
+        const status = JSON.parse(
+          (await mustRun(process.execPath, [cli, "status", "--json"], { cwd: consumer, env: environment })).stdout,
+        );
+        const lintSlot = status.slots.find((slot) => slot.name === "oxlint");
+        assert.equal(lintSlot.state, "collision", manager.name);
+        assert.equal(lintSlot.collision, "direct-dependency", manager.name);
+        assert.deepEqual(lintSlot.occupant, { name: "oxlint", version: officialVersion }, manager.name);
+
+        const prose = (await mustRun(process.execPath, [cli, "status"], { cwd: consumer, env: environment })).stdout;
+        assert.match(prose, /oxlint: +collision/u, manager.name);
+        assert.match(prose, /declared in your package\.json/u, manager.name);
+        assert.match(prose, /does not read \.tsrx files/u, manager.name);
+        assert.match(prose, /oxc-tsrx-lint/u, manager.name);
+
+        const setup = JSON.parse(
+          (await mustRun(process.execPath, [cli, "setup", "--json"], { cwd: consumer, env: environment })).stdout,
+        );
+        assert.equal(
+          setup.slots.find((slot) => slot.name === "oxlint").state,
+          "collision",
+          `${manager.name}: setup must leave the project's own oxlint alone`,
+        );
+        assert.equal(await readFile(officialManifest, "utf8"), officialBefore, manager.name);
+        for (const name of ["oxc-parser", "oxfmt"]) {
+          assert.equal(
+            setup.slots.find((slot) => slot.name === name).state,
+            "active",
+            `${manager.name}: ${name} facade`,
+          );
+        }
+        assert.ok(setup.unchanged.includes("oxlint"), manager.name);
+
+        const editor = setup.editorSlot;
+        if (editor.linterShim.owner === "@tsrx/oxc") {
+          // npm links this package's launcher, which composes for --lsp on its own.
+          assert.equal(editor.state, "unnecessary", manager.name);
+        } else {
+          // pnpm links the official binary, so the key is what carries the editor.
+          assert.equal(editor.state, "active", `${manager.name}: ${JSON.stringify(editor)}`);
+          assert.deepEqual(
+            JSON.parse(await readFile(join(consumer, ".vscode/settings.json"), "utf8")),
+            { "oxc.path.oxlint": "node_modules/@tsrx/oxc/bin/oxlint" },
+            manager.name,
+          );
+        }
+
+        const removed = JSON.parse(
+          (await mustRun(process.execPath, [cli, "remove", "--json"], { cwd: consumer, env: environment })).stdout,
+        );
+        assert.deepEqual(removed.removed.filter((name) => name !== "oxc.path.oxlint"), ["oxc-parser", "oxfmt"], manager.name);
+        assert.equal(await readFile(officialManifest, "utf8"), officialBefore, manager.name);
+      }
+    } finally {
+      await registry?.close();
+      await rm(temporary, { recursive: true, force: true });
+    }
+  },
+);

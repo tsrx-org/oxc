@@ -721,3 +721,53 @@ test("the real entry point discovers the index and still starts only canonical O
   canonical.emit("close", 0, null);
   assert.equal(await finished, 0);
 });
+
+test("a project's own official Oxlint is the canonical upstream when the launcher says so", async (context) => {
+  // tsrx-org/oxc#69. A project that declares the official `oxlint` package
+  // directly keeps the command name, and before this the launcher handed
+  // `--lsp` to that package too, so the editor served no `.tsrx` at all. Now
+  // the launcher names that binary as the canonical upstream: ordinary files
+  // stay on the exact Oxlint the project pinned, `.tsrx` goes native, and the
+  // session says so once on stderr.
+  const project = await mkdtemp(join(tmpdir(), "oxc-tsrx-lsp-direct-"));
+  context.after(() => rm(project, { recursive: true, force: true }));
+  await writeFile(
+    join(project, "package.json"),
+    `${JSON.stringify({ name: "host", private: true, dependencies: { "@tsrx/oxc": "0.9.0", oxlint: "1.81.0" } })}\n`,
+  );
+  await mkdir(join(project, "node_modules/@tsrx"), { recursive: true });
+  await symlink(toolchainRoot, join(project, "node_modules/@tsrx/oxc"), "dir");
+  const official = join(project, "node_modules/oxlint/bin/oxlint");
+
+  const spawns = [];
+  const clientInput = new PassThrough();
+  const clientOutput = new PassThrough();
+  const clientError = new PassThrough();
+  let errors = "";
+  clientError.setEncoding("utf8");
+  clientError.on("data", (chunk) => (errors += chunk));
+  let canonical = null;
+
+  const finished = runOxlintLspMultiplexer(["--lsp"], {
+    cwd: project,
+    clientInput,
+    clientOutput,
+    clientError,
+    canonical: { binPath: official, version: "1.81.0" },
+    spawn: (command, args) => {
+      spawns.push({ command, args });
+      canonical = new FakeChild();
+      return canonical;
+    },
+  });
+
+  await waitFor(() => spawns, () => true, "canonical Oxlint spawn");
+  assert.equal(spawns.length, 1);
+  assert.equal(spawns[0].command, process.execPath);
+  assert.deepEqual(spawns[0].args, [official, "--lsp"]);
+  assert.match(errors, /official oxlint 1\.81\.0 this project declares/u);
+  assert.match(errors, /\.tsrx documents by the native server/u);
+
+  canonical.emit("close", 0, null);
+  assert.equal(await finished, 0);
+});

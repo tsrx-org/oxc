@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import {
   access,
   chmod,
@@ -60,8 +61,13 @@ import { startLocalRegistry } from "../packaging/local-registry.mjs";
 const root = resolve(import.meta.dirname, "../..");
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+// VS Code 1.136 renamed the app binary from `Electron` to `Code`; older builds
+// still ship the former. Either is the real editor, so take whichever exists.
 const executable =
   process.env.VSCODE_EXECUTABLE_PATH ??
+  ["Code", "Electron"]
+    .map((name) => `/Applications/Visual Studio Code.app/Contents/MacOS/${name}`)
+    .find((candidate) => existsSync(candidate)) ??
   "/Applications/Visual Studio Code.app/Contents/MacOS/Electron";
 
 function hostTarget() {
@@ -444,6 +450,134 @@ async function runPatchedHostSession({
   );
   assert.equal(await readFile(join(patched, "package.json"), "utf8"), manifestBefore);
   assert.equal(await readFile(join(patched, "package-lock.json"), "utf8"), lockfileBefore);
+}
+
+/**
+ * The direct-dependency session (tsrx-org/oxc#69): the consumer declares the
+ * official `oxlint` package itself, next to this one. That package keeps the
+ * command name by design and, under pnpm, keeps `node_modules/.bin/oxlint` too,
+ * so the extension's own lookup starts an Oxlint that serves no `.tsrx`. Before
+ * this session existed, `oxc-tsrx setup` refused that tree outright and the
+ * launcher handed `--lsp` to the official package, so nothing could rescue it.
+ *
+ * Now `setup` leaves the official package alone, reports the collision, and
+ * writes the editor key; the launcher composes for `--lsp`, with the project's
+ * own Oxlint as the canonical upstream. Everything below is measured in a real
+ * trusted window: native `.tsrx` diagnostics, formatting and a quick fix, and
+ * ordinary TypeScript served by a live `--lsp` process of the *project's*
+ * official Oxlint, not this package's pinned copy.
+ */
+async function runDirectDependencySession({
+  root: temporary,
+  registry,
+  executable: editor,
+  officialExtension,
+  toolchainVersion,
+}) {
+  assert.equal(
+    spawnSync(pnpm, ["--version"], { stdio: "ignore" }).status,
+    0,
+    "this session is about the tree pnpm builds, where the official package owns .bin/oxlint, so pnpm is required rather than skipped",
+  );
+  const officialVersion = JSON.parse(
+    await readFile(join(root, "tests/node_modules/oxlint-current/package.json"), "utf8"),
+  ).version;
+
+  const consumer = join(temporary, "direct-dependency");
+  await mkdir(consumer, { recursive: true });
+  const environment = cleanEnvironment(consumer, registry.url, {
+    XDG_CACHE_HOME: join(temporary, "direct-dependency-xdg-cache"),
+    XDG_DATA_HOME: join(temporary, "direct-dependency-xdg-data"),
+    XDG_STATE_HOME: join(temporary, "direct-dependency-xdg-state"),
+    PNPM_HOME: join(temporary, "direct-dependency-pnpm-home"),
+  });
+
+  await writeFile(
+    join(consumer, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "oxc-tsrx-direct-dependency-proof",
+        private: true,
+        type: "module",
+        devDependencies: { "@tsrx/oxc": toolchainVersion, oxlint: officialVersion },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  await mustRun(
+    pnpm,
+    ["install", "--no-frozen-lockfile", "--ignore-scripts", `--registry=${registry.url}`],
+    { cwd: consumer, env: environment },
+  );
+
+  const providerReal = await realpath(join(consumer, "node_modules/@tsrx/oxc"));
+  const initialShim = await linterShimOwner(consumer, providerReal);
+  assert.equal(
+    initialShim.present && !initialShim.ours,
+    true,
+    `the official oxlint must take node_modules/.bin/oxlint, otherwise the extension's own lookup would find us and this session proves nothing: ${JSON.stringify(initialShim)}`,
+  );
+  const officialManifestPath = join(consumer, "node_modules/oxlint/package.json");
+  const officialBefore = await readFile(officialManifestPath, "utf8");
+  assert.equal(JSON.parse(officialBefore).version, officialVersion);
+  const officialBin = await realpath(join(consumer, "node_modules/oxlint/bin/oxlint"));
+
+  const fixtures = await writeWorkspaceFixtures(consumer, {
+    "oxc.enable.oxlint": true,
+    "oxc.enable.oxfmt": false,
+    "oxc.requireConfig": false,
+  });
+  const setup = await mustRun(
+    process.execPath,
+    [join(consumer, "node_modules/@tsrx/oxc/bin/oxc-tsrx"), "setup", "--json"],
+    { cwd: consumer, env: environment },
+  );
+  const report = JSON.parse(setup.stdout);
+  const lintSlot = report.slots.find((slot) => slot.name === "oxlint");
+  assert.equal(lintSlot.state, "collision", "setup must leave the project's own oxlint alone");
+  assert.equal(lintSlot.collision, "direct-dependency");
+  assert.deepEqual(lintSlot.occupant, { name: "oxlint", version: officialVersion });
+  assert.equal(report.editorSlot.state, "active", JSON.stringify(report.editorSlot));
+  assert.equal(await readFile(officialManifestPath, "utf8"), officialBefore);
+
+  const settingsPath = join(consumer, ".vscode/settings.json");
+  const written = JSON.parse(await readFile(settingsPath, "utf8"));
+  assert.deepEqual(written, {
+    "oxc.enable.oxlint": true,
+    "oxc.enable.oxfmt": false,
+    "oxc.requireConfig": false,
+    [EDITOR_KEY]: EDITOR_VALUE,
+  });
+  const manifestBefore = await readFile(join(consumer, "package.json"), "utf8");
+
+  await launchEditor({
+    executable: editor,
+    workspace: consumer,
+    officialExtension,
+    extensionDirectory: join(temporary, "direct-dependency-extensions"),
+    userDirectory: join(temporary, "direct-dependency-user"),
+    suiteEnvironment: cleanEnvironment(consumer, registry.url, {
+      OXC_TSRX_SUITE_MODE: "direct-dependency",
+      OXC_TSRX_SETUP_VALUE_ROOT: consumer,
+      OXC_TSRX_EXPECTED_EDITOR_VALUE: EDITOR_VALUE,
+      OXC_TSRX_EXPECTED_OFFICIAL_OXLINT: officialBin,
+      OXC_TSRX_EDITOR_FILE: fixtures.tsrxPath,
+      OXC_TSRX_ORDINARY_EDITOR_FILE: fixtures.ordinaryPath,
+      OXC_TSRX_EXPECTED_EXTENSION_PATH: officialExtension,
+    }),
+    trustFeature: "bypassed",
+  });
+
+  assert.deepEqual(JSON.parse(await readFile(settingsPath, "utf8")), written);
+  assert.equal(await readFile(join(consumer, "package.json"), "utf8"), manifestBefore);
+  assert.equal(await readFile(officialManifestPath, "utf8"), officialBefore);
+  const finalShim = await linterShimOwner(consumer, providerReal);
+  assert.equal(
+    finalShim.ours,
+    false,
+    `node_modules/.bin/oxlint became ours during the session: ${JSON.stringify(finalShim)}`,
+  );
 }
 
 /**
@@ -952,6 +1086,19 @@ async function main() {
     });
 
     // ---------------------------------------------------------------------------
+    // The direct-dependency session: the project's own official Oxlint keeps the
+    // command name, and the editor still serves .tsrx.
+    // ---------------------------------------------------------------------------
+
+    await runDirectDependencySession({
+      root: temporary,
+      registry,
+      executable,
+      officialExtension,
+      toolchainVersion,
+    });
+
+    // ---------------------------------------------------------------------------
     // The patched-host session: the same workspace with no pointer at all.
     // ---------------------------------------------------------------------------
 
@@ -987,6 +1134,7 @@ export {
   mustRun,
   pack,
   run,
+  runDirectDependencySession,
   runPatchedHostSession,
   runSetupValueSession,
   writeBinCollider,

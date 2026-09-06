@@ -26,6 +26,11 @@ const vscode = require("vscode");
  *   `node_modules/.bin/oxlint`, `oxc-tsrx setup` wrote the relative
  *   `oxc.path.oxlint` value itself, and the runner wrote no `oxc.path.*` and no
  *   `oxc.useExecPath` of its own.
+ * - `direct-dependency` is `setup-value` with the real official Oxlint package
+ *   declared by the project in place of the synthetic Vite+. It proves the same
+ *   things and one more: ordinary TypeScript is served by a live `--lsp` process
+ *   of the project's own Oxlint, the exact version it pinned, not by this
+ *   package's pinned copy (tsrx-org/oxc#69).
  *
  * The compatibility path still ships and its assertions are unchanged.
  */
@@ -772,7 +777,10 @@ async function runSetupValue(mode) {
     return;
   }
 
-  assert.equal(mode, "setup-value", `unknown setup-value mode ${mode}`);
+  assert.ok(
+    mode === "setup-value" || mode === "direct-dependency",
+    `unknown setup-value mode ${mode}`,
+  );
 
   await setupStep("read the value setup wrote, in a trusted window", async () => {
     assert.equal(vscode.workspace.isTrusted, true, "the window is not trusted");
@@ -800,6 +808,44 @@ async function runSetupValue(mode) {
     );
     assert.equal(diagnostics.some((item) => item.source === "oxlint-tsrx"), false);
   });
+
+  if (mode === "direct-dependency") {
+    await setupStep("serve ordinary files through the project's own official Oxlint", async () => {
+      const official = process.env.OXC_TSRX_EXPECTED_OFFICIAL_OXLINT;
+      assert.equal(typeof official, "string");
+      const candidates = pathVariants(official);
+      const table = await waitFor(
+        () => processTable(),
+        (processes) =>
+          processes.some(
+            (entry) =>
+              entry.command.includes("--lsp") &&
+              candidates.some((candidate) => entry.command.includes(candidate)),
+          ),
+        `a live --lsp process of the project's official Oxlint at ${official}`,
+        30000,
+      );
+      const upstream = table.find(
+        (entry) =>
+          entry.command.includes("--lsp") &&
+          candidates.some((candidate) => entry.command.includes(candidate)),
+      );
+      process.stdout.write(`[${mode}] the multiplexer spawned ${upstream.command}\n`);
+      // The pinned copy this package ships must not be the server for ordinary
+      // files in this layout: the whole point is the version the project chose.
+      const pinned = table.filter(
+        (entry) =>
+          entry.command.includes("--lsp") &&
+          entry.command.includes(root) &&
+          /oxlint-current/u.test(entry.command),
+      );
+      assert.deepEqual(
+        pinned.map((entry) => entry.command),
+        [],
+        "this package's pinned Oxlint is serving ordinary files instead of the project's own",
+      );
+    });
+  }
 
   const tsrxUri = vscode.Uri.file(process.env.OXC_TSRX_EDITOR_FILE);
   const tsrx = await setupStep("publish native TSRX diagnostics", async () => {
@@ -922,7 +968,9 @@ async function runSetupValue(mode) {
 async function run() {
   const mode = process.env.OXC_TSRX_SUITE_MODE ?? "compatibility";
   if (mode === "discovery" || mode === "patched-host") return runDiscovery(mode);
-  if (mode === "setup-value" || mode === "setup-value-untrusted") return runSetupValue(mode);
+  if (mode === "setup-value" || mode === "setup-value-untrusted" || mode === "direct-dependency") {
+    return runSetupValue(mode);
+  }
   assert.equal(mode, "compatibility", `unknown suite mode ${mode}`);
   return runCompatibility();
 }

@@ -63,7 +63,7 @@ Usage: oxc-tsrx providers [--project <directory>] [--json]
 | Subcommand | What it does |
 | --- | --- |
 | `providers` | Reads the `oxc.provider` block of your direct dependencies and prints the index. It writes nothing and spawns nothing. `routed extensions: .tsrx -> oxc-tsrx` is the line that proves your install works. |
-| `setup` | Writes the project-local `oxlint`, `oxfmt`, and `oxc-parser` facades that Vite+ resolves, plus the editor slot below. Only Vite+ needs it. |
+| `setup` | Writes the project-local `oxlint`, `oxfmt`, and `oxc-parser` facades that Vite+ resolves, plus the editor slot below. Vite+ needs it, and so does a project that declares the official `oxlint` or `oxfmt` package directly: that package keeps its slot and its command (reported as `collision`), and `setup` still writes the editor slot so the official OXC extension serves `.tsrx`. |
 | `status` | Reports whether those four slots are present, and for the editor slot whether your editor would really read the key. |
 | `remove` | Removes them and restores any transitive official package it displaced. |
 

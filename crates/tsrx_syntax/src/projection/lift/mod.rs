@@ -1,14 +1,16 @@
 mod embedded;
+mod guards;
 mod parser;
 mod scaffold;
 mod text;
 mod tokens;
 mod writer;
 
-use crate::{diagnostics::ProjectionError, parser_scanner::Scanner};
+use crate::diagnostics::ProjectionError;
 
 use super::{format::FormatProjection, marker::structural_fingerprint};
 use embedded::lift_embedded;
+use guards::lift_markup_guards;
 use parser::lift_parser_scaffolds;
 use scaffold::lift_scaffolds;
 use tokens::lift_tokens;
@@ -55,7 +57,7 @@ pub fn lift_formatted(
     if lifted.contains(&projection.prefix) {
         return Err(ProjectionError::MarkerResidual);
     }
-    let rescanned = Scanner::new_for_parser(&lifted).finish()?;
+    let (lifted, rescanned) = lift_markup_guards(lifted)?;
     if structural_fingerprint(&rescanned) != projection.shape_fingerprint {
         return Err(ProjectionError::StructuralMismatch);
     }

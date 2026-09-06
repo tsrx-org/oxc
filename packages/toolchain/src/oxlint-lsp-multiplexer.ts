@@ -659,6 +659,19 @@ export async function runOxlintLspMultiplexer(args, options: any = {}) {
   const spawnProcess = options.spawn ?? spawn;
   const clientError = options.clientError ?? process.stderr;
   const cwd = options.cwd ?? process.cwd();
+  // A project that declares the official Oxlint package directly has said what
+  // `oxlint` means to it, and the editor serves its ordinary files through that
+  // exact binary. Only `.tsrx` documents leave it for the native server. Said
+  // once on the client's error stream, which the editor shows in its output
+  // channel, so a session in that layout is never a mystery.
+  const canonicalBinary = options.canonical?.binPath ?? resolveCanonicalOxlintBinary();
+  if (options.canonical?.binPath) {
+    const version = options.canonical.version ? ` ${options.canonical.version}` : "";
+    clientError.write(
+      `oxlint (oxc-tsrx): ordinary documents are served by the official oxlint${version} ` +
+        `this project declares (${options.canonical.binPath}); .tsrx documents by the native server\n`,
+    );
+  }
   const childOptions = {
     cwd,
     env: { ...process.env, NO_COLOR: "1" },
@@ -682,11 +695,7 @@ export async function runOxlintLspMultiplexer(args, options: any = {}) {
       ? { ...childOptions, cwd: index.root }
       : childOptions;
   const providers = providerLspSessions(index, spawnProcess, providerOptions);
-  const canonical = spawnProcess(
-    process.execPath,
-    [resolveCanonicalOxlintBinary(), ...args],
-    childOptions,
-  );
+  const canonical = spawnProcess(process.execPath, [canonicalBinary, ...args], childOptions);
   const multiplexer = createOxlintLspMultiplexer({
     providerRoot: providerOptions === childOptions ? null : index.root,
     clientInput: options.clientInput ?? process.stdin,

@@ -30,6 +30,13 @@ pub(crate) struct Scanner<'a> {
     pub(super) style_blocks: Vec<StyleBlock>,
     pub(super) script_blocks: Vec<ScriptBlock>,
     pub(super) statement_boundaries: Vec<u32>,
+    /// Offsets of every markup opening scanned at statement position, in source order: the
+    /// `<` that `scan_region` admitted where a statement may begin rather than inside an
+    /// expression or as a JSX child. An element nested in another element's expression children
+    /// (a callback body, a render attribute) is recorded after its enclosing element, because
+    /// each opening is pushed before its element is scanned. The formatter lift consults this
+    /// list before dropping an ASI guard Oxfmt printed in front of one.
+    pub(super) markup_statements: Vec<u32>,
     pub(super) first_root: u32,
     pub(super) last_root: u32,
     pub(super) parents: Vec<u32>,
@@ -55,6 +62,7 @@ impl<'a> Scanner<'a> {
             style_blocks: Vec::new(),
             script_blocks: Vec::new(),
             statement_boundaries: Vec::new(),
+            markup_statements: Vec::new(),
             first_root: NONE,
             last_root: NONE,
             parents: Vec::with_capacity(8),
@@ -80,4 +88,28 @@ impl<'a> Scanner<'a> {
         self.scan_region(0, None)?;
         Ok(self.into_overlay(source_len))
     }
+
+    /// [`Self::finish`], also handing back the statement-position markup openings the scan
+    /// admitted. The overlay itself does not carry them: they are a fact about one scan of one
+    /// text, consumed by the formatter lift and nothing else.
+    pub(crate) fn finish_with_markup_statements(
+        mut self,
+    ) -> Result<(Overlay, Vec<u32>), ProjectionError> {
+        let source_len = to_u32(self.bytes.len())?;
+        self.scan_region(0, None)?;
+        let markup_statements = std::mem::take(&mut self.markup_statements);
+        Ok((self.into_overlay(source_len), markup_statements))
+    }
+}
+
+/// True when the `<` at `index` opens a markup statement on the strength of the line-leading
+/// rule alone: it leads its line, it is a committed markup opening, and it is not a TypeScript
+/// type-parameter form. This is exactly the admission `scan_region` makes when nothing before
+/// the opening lets JSX start, so the formatter lift can ask it before removing the `;` Oxfmt
+/// printed there.
+pub(crate) fn admits_line_leading_markup(source: &str, index: usize) -> bool {
+    let scanner = Scanner::new_for_parser(source);
+    scanner.line_leading_markup_starts_a_statement(index)
+        && scanner.looks_like_jsx_start(index)
+        && !scanner.looks_like_typescript_type_parameters(index)
 }

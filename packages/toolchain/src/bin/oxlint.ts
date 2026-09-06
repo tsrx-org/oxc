@@ -10,6 +10,14 @@
 // package's own declared launcher in this process, preserving its output,
 // plugins, config loading, fixes, and exit behaviour exactly. Everything else
 // goes through the TSRX-aware bridge in ../lint-cli.js.
+//
+// `--lsp` is the one invocation that composes instead of deferring. The editor
+// starts exactly one `oxlint --lsp` and serves every file through it, so
+// handing that process to the official package would leave `.tsrx` with no
+// diagnostics and no formatter and nothing saying why (tsrx-org/oxc#69). The
+// multiplexer keeps the project's own Oxlint as the server for ordinary files,
+// the exact version the project pinned, and routes `.tsrx` to the native
+// server. Command-line invocations keep deferring exactly as before.
 
 // Persistent V8 compile cache shaves a few milliseconds off every launch;
 // harmless where unsupported.
@@ -24,15 +32,20 @@ try {
   );
   const args = process.argv.slice(2);
   const decision = await decideCanonicalCommand("oxlint");
-  if (decision.owner === "project") {
-    const notice = deferralNotice(decision, args);
-    if (notice !== null) console.error(notice);
-    await runOfficialCommand(decision);
-  } else if (args.some((argument) => argument.split("=", 1)[0] === "--lsp")) {
+  if (args.some((argument) => argument.split("=", 1)[0] === "--lsp")) {
     const { runOxlintLspMultiplexer } = await import(
       "../oxlint-lsp-multiplexer.js"
     );
-    process.exitCode = await runOxlintLspMultiplexer(args);
+    process.exitCode = await runOxlintLspMultiplexer(
+      args,
+      decision.owner === "project"
+        ? { canonical: { binPath: decision.binPath, version: decision.officialVersion } }
+        : {},
+    );
+  } else if (decision.owner === "project") {
+    const notice = deferralNotice(decision, args);
+    if (notice !== null) console.error(notice);
+    await runOfficialCommand(decision);
   } else {
     const {
       canRunCanonicalOxlint,

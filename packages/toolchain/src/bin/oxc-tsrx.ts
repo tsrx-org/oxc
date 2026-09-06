@@ -20,7 +20,10 @@ setup, status, and remove are the temporary compatibility bridge for consumers
 whose resolver is not provider-aware yet. The bridge creates the exact
 oxc-parser, oxlint, and oxfmt package-name facades those consumers need, and one
 fourth slot for the editor. Transitive official packages in those exact slots are
-preserved and restored; direct or unrecognized packages are never replaced.
+preserved and restored; direct or unrecognized packages are never replaced. An
+official oxlint or oxfmt you declare yourself keeps its slot and its command
+name (reported as a collision, with what that means); setup still writes the
+editor slot so the official OXC extension serves .tsrx through this package.
 
 The editor slot is the one thing setup writes outside node_modules. When
 node_modules/.bin/oxlint belongs to another tool, the official OXC extension
