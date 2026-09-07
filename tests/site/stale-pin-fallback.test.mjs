@@ -178,21 +178,23 @@ test("a stale pin installs the pinned engine and says so loudly", async (t) => {
   assert.doesNotMatch(run.output, /static preview/);
 });
 
-test("a stale pin whose bytes do not match their sha256 installs nothing", async (t) => {
+test("a stale pin whose bytes do not match their sha256 installs nothing and fails the build", async (t) => {
   const root = await makeFixtureRoot(t);
   await writePin(root, { wasm: { sha256: "b".repeat(64), bytes: 41 } });
   const release = await serveRelease(t);
 
   const run = await runScript(root, { base: release.base });
 
-  assert.equal(run.code, 0, `a refusal is still a green build: ${run.output}`);
+  // A refusal is a red build: the previous deployment stays live and someone
+  // sees it, instead of a green build that quietly renders the static preview.
+  assert.notEqual(run.code, 0, `a refusal must fail the build: ${run.output}`);
   assertNothingInstalled(root);
-  assert.match(run.output, /no demo engine/);
-  assert.match(run.output, /static preview/);
+  assert.match(run.output, /REFUSED -- no demo engine/);
+  assert.match(run.output, /previous deployment stays live/);
   assert.doesNotMatch(run.output, /demo engine in place/);
 });
 
-test("a fresh pin whose bytes are the wrong length installs nothing", async (t) => {
+test("a fresh pin whose bytes are the wrong length installs nothing and fails the build", async (t) => {
   const root = await makeFixtureRoot(t);
   const inputsHash = (await runScript(root, { args: ["--print-inputs-hash"] })).stdout.trim();
   await writePin(root, {
@@ -203,19 +205,19 @@ test("a fresh pin whose bytes are the wrong length installs nothing", async (t) 
 
   const run = await runScript(root, { base: release.base });
 
-  assert.equal(run.code, 0);
+  assert.notEqual(run.code, 0, run.output);
   assertNothingInstalled(root);
   assert.match(run.output, /bytes, the pin says 999999/);
 });
 
-test("a pin whose release will not serve the bytes installs nothing", async (t) => {
+test("a pin whose release will not serve the bytes installs nothing and fails the build", async (t) => {
   const root = await makeFixtureRoot(t);
   await writePin(root, { tag: "wasm-demo-missing" });
   const release = await serveRelease(t);
 
   const run = await runScript(root, { base: release.base });
 
-  assert.equal(run.code, 0);
+  assert.notEqual(run.code, 0, run.output);
   assertNothingInstalled(root);
   assert.match(run.output, /responded 404/);
 });

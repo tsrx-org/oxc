@@ -168,3 +168,34 @@ full list of accounts, tokens, and identities a transfer has to re-establish.
 The two publications are independent by design: neither deploy job depends on
 the other, and either can be broken, disabled, or removed without affecting the
 other.
+
+## How the playground engine reaches oxc.tsrx.dev
+
+Rewritten 2026-09-07, after the 0.11.0 release took the playground down for an
+afternoon with every check green.
+
+The Vercel project builds the site from every push to `main`, and
+`website-oxc/package.json` runs `scripts/fetch-docs-wasm.ts` first. That script
+downloads the engine named by `website-oxc/wasm-pin.json` from a GitHub release
+and verifies every byte against the pin. Three rules now hold:
+
+- **Engine releases are immutable.** `site-artifact.yml` publishes each proven
+  engine under its own release, `wasm-demo-<12 hex of the inputs hash>`, and
+  never overwrites one. A pin that names such a release resolves forever, so a
+  pin that lands late means an older engine stays live, never no engine. The
+  rolling `wasm-demo-latest` release is never written again; overwriting it
+  under a pin that named it is what caused the outage.
+- **The pin lands through a pull request.** `main` is protected, so the
+  workflow's old direct push was rejected every time. It now pushes
+  `site/wasm-pin-<sha>` and opens a PR, which needs one approving review. Until
+  it merges, the site serves the previous engine.
+- **Failure is red, not static.** `fetch-docs-wasm.ts` exits non-zero when the
+  pinned bytes do not verify, which fails the Vercel build and leaves the
+  previous deployment live. `tests/site/wasm-pin.test.mjs` asks GitHub for the
+  committed pin's bytes on every pull request. The `live-engine-check` job asks
+  `https://oxc.tsrx.dev/assets/demo-wasm/` for the engine after every push to
+  `main` and fails when the served wasm is not the pinned one.
+
+A stale pin (engine older than the checkout) still installs, with a warning:
+that was the owner's 2026-08-29 directive and it stands. Only bytes that do not
+match the pin refuse.

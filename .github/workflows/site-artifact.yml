@@ -83,6 +83,9 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Check out the selected exact source revision
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -185,33 +188,31 @@ jobs:
           pnpm run docs:check
 
       # -----------------------------------------------------------------------
-      # Hand the engine just proved above to the build that cannot compile it.
+      # Deliver the proven engine to oxc.tsrx.dev.
       #
-      # https://oxc.tsrx.dev is a Vercel project rooted at website-oxc/, built by
-      # Vercel's git integration on Vercel's image: no cargo, no
-      # wasm32-wasip1-threads, no way to run `pnpm run docs:wasm`, and no Vercel
-      # credential in this repository to push a prebuilt artifact with. So the
-      # bytes travel by release instead. This job publishes them to the rolling
-      # `wasm-demo-latest` release and commits a pin naming their exact sha256s;
-      # scripts/fetch-docs-wasm.ts, which website-oxc's build script runs first,
-      # turns that pin back into files.
+      # The Git-connected Vercel project builds that site from every push to
+      # main, and website-oxc/package.json runs scripts/fetch-docs-wasm.ts
+      # first, which downloads the engine named by website-oxc/wasm-pin.json
+      # from a GitHub release and verifies every byte against the pin.
       #
-      # The pin commit is also the trigger: a push by GITHUB_TOKEN does not
-      # start another Actions run (no loop), but it does reach Vercel's webhook,
-      # which is precisely the delivery this needs.
+      # Two rules keep that from ever breaking the live site again:
       #
-      # Both steps run only after the artifact has been proved, only on main,
-      # and never fail this job -- see the continue-on-error note below.
+      # 1. Assets are immutable. Every engine is published under its own
+      #    release, wasm-demo-<inputs hash>, and never overwritten. A pin that
+      #    names such a release keeps resolving forever, so a pin that lands
+      #    late (or not at all) means an older engine stays live, not no
+      #    engine. The rolling wasm-demo-latest release is left as it is and
+      #    never written again: overwriting it under a pin that names it is
+      #    exactly how the demo went down.
+      # 2. The pin lands through a pull request. main is protected, so a push
+      #    from here is rejected (that is how the 0.9.0 pin outlived the 0.11.0
+      #    engine and took the demo down). The PR needs one approving review.
+      #
+      # Both steps fail this job when they fail: a red build here is the
+      # signal, and the live-engine-check job below is the other one.
       # -----------------------------------------------------------------------
-      - name: Publish the proven demo engine and pin it for oxc.tsrx.dev
-        # This whole path is additive: the compiled.run deploy (now a redirect
-        # to oxc.tsrx.dev plus /guessless) ships the artifact this job uploads
-        # and does not depend on any
-        # of it. A release API hiccup or a protected branch must therefore leave
-        # a warning, not a red build that blocks that deploy. The cost of a miss
-        # is bounded and self-correcting: oxc.tsrx.dev keeps serving its last
-        # good engine, and the next push to main pins again.
-        continue-on-error: true
+      - name: Publish the proven demo engine under an immutable release
+        id: engine
         if: >-
           github.repository == 'tsrx-org/oxc' &&
           github.ref_name == 'main' &&
@@ -222,10 +223,6 @@ jobs:
           set -euo pipefail
           wasm="docs/tools/demo-wasm/dist/demo-wasm.wasm"
           worker="docs/tools/demo-wasm/dist/wasi-worker-browser.mjs"
-
-          # The engine is two files and the worker is not optional: the bundled
-          # loader reaches it through a URL relative to the binary
-          # (docs/demo-wasm-engine-entry.mjs). Half an engine is worse than none.
           for file in "${wasm}" "${worker}"; do
             if [ ! -f "${file}" ]; then
               echo "::error::${file} is missing; the proven artifact is incomplete"
@@ -233,31 +230,37 @@ jobs:
             fi
           done
 
-          # One rolling release, replaced in place, so the site never has to
-          # discover which tag is current. `create` is expected to fail on every
-          # run after the first -- that failure is the steady state, and
-          # `upload --clobber` is what actually publishes.
-          gh release create wasm-demo-latest \
-            --title "wasm-demo-latest" \
-            --notes "Rolling WASM demo engine artifact for the oxc.tsrx.dev Vercel build. Not for installation." \
-            || true
-          gh release upload wasm-demo-latest "${wasm}" "${worker}" --clobber
-
-          # Computed by the same file the site build uses to check it, invoked
-          # here rather than reimplemented in shell: two definitions of "the
-          # sources this engine was built from" would eventually disagree, and
-          # the day they did, every site build would silently drop the engine.
           inputs_hash="$(node scripts/fetch-docs-wasm.ts --print-inputs-hash)"
+          tag="wasm-demo-${inputs_hash:0:12}"
 
+          # Same inputs, same release: the bytes CI proved first stay the bytes
+          # every pin naming this tag resolves to, even if a rebuild of the same
+          # sources is not bit-identical.
+          if gh release view "${tag}" > /dev/null 2>&1; then
+            echo "${tag} already exists; keeping its assets."
+          else
+            gh release create "${tag}" \
+              --title "${tag}" \
+              --notes "Demo engine for the oxc.tsrx.dev playground, built from ${GITHUB_SHA} (engine inputs ${inputs_hash}). Immutable; pinned by website-oxc/wasm-pin.json. Not for installation." \
+              "${wasm}" "${worker}"
+          fi
+          # wasm-demo-latest is deliberately no longer touched: a pin may still
+          # name it, and overwriting its assets under such a pin is the outage
+          # this step exists to prevent.
+
+          # The pin describes what the release serves, so it is computed from
+          # the release's own bytes, not from the local build.
+          served="$(mktemp -d)"
+          gh release download "${tag}" --dir "${served}" --pattern demo-wasm.wasm --pattern wasi-worker-browser.mjs
           pin="$(mktemp)"
           jq -n \
-            --arg tag "wasm-demo-latest" \
+            --arg tag "${tag}" \
             --arg inputsHash "${inputs_hash}" \
             --arg sourceCommit "${GITHUB_SHA}" \
-            --arg wasmSha "$(shasum -a 256 "${wasm}" | cut -d' ' -f1)" \
-            --argjson wasmBytes "$(stat -c%s "${wasm}")" \
-            --arg workerSha "$(shasum -a 256 "${worker}" | cut -d' ' -f1)" \
-            --argjson workerBytes "$(stat -c%s "${worker}")" \
+            --arg wasmSha "$(shasum -a 256 "${served}/demo-wasm.wasm" | cut -d' ' -f1)" \
+            --argjson wasmBytes "$(stat -c%s "${served}/demo-wasm.wasm")" \
+            --arg workerSha "$(shasum -a 256 "${served}/wasi-worker-browser.mjs" | cut -d' ' -f1)" \
+            --argjson workerBytes "$(stat -c%s "${served}/wasi-worker-browser.mjs")" \
             '{
               tag: $tag,
               inputsHash: $inputsHash,
@@ -267,50 +270,43 @@ jobs:
             }' > "${pin}"
 
           mkdir -p website-oxc
-          # sourceCommit is excluded from the comparison on purpose. It records
-          # which commit's build produced these bytes, so when the bytes and the
-          # inputs hash are unchanged the existing value is still the true
-          # answer and rewriting it would churn a commit -- and a Vercel rebuild
-          # -- on every push to main that cannot possibly change the engine.
           if [ -f website-oxc/wasm-pin.json ] &&
             [ "$(jq -S 'del(.sourceCommit)' website-oxc/wasm-pin.json 2>/dev/null)" = "$(jq -S 'del(.sourceCommit)' "${pin}")" ]; then
             echo "The published engine is unchanged; the existing pin still describes it."
           else
             cp "${pin}" website-oxc/wasm-pin.json
-            echo "Pinned wasm-demo-latest at inputs hash ${inputs_hash}"
+            echo "Pinned ${tag} (inputs ${inputs_hash})"
           fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
 
-      - name: Commit the pin when it changed
-        # Same reasoning as above, and one more: main can be protected or can
-        # have moved on. Neither is this job's business to turn red.
-        continue-on-error: true
+      - name: Open the pin pull request when the pin changed
         if: >-
           github.repository == 'tsrx-org/oxc' &&
           github.ref_name == 'main' &&
           hashFiles('docs/tools/demo-wasm/dist/demo-wasm.wasm') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.engine.outputs.tag }}
         run: |
           set -euo pipefail
           git add website-oxc/wasm-pin.json
-          # Staged first so this is one question, not two: an unchanged pin and
-          # a pin that does not exist in the tree yet both answer it correctly.
           if git diff --cached --quiet -- website-oxc/wasm-pin.json; then
-            echo "The pin is unchanged; nothing to commit, and nothing to rebuild."
+            echo "The pin is unchanged; nothing to open."
             exit 0
           fi
-
-          # Substituted before the commit exists, so this names the source
-          # commit whose build produced the engine, not the pin commit itself.
           short="$(git rev-parse --short HEAD)"
+          branch="site/wasm-pin-${short}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "site: pin wasm demo engine ${short}"
+          git push --force origin "HEAD:refs/heads/${branch}"
+          if gh pr list --head "${branch}" --state open --json number --jq 'length' | grep -q '^0$'; then
+            gh pr create --base main --head "${branch}" \
+              --title "site: pin wasm demo engine ${short}" \
+              --body "Pins the demo engine built from ${GITHUB_SHA} (release ${TAG}) for oxc.tsrx.dev. Until this merges the site keeps serving the previously pinned engine, which stays available because engine releases are immutable. Opened by site-artifact.yml; needs one approving review."
+          fi
+          echo "::notice::pin pull request open on ${branch}; oxc.tsrx.dev serves the previous engine until it merges"
 
-          # Losing a race with another push to main is ordinary, not
-          # exceptional. This commit touches one file that nothing else writes,
-          # so replaying it on top of whatever landed is always safe.
-          git fetch origin main
-          git rebase FETCH_HEAD
-          git push origin HEAD:main
 
       - name: Fetch and embed Guessless docs
         run: |
@@ -611,3 +607,42 @@ jobs:
           else
             echo "::warning::https://oxc.tsrx.dev returned ${status}; add the domain and DNS record per docs/releasing/site-oxc-tsrx-dev.md"
           fi
+
+  # The signal the owner asked for after the 0.11.0 outage: the live site is
+  # asked whether the playground engine it serves is the one main pins, and
+  # this job is red when it is not. Nothing here deploys; it only looks. The
+  # Git-connected Vercel project builds from this same push, so the answer is
+  # polled for a while before it is believed.
+  live-engine-check:
+    name: Live engine check (oxc.tsrx.dev)
+    needs: build
+    if: github.repository == 'tsrx-org/oxc' && github.ref_name == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the pin main carries
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Prove oxc.tsrx.dev serves the pinned engine
+        run: |
+          set -euo pipefail
+          expected="$(jq -r .wasm.sha256 website-oxc/wasm-pin.json)"
+          base="https://oxc.tsrx.dev/assets/demo-wasm"
+          deadline=$((SECONDS + 1200))
+          while :; do
+            engine="$(curl -s -o /dev/null -w '%{http_code}' "${base}/engine.js")"
+            worker="$(curl -s -o /dev/null -w '%{http_code}' "${base}/wasi-worker-browser.mjs")"
+            wasm="$(curl -s -o /tmp/served.wasm -w '%{http_code}' "${base}/demo-wasm.wasm32-wasi.wasm")"
+            served="$(sha256sum /tmp/served.wasm | cut -d' ' -f1)"
+            if [ "${engine}" = "200" ] && [ "${worker}" = "200" ] && [ "${wasm}" = "200" ] && [ "${served}" = "${expected}" ]; then
+              echo "::notice::oxc.tsrx.dev serves the pinned engine ${expected:0:12}"
+              exit 0
+            fi
+            if [ "${SECONDS}" -ge "${deadline}" ]; then
+              echo "::error::oxc.tsrx.dev is not serving the pinned engine: engine.js ${engine}, worker ${worker}, wasm ${wasm} (sha ${served:0:12}, pin ${expected:0:12}). The playground is on its static preview or an unexpected engine."
+              exit 1
+            fi
+            sleep 30
+          done

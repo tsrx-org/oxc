@@ -17,13 +17,13 @@
 // Three rules shape everything below.
 //
 // It never fails the site build. A missing pin, a download that will not come,
-// bytes that do not match their hash: each one prints one line and exits 0.
-// docs/build.mjs detects the engine by the presence of
-// docs/tools/demo-wasm/dist/demo-wasm.wasm and renders the static preview
-// contract without it (docs/build.mjs, `wasmDemo`), so the correct degradation
-// is a site that builds and says the demo is unavailable -- never a red deploy.
-// The exit code matters: website-oxc/package.json runs this script and the site
-// build in one `&&` chain, so a non-zero exit here is a failed deploy.
+// bytes that do not match their hash: each one prints one line and exits 1.
+// website-oxc/package.json runs this script and the site build in one `&&`
+// chain, so a non-zero exit here is a failed Vercel deploy, and a failed deploy
+// leaves the previous deployment live. That is the point (owner directive,
+// 2026-09-07, after the 0.11.0 outage): a site that quietly renders the static
+// preview looked healthy to every check while the playground was gone. A red
+// deploy is seen; the last good engine stays up meanwhile.
 //
 // It refuses bytes that do not match the pin, and only those. sha256 and byte
 // length are checked on every download and a mismatch installs nothing --
@@ -254,11 +254,14 @@ if (printInputsHash) {
   try {
     await fetchPinnedEngine();
   } catch (error) {
-    // Reaching here now means the pin is unusable or its bytes did not verify,
-    // never that the pin is merely old. Exit 0 all the same: the site must
-    // build and say the demo is unavailable rather than fail the deploy.
+    // Reaching here means the pin is unusable or its bytes did not verify,
+    // never that the pin is merely old. Fail the build: the previous
+    // deployment stays live, and the failure is red where someone sees it.
     const reason = error instanceof Skip ? error.message : `unexpected failure: ${describe(error)}`;
-    console.log(`fetch-docs-wasm: no demo engine, ${reason}`);
-    console.log("fetch-docs-wasm: the playground will render its static preview instead.");
+    console.error(`fetch-docs-wasm: REFUSED -- no demo engine, ${reason}`);
+    console.error(
+      "fetch-docs-wasm: failing this build so the previous deployment stays live; fix the pin (website-oxc/wasm-pin.json) or the release it names.",
+    );
+    process.exitCode = 1;
   }
 }
