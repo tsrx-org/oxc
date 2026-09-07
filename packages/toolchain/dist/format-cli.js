@@ -1,6 +1,6 @@
-import { resolvePackageBinary } from "./package-binary.js";
 import { runCaptured, runPassthrough } from "./process.js";
-import { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, isViteConfigPath, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveNativeCommand } from "./runtime.js";
+import { resolvePackageBinary } from "./package-binary.js";
+import { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, isViteConfigPath, pathArguments, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveNativeCommand } from "./runtime.js";
 import { VALUE_OPTIONS, parseOxfmtInvocation, parseOxfmtOption } from "./format-invocation.js";
 import { isAbsolute, relative } from "node:path";
 import { readFileSync } from "node:fs";
@@ -231,7 +231,7 @@ async function runCli(args, options = {}) {
 		}
 	}
 	const positions = invocation.positionals;
-	const files = await discoverTsrxFiles(positions, cwd);
+	const files = await discoverTsrxFiles(positions, cwd, "format");
 	if (files.length > 0 || hasTsrxPositional(positions)) {
 		const unknown = unknownCanonicalOption(args);
 		if (unknown !== null) {
@@ -242,13 +242,15 @@ async function runCli(args, options = {}) {
 	const explicitConfig = argumentValue(args, /* @__PURE__ */ new Set(["-c", "--config"]));
 	const bridgeViteConfig = explicitConfig === null || isViteConfigPath(explicitConfig);
 	const viteConfig = files.length > 0 && bridgeViteConfig ? await prepareVitePlusConfig("fmt", cwd, isViteConfigPath(explicitConfig) ? explicitConfig : null) : null;
+	let nativePaths = null;
 	try {
 		const stripped = removeExplicitTsrx(args, VALUE_OPTIONS);
 		const shouldRunUpstream = !stripped.hadPositionals || stripped.remainingPositionals > 0;
 		const upstream = resolvePackageBinary("oxfmt-current", "oxfmt", import.meta.url);
 		const useMaterializedUpstreamConfig = Boolean(viteConfig && !viteConfig.requiresAuthoredBase);
 		const upstreamArgs = useMaterializedUpstreamConfig ? replaceConfigArgument(stripped.args, viteConfig.path) : stripped.args;
-		const nativeArgs = files.length > 0 ? nativeArguments(args, withCwdRelativePaths(files, cwd), viteConfig) : null;
+		nativePaths = files.length > 0 ? await pathArguments(withCwdRelativePaths(files, cwd)) : null;
+		const nativeArgs = nativePaths ? nativeArguments(args, nativePaths.args, viteConfig) : null;
 		const nativeCommand = nativeArgs ? resolveNativeCommand("format", nativeArgs) : null;
 		const [upstreamResult, nativeResult] = await Promise.all([shouldRunUpstream ? runCaptured(process.execPath, [upstream, ...upstreamArgs], {
 			cwd,
@@ -269,6 +271,7 @@ async function runCli(args, options = {}) {
 		process.stderr.write(attributeNativeErrors(mergeFormatStderr(upstreamResult, nativeResult, stdout)));
 		return Math.max(upstreamResult.status, nativeResult.status);
 	} finally {
+		await nativePaths?.cleanup();
 		await viteConfig?.cleanup();
 	}
 }

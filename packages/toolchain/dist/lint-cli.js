@@ -1,6 +1,6 @@
-import { resolvePackageBinary } from "./package-binary.js";
 import { runCaptured, runPassthrough } from "./process.js";
-import { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, ensureSupportedOutput, isViteConfigPath, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveNativeCommand } from "./runtime.js";
+import { resolvePackageBinary } from "./package-binary.js";
+import { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, ensureSupportedOutput, isViteConfigPath, pathArguments, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveNativeCommand } from "./runtime.js";
 import { DELEGATE_ONLY, VALUE_OPTIONS, parseOxlintInvocation, parseOxlintOption, withOxlintOutputFormat } from "./lint-invocation.js";
 import { jsPluginUnmappedNote, preparePluginLane } from "./lint-js-plugins.js";
 import { readFile } from "node:fs/promises";
@@ -379,6 +379,7 @@ async function runCli(args, options = {}) {
 	}
 	const pluginLaneActive = pluginLane?.status === "active";
 	if (pluginLaneActive && !args.includes("--silent")) process.stderr.write(`${pluginLane.notice}\n`);
+	let nativePaths = null;
 	try {
 		const stripped = removeExplicitTsrx(args, VALUE_OPTIONS);
 		const shouldRunUpstream = !stripped.hadPositionals || stripped.remainingPositionals > 0;
@@ -396,7 +397,8 @@ async function runCli(args, options = {}) {
 		let upstreamArgs = withOxlintOutputFormat(stripped.args, "json");
 		if (useMaterializedUpstreamConfig) upstreamArgs = replaceConfigArgument(upstreamArgs, viteConfig.path);
 		const nativeResolvedConfig = pluginLane?.nativeConfig ?? viteConfig;
-		const nativeArgs = files.length > 0 ? nativeArguments(args, files, nativeResolvedConfig) : null;
+		nativePaths = files.length > 0 ? await pathArguments(files) : null;
+		const nativeArgs = nativePaths ? nativeArguments(args, nativePaths.args, nativeResolvedConfig) : null;
 		const nativeCommand = nativeArgs ? resolveNativeCommand("lint", nativeArgs) : null;
 		let upstreamPromise;
 		if (!shouldRunUpstream) upstreamPromise = Promise.resolve({
@@ -480,6 +482,7 @@ async function runCli(args, options = {}) {
 		return Math.max(upstreamResult.status, nativeResult.status, denyWarnings && warnings > 0 ? 1 : 0, exceedsMaximum ? 1 : 0, pluginErrors ? 1 : 0);
 	} finally {
 		await pluginLane?.cleanup?.();
+		await nativePaths?.cleanup();
 		await viteConfig?.cleanup();
 	}
 }

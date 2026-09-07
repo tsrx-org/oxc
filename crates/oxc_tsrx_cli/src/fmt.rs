@@ -25,6 +25,11 @@ Mode options:
     --stdin-filepath=PATH   Read stdin, infer the source type, and print formatted source
     -c, --config=PATH       Use an explicit JSON/JSONC Oxfmt configuration
     --threads=INT           Worker count for explicit multi-file formatting
+    --paths-file=PATH       Read more paths from PATH, one per line, so a list
+                            larger than the host's argument limit still arrives
+    --discover              Print {files:[...]}: every .tsrx file under the named
+                            paths, walked with .gitignore honoured and node_modules
+                            skipped, exactly as the drop-in oxfmt discovers them
     -h, --help              Show this help
     -V, --version           Show the package and canonical OXC revision
 
@@ -149,6 +154,10 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<u8, String> {
     }
     if arguments.iter().any(|argument| matches!(argument.as_str(), "-V" | "--version")) {
         println!("oxc-tsrx-fmt {} (OXC {})", env!("CARGO_PKG_VERSION"), tsrx_format::OXC_REVISION);
+        return Ok(0);
+    }
+    if arguments.iter().any(|argument| argument == "--discover") {
+        println!("{}", crate::paths::run_discover(&arguments)?);
         return Ok(0);
     }
     let args = parse_args(arguments.into_iter())?;
@@ -278,6 +287,10 @@ fn parse_args(mut arguments: impl Iterator<Item = String>) -> Result<Args, Strin
                 let value = arguments.next().ok_or("--config-base requires a path")?;
                 set_once_path(&mut config_base, value, "--config-base")?;
             }
+            "--paths-file" => {
+                let value = arguments.next().ok_or("--paths-file requires a path")?;
+                files.extend(crate::paths::read_paths_file(Path::new(&value))?);
+            }
             "-h" | "--help" | "-V" | "--version" => unreachable!("handled before parsing"),
             value if value.starts_with("--stdin-filepath=") => {
                 let path = value.trim_start_matches("--stdin-filepath=");
@@ -302,6 +315,11 @@ fn parse_args(mut arguments: impl Iterator<Item = String>) -> Result<Args, Strin
                     return Err("--config-base requires a path".to_string());
                 }
                 set_once_path(&mut config_base, path.to_string(), "--config-base")?;
+            }
+            value if value.starts_with("--paths-file=") => {
+                files.extend(crate::paths::read_paths_file(Path::new(
+                    value.trim_start_matches("--paths-file="),
+                ))?);
             }
             value if value.starts_with('-') => {
                 return Err(format!("unsupported option: {value}"));

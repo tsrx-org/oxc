@@ -4,6 +4,7 @@ import {
   argumentValue,
   canonicalToolEnvironment,
   discoverTsrxFiles,
+  pathArguments,
   isViteConfigPath,
   prepareVitePlusConfig,
   removeExplicitTsrx,
@@ -343,7 +344,7 @@ export async function runCli(args, options: any = {}) {
   }
 
   const positions = invocation.positionals;
-  const files = await discoverTsrxFiles(positions, cwd);
+  const files = await discoverTsrxFiles(positions, cwd, "format");
   // Only this route answers for a `.tsrx` path. An ordinary-only invocation
   // keeps reaching canonical Oxfmt, which prints its own rejection itself, so
   // nothing here can drift from the tool it is reproducing on that path.
@@ -364,6 +365,7 @@ export async function runCli(args, options: any = {}) {
           isViteConfigPath(explicitConfig) ? explicitConfig : null,
         )
       : null;
+  let nativePaths = null;
   try {
     const stripped = removeExplicitTsrx(args, VALUE_OPTIONS);
     const shouldRunUpstream = !stripped.hadPositionals || stripped.remainingPositionals > 0;
@@ -372,8 +374,8 @@ export async function runCli(args, options: any = {}) {
     const upstreamArgs = useMaterializedUpstreamConfig
       ? replaceConfigArgument(stripped.args, viteConfig.path)
       : stripped.args;
-    const nativeArgs =
-      files.length > 0 ? nativeArguments(args, withCwdRelativePaths(files, cwd), viteConfig) : null;
+    nativePaths = files.length > 0 ? await pathArguments(withCwdRelativePaths(files, cwd)) : null;
+    const nativeArgs = nativePaths ? nativeArguments(args, nativePaths.args, viteConfig) : null;
     // Resolve and validate every artifact before either tool can mutate a mixed batch.
     // In particular, a missing platform package must not let canonical Oxfmt
     // rewrite ordinary files before the TSRX lane fails.
@@ -396,6 +398,7 @@ export async function runCli(args, options: any = {}) {
     );
     return Math.max(upstreamResult.status, nativeResult.status);
   } finally {
+    await nativePaths?.cleanup();
     await viteConfig?.cleanup();
   }
 }

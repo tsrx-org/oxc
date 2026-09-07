@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, parse, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { nativePackageName, nativeTargetForHost } from "./native-targets.js";
+import { runCaptured } from "./process.js";
 
 export { resolvePackageBinary } from "./package-binary.js";
 export { runCaptured, runPassthrough } from "./process.js";
@@ -342,7 +343,7 @@ function hasMagic(path) {
   return /[*?[\]{}()!]/u.test(path);
 }
 
-async function classifyPattern(raw, cwd, positives, patterns) {
+async function classifyPattern(raw, cwd, positives, patterns, directories) {
   const negative = raw.startsWith("!");
   const value = negative ? raw.slice(1) : raw;
   const absolute = isAbsolute(value) ? value : resolve(cwd, value);
@@ -355,7 +356,8 @@ async function classifyPattern(raw, cwd, positives, patterns) {
         return;
       }
       if (metadata.isDirectory()) {
-        patterns.push(`${negative ? "!" : ""}${slash(join(absolute, "**/*.tsrx"))}`);
+        if (negative) patterns.push(`!${slash(join(absolute, "**/*.tsrx"))}`);
+        else directories.push(absolute);
         return;
       }
     } catch {
@@ -367,26 +369,93 @@ async function classifyPattern(raw, cwd, positives, patterns) {
 
 // Order-preserving concurrent classification: explicit file lists can carry a
 // thousand positionals, and one awaited stat per entry costs ~10 ms serially.
-async function classifyPatterns(inputs, cwd, positives, patterns) {
+async function classifyPatterns(inputs, cwd, positives, patterns, directories) {
   const classified = await Promise.all(
     inputs.map(async (input) => {
       const entryPositives = new Set();
       const entryPatterns = [];
-      await classifyPattern(input, cwd, entryPositives, entryPatterns);
-      return { entryPositives, entryPatterns };
+      const entryDirectories = [];
+      await classifyPattern(input, cwd, entryPositives, entryPatterns, entryDirectories);
+      return { entryPositives, entryPatterns, entryDirectories };
     }),
   );
-  for (const { entryPositives, entryPatterns } of classified) {
+  for (const { entryPositives, entryPatterns, entryDirectories } of classified) {
     for (const positive of entryPositives) positives.add(positive);
     for (const pattern of entryPatterns) patterns.push(pattern);
+    for (const directory of entryDirectories) directories.push(directory);
   }
 }
 
-export async function discoverTsrxFiles(positionals, cwd = process.cwd()) {
+/**
+ * A file list as arguments the native leaf accepts. A short list travels on the
+ * command line as before. A long one is written to a temporary file and named
+ * with `--paths-file`, because a host's argument limit is reached by a real
+ * repository (E2BIG past about a megabyte on macOS and Linux, a 32 KiB command
+ * line on Windows, which a few hundred paths fill). The caller disposes of it.
+ */
+export async function pathArguments(files, budget = 24_000) {
+  const bytes = files.reduce((total, file) => total + Buffer.byteLength(file) + 1, 0);
+  if (bytes <= budget) return { args: [...files], cleanup: async () => {} };
+  const directory = await mkdtemp(join(tmpdir(), "oxc-tsrx-paths-"));
+  const path = join(directory, "paths.txt");
+  await writeFile(path, `${files.join("\n")}\n`);
+  return {
+    args: ["--paths-file", path],
+    cleanup: () => rm(directory, { recursive: true, force: true }),
+  };
+}
+
+/**
+ * Directories are walked by the native leaf, on the same `ignore` crate
+ * canonical Oxlint walks with, so `.gitignore` and `.ignore` files are honoured
+ * and `node_modules` and `.git` are never entered. Without that, a monorepo
+ * that keeps gitignored copies of itself handed every one of them to the leaf.
+ * Returns null when no native package is installed, and the caller falls back
+ * to the plain glob so the run can still reach the error that names the missing
+ * package.
+ */
+async function walkWithNativeLeaf(directories, cwd, kind) {
+  let command;
+  try {
+    command = resolveNativeCommand(kind, ["--discover"]);
+  } catch {
+    return null;
+  }
+  const paths = await pathArguments(directories);
+  try {
+    const result = await runCaptured(command.executable, [...command.args, ...paths.args], { cwd });
+    if (result.status !== 0) {
+      throw new Error(`.tsrx discovery failed: ${(result.stderr || result.stdout).trim()}`);
+    }
+    const report = JSON.parse(result.stdout);
+    if (!Array.isArray(report?.files)) throw new Error(".tsrx discovery returned no file list");
+    return report.files.map((file) => resolve(file));
+  } finally {
+    await paths.cleanup();
+  }
+}
+
+/**
+ * `kind` names the leaf that walks directories, `lint` or `format`: both
+ * answer `--discover` identically, and each command resolves its own binary.
+ */
+export async function discoverTsrxFiles(positionals, cwd = process.cwd(), kind = "lint") {
   const positives = new Set();
   const patterns = [];
+  const directories = [];
   const inputs = positionals.length === 0 ? ["."] : positionals;
-  await classifyPatterns(inputs, cwd, positives, patterns);
+  await classifyPatterns(inputs, cwd, positives, patterns, directories);
+  // A negative pattern has to see the directory walk as a glob to subtract from
+  // it, so that (rare) shape keeps the glob walk for everything.
+  const walked =
+    directories.length > 0 && !patterns.some((pattern) => pattern.startsWith("!"))
+      ? await walkWithNativeLeaf(directories, cwd, kind)
+      : null;
+  if (walked === null) {
+    for (const directory of directories) patterns.push(slash(join(directory, "**/*.tsrx")));
+  } else {
+    for (const file of walked) positives.add(file);
+  }
   if (patterns.length > 0) {
     // Lazy: explicit file lists never glob, and tinyglobby costs a few
     // milliseconds of parse time on every launch otherwise.

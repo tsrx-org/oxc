@@ -1408,6 +1408,7 @@ dependencies = [
 name = "oxc_tsrx_cli"
 version = "0.10.0"
 dependencies = [
+ "ignore",
  "oxc_adapter",
  "rayon",
  "serde_json",

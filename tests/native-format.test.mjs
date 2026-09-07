@@ -385,3 +385,15 @@ test('a semi: false config lifts guards inside nested markup statements and unde
     assert.equal(again.stdout, first.stdout, endOfLine);
   }
 });
+
+test('--paths-file carries a file list the command line could not', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'oxc-tsrx-format-paths-'));
+  await writeFile(join(directory, 'a.tsrx'), 'export function A(){<p>a</p>}\n');
+  await writeFile(join(directory, 'b.tsrx'), 'export function B(){<p>b</p>}\n');
+  await writeFile(join(directory, 'paths.txt'), `${join(directory, 'a.tsrx')}\r\n\n${join(directory, 'b.tsrx')}\n`);
+  const result = await runFormat(['--check', '--paths-file', join(directory, 'paths.txt')]);
+  assert.equal(result.code, 1, result.stderr || result.stdout);
+  assert.match(result.stdout, /a\.tsrx/);
+  assert.match(result.stdout, /b\.tsrx/);
+  assert.match(result.stdout, /on 2 files/);
+});

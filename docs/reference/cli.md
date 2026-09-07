@@ -29,7 +29,7 @@ The install links seven commands into `node_modules/.bin`:
 | `oxlint` | you type it | The linter. Sends `.tsrx` to the TSRX engine and everything else to official Oxlint. |
 | `oxfmt` | you type it | The formatter, with the same split. |
 | `oxc-tsrx` | you type it | `providers`, `status`, `setup`, `remove`. Described in the next section. |
-| `oxc-tsrx-lint` | leaf executor | The native linter, given explicit files only. `oxlint` dispatches to it. It prints JSON, and it has no `--help`. |
+| `oxc-tsrx-lint` | leaf executor | The native linter, given explicit files, a `--paths-file`, or `--discover PATH...` to list the `.tsrx` files under a path with `.gitignore` honoured. `oxlint` dispatches to it. It prints JSON. |
 | `oxc-tsrx-fmt` | leaf executor | The native formatter. `oxfmt` dispatches to it. `--help` works here. |
 | `oxc-tsrx-lsp` | leaf executor | The native language server. Editors launch it through `oxlint --lsp`. |
 | `tsgolint` | not this project | It arrives with the `oxlint-tsgolint` dependency, the official type-aware runner used by `--type-aware` and `--type-check`. You never call it directly, and calling it prints upstream's own "unsupported entrypoint" warning. |

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, readFile, realpath, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -730,4 +730,30 @@ test("a native format failure is attributed to the command the user ran", async 
   assert.equal(stdin.code, 2, stdin.stdout);
   assert.doesNotMatch(stdin.stderr, /^oxc-tsrx-fmt: /mu, stdin.stderr);
   assert.match(stdin.stderr, /^oxfmt \(oxc-tsrx\): /mu, stdin.stderr);
+});
+
+test("the drop-in oxfmt checks a file list past the argument limit and skips gitignored trees", async () => {
+  // The same discovery and paths-file channel the linter uses (see native-lint-config): a long
+  // list travels in a file instead of argv, and a gitignored copy of the tree is never visited.
+  const directory = await mkdtemp(join(tmpdir(), "oxc-tsrx-format-discovery-"));
+  await mkdir(join(directory, "src"), { recursive: true });
+  await mkdir(join(directory, "ignored/copy"), { recursive: true });
+  await mkdir(join(directory, "many"), { recursive: true });
+  await writeFile(join(directory, ".gitignore"), "ignored/\n");
+  await writeFile(join(directory, ".oxfmtrc.json"), "{}\n");
+  await writeFile(join(directory, "src/a.ts"), "export const a = 1;\n");
+  await writeFile(join(directory, "ignored/copy/b.tsrx"), "export function B(){<p>x</p>}\n");
+  const count = 1500;
+  await Promise.all(
+    Array.from({ length: count }, (_, index) =>
+      writeFile(join(directory, "many", `component-number-${index}.tsrx`), "export function Ok(){<p>ok</p>}\n"),
+    ),
+  );
+  const result = await runCompanion(directory, ["--check", "."]);
+  assert.equal(result.code, 1, result.stderr || result.stdout);
+  assert.equal((result.stdout.match(/^many\/component-number-\d+\.tsrx/gmu) ?? []).length, count, result.stdout.slice(0, 400));
+  assert.doesNotMatch(result.stdout, /ignored\//u);
+  // Every .tsrx file, plus src/a.ts and .oxfmtrc.json, which canonical Oxfmt formats too.
+  assert.match(result.stdout, new RegExp(`on ${count + 2} files`, "u"));
+  await rm(directory, { recursive: true, force: true });
 });
