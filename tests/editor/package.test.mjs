@@ -30,11 +30,10 @@ test("editor package is additive, workspace-native, bundled, and VSIX-packaged",
   // generalises resolution only.
   assert.deepEqual(manifest.activationEvents, [
     "onLanguage:markless-tsrx",
-    "onLanguage:ripple",
     "onLanguage:tsrx",
     "workspaceContains:**/*.tsrx",
   ]);
-  assert.equal(manifest.dependencies["@tsrx/oxc"], "0.10.0");
+  assert.equal(manifest.dependencies["@tsrx/oxc"], "0.11.0");
 
   const directory = await mkdtemp(join(tmpdir(), "oxc-tsrx-vsix-"));
   const output = join(directory, "oxc-tsrx-vscode.vsix");

@@ -1837,8 +1837,8 @@ const EXTENSIONS = {
     icon: 'oxc.webp',
   },
   tsrx: {
-    name: 'TSRX for VS Code',
-    id: 'ripple-ts.ripple-ts-vscode-plugin',
+    name: 'TSRX Syntax for VS Code',
+    id: 'tsrx.tsrx-vscode-plugin',
     summary: 'Syntax highlighting and IntelliSense for .tsrx, from the TSRX toolchain.',
     icon: 'tsrx.webp',
   },
