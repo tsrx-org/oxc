@@ -30,7 +30,6 @@ test("editor package is additive, workspace-native, bundled, and VSIX-packaged",
   // generalises resolution only.
   assert.deepEqual(manifest.activationEvents, [
     "onLanguage:markless-tsrx",
-    "onLanguage:ripple",
     "onLanguage:tsrx",
     "workspaceContains:**/*.tsrx",
   ]);

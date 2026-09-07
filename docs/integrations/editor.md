@@ -48,12 +48,14 @@ the two run side by side:
 5. Open a `.tsrx` file. Diagnostics, formatting, and quick fixes come through
    the official client.
 
-To format on save, make the extension the default formatter for whatever
-language id your framework contributes:
+To format on save, make the extension the default formatter for the `tsrx`
+language id, which is what the TSRX Syntax extension contributes for `.tsrx`
+files. A framework's own extension may register its own id instead, such as
+`markless-tsrx`; use whichever the file shows in the status bar:
 
 ```json
 {
-  "[markless-tsrx]": {
+  "[tsrx]": {
     "editor.defaultFormatter": "oxc.oxc-vscode",
     "editor.formatOnSave": true
   }

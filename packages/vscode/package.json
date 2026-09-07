@@ -48,7 +48,6 @@
   },
   "activationEvents": [
     "onLanguage:markless-tsrx",
-    "onLanguage:ripple",
     "onLanguage:tsrx",
     "workspaceContains:**/*.tsrx"
   ],
