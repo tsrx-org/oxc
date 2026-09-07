@@ -163,7 +163,7 @@ export async function installPhysicalToolPackages(modules, vitePlusPackage) {
   const projectManifest = JSON.parse(await readFile(projectManifestPath, "utf8"));
   projectManifest.devDependencies = {
     ...projectManifest.devDependencies,
-    "@tsrx/oxc": "0.10.0",
+    "@tsrx/oxc": "0.10.1",
   };
   await writeFile(projectManifestPath, `${JSON.stringify(projectManifest, null, 2)}\n`);
   await setupCompatibility({ projectRoot });
