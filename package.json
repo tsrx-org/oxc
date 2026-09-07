@@ -1,6 +1,6 @@
 {
   "name": "@tsrx/oxc-monorepo",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "The official OXC integration for TSRX",
   "private": true,
   "keywords": [
