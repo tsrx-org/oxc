@@ -1,5 +1,5 @@
-import { resolvePackageBinary } from "./package-binary.js";
 import { runCaptured } from "./process.js";
+import { resolvePackageBinary } from "./package-binary.js";
 //#region src/lint-prestart.ts
 function startCanonicalOxlint(args, cwd = process.cwd(), env = process.env) {
 	const binary = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);

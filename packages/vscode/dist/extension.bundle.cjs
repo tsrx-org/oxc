@@ -47,8 +47,8 @@ fs = __toESM(fs, 1);
 let path = require("path");
 let node_module = require("node:module");
 let node_fs_promises = require("node:fs/promises");
-let node_url = require("node:url");
 let node_child_process = require("node:child_process");
+let node_url = require("node:url");
 let node_os = require("node:os");
 let url = require("url");
 let module$1 = require("module");
@@ -22639,26 +22639,6 @@ var init_native_targets = __esmMin((() => {
 	]);
 }));
 //#endregion
-//#region packages/toolchain/dist/package-binary.js
-/** Resolve the executable declared by an installed npm package's `bin` field. */
-function resolvePackageBinary(packageName, binaryName, fromUrl) {
-	const localRequire = (0, node_module.createRequire)(fromUrl);
-	const manifestPath = localRequire.resolve(`${packageName}/package.json`);
-	const manifest = localRequire(manifestPath);
-	const declared = typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.[binaryName];
-	if (typeof declared !== "string" || declared.length === 0) throw new Error(`${packageName} does not declare its ${binaryName} npm binary`);
-	const entry = (0, node_path.resolve)((0, node_path.dirname)(manifestPath), declared);
-	let metadata;
-	try {
-		metadata = (0, node_fs.statSync)(entry);
-	} catch {
-		throw new Error(`${packageName} declares a missing ${binaryName} npm binary at ${entry}`);
-	}
-	if (!metadata.isFile()) throw new Error(`${packageName} declares a non-file ${binaryName} npm binary at ${entry}`);
-	return entry;
-}
-var init_package_binary = __esmMin((() => {}));
-//#endregion
 //#region packages/toolchain/dist/process.js
 function traceRunStart(trace, started, executable, args) {
 	(0, node_fs.appendFileSync)(trace, `${JSON.stringify({
@@ -22744,6 +22724,26 @@ function runPassthrough(executable, args, options = {}) {
 	});
 }
 var init_process = __esmMin((() => {}));
+//#endregion
+//#region packages/toolchain/dist/package-binary.js
+/** Resolve the executable declared by an installed npm package's `bin` field. */
+function resolvePackageBinary(packageName, binaryName, fromUrl) {
+	const localRequire = (0, node_module.createRequire)(fromUrl);
+	const manifestPath = localRequire.resolve(`${packageName}/package.json`);
+	const manifest = localRequire(manifestPath);
+	const declared = typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.[binaryName];
+	if (typeof declared !== "string" || declared.length === 0) throw new Error(`${packageName} does not declare its ${binaryName} npm binary`);
+	const entry = (0, node_path.resolve)((0, node_path.dirname)(manifestPath), declared);
+	let metadata;
+	try {
+		metadata = (0, node_fs.statSync)(entry);
+	} catch {
+		throw new Error(`${packageName} declares a missing ${binaryName} npm binary at ${entry}`);
+	}
+	if (!metadata.isFile()) throw new Error(`${packageName} declares a non-file ${binaryName} npm binary at ${entry}`);
+	return entry;
+}
+var init_package_binary = __esmMin((() => {}));
 //#endregion
 //#region node_modules/.pnpm/fdir@6.5.0_picomatch@4.0.5/node_modules/fdir/dist/index.mjs
 function cleanPath(path$11) {
@@ -25454,6 +25454,7 @@ var runtime_exports = /* @__PURE__ */ __exportAll({
 	discoverTsrxFiles: () => discoverTsrxFiles,
 	ensureSupportedOutput: () => ensureSupportedOutput,
 	isViteConfigPath: () => isViteConfigPath,
+	pathArguments: () => pathArguments,
 	platformPackage: () => platformPackage,
 	prepareVitePlusConfig: () => prepareVitePlusConfig,
 	removeExplicitTsrx: () => removeExplicitTsrx,
@@ -25673,7 +25674,7 @@ function slash(path) {
 function hasMagic(path) {
 	return /[*?[\]{}()!]/u.test(path);
 }
-async function classifyPattern(raw, cwd, positives, patterns) {
+async function classifyPattern(raw, cwd, positives, patterns, directories) {
 	const negative = raw.startsWith("!");
 	const value = negative ? raw.slice(1) : raw;
 	const absolute = (0, node_path.isAbsolute)(value) ? value : (0, node_path.resolve)(cwd, value);
@@ -25685,31 +25686,93 @@ async function classifyPattern(raw, cwd, positives, patterns) {
 			return;
 		}
 		if (metadata.isDirectory()) {
-			patterns.push(`${negative ? "!" : ""}${slash((0, node_path.join)(absolute, "**/*.tsrx"))}`);
+			if (negative) patterns.push(`!${slash((0, node_path.join)(absolute, "**/*.tsrx"))}`);
+			else directories.push(absolute);
 			return;
 		}
 	} catch {}
 	patterns.push(`${negative ? "!" : ""}${slash(value)}`);
 }
-async function classifyPatterns(inputs, cwd, positives, patterns) {
+async function classifyPatterns(inputs, cwd, positives, patterns, directories) {
 	const classified = await Promise.all(inputs.map(async (input) => {
 		const entryPositives = /* @__PURE__ */ new Set();
 		const entryPatterns = [];
-		await classifyPattern(input, cwd, entryPositives, entryPatterns);
+		const entryDirectories = [];
+		await classifyPattern(input, cwd, entryPositives, entryPatterns, entryDirectories);
 		return {
 			entryPositives,
-			entryPatterns
+			entryPatterns,
+			entryDirectories
 		};
 	}));
-	for (const { entryPositives, entryPatterns } of classified) {
+	for (const { entryPositives, entryPatterns, entryDirectories } of classified) {
 		for (const positive of entryPositives) positives.add(positive);
 		for (const pattern of entryPatterns) patterns.push(pattern);
+		for (const directory of entryDirectories) directories.push(directory);
 	}
 }
-async function discoverTsrxFiles(positionals, cwd = process.cwd()) {
+/**
+* A file list as arguments the native leaf accepts. A short list travels on the
+* command line as before. A long one is written to a temporary file and named
+* with `--paths-file`, because a host's argument limit is reached by a real
+* repository (E2BIG past about a megabyte on macOS and Linux, a 32 KiB command
+* line on Windows, which a few hundred paths fill). The caller disposes of it.
+*/
+async function pathArguments(files, budget = 24e3) {
+	if (files.reduce((total, file) => total + Buffer.byteLength(file) + 1, 0) <= budget) return {
+		args: [...files],
+		cleanup: async () => {}
+	};
+	const directory = await (0, node_fs_promises.mkdtemp)((0, node_path.join)((0, node_os.tmpdir)(), "oxc-tsrx-paths-"));
+	const path = (0, node_path.join)(directory, "paths.txt");
+	await (0, node_fs_promises.writeFile)(path, `${files.join("\n")}\n`);
+	return {
+		args: ["--paths-file", path],
+		cleanup: () => (0, node_fs_promises.rm)(directory, {
+			recursive: true,
+			force: true
+		})
+	};
+}
+/**
+* Directories are walked by the native leaf, on the same `ignore` crate
+* canonical Oxlint walks with, so `.gitignore` and `.ignore` files are honoured
+* and `node_modules` and `.git` are never entered. Without that, a monorepo
+* that keeps gitignored copies of itself handed every one of them to the leaf.
+* Returns null when no native package is installed, and the caller falls back
+* to the plain glob so the run can still reach the error that names the missing
+* package.
+*/
+async function walkWithNativeLeaf(directories, cwd, kind) {
+	let command;
+	try {
+		command = resolveNativeCommand(kind, ["--discover"]);
+	} catch {
+		return null;
+	}
+	const paths = await pathArguments(directories);
+	try {
+		const result = await runCaptured(command.executable, [...command.args, ...paths.args], { cwd });
+		if (result.status !== 0) throw new Error(`.tsrx discovery failed: ${(result.stderr || result.stdout).trim()}`);
+		const report = JSON.parse(result.stdout);
+		if (!Array.isArray(report?.files)) throw new Error(".tsrx discovery returned no file list");
+		return report.files.map((file) => (0, node_path.resolve)(file));
+	} finally {
+		await paths.cleanup();
+	}
+}
+/**
+* `kind` names the leaf that walks directories, `lint` or `format`: both
+* answer `--discover` identically, and each command resolves its own binary.
+*/
+async function discoverTsrxFiles(positionals, cwd = process.cwd(), kind = "lint") {
 	const positives = /* @__PURE__ */ new Set();
 	const patterns = [];
-	await classifyPatterns(positionals.length === 0 ? ["."] : positionals, cwd, positives, patterns);
+	const directories = [];
+	await classifyPatterns(positionals.length === 0 ? ["."] : positionals, cwd, positives, patterns, directories);
+	const walked = directories.length > 0 && !patterns.some((pattern) => pattern.startsWith("!")) ? await walkWithNativeLeaf(directories, cwd, kind) : null;
+	if (walked === null) for (const directory of directories) patterns.push(slash((0, node_path.join)(directory, "**/*.tsrx")));
+	else for (const file of walked) positives.add(file);
 	if (patterns.length > 0) {
 		const { glob } = await Promise.resolve().then(() => (init_dist(), dist_exports));
 		const matches = await glob(patterns, {
@@ -25741,8 +25804,8 @@ function ensureSupportedOutput(format, files) {
 var require$1, runtimeManifest, NATIVE_PROTOCOL_VERSION, OXC_REVISION, ENVIRONMENTS, EXECUTABLE, SUBCOMMANDS, VITE_CONFIG_FILES;
 var init_runtime = __esmMin((() => {
 	init_native_targets();
-	init_package_binary();
 	init_process();
+	init_package_binary();
 	require$1 = (0, node_module.createRequire)(require("url").pathToFileURL(__filename).href);
 	runtimeManifest = require$1("../package.json");
 	NATIVE_PROTOCOL_VERSION = 2;

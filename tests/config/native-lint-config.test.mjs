@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, readFile, realpath, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -953,4 +953,38 @@ test("oxc-tsrx accepts --help and --version instead of calling them unknown comm
   const unknown = await runProvider(["lint"]);
   assert.equal(unknown.code, 2, unknown.stdout);
   assert.match(unknown.stderr, /unknown command: lint/u, unknown.stderr);
+});
+
+test("the drop-in oxlint skips gitignored trees and survives a file list past the argument limit", async () => {
+  // A monorepo that keeps gitignored copies of itself (agent worktrees, build output) used to
+  // hand every copy to the native leaf on the command line: hundreds of thousands of paths,
+  // then spawn E2BIG. Discovery now walks with .gitignore honoured, and a long list travels in
+  // a file, which is also what keeps a few hundred paths under Windows's 32 KiB command line.
+  const directory = await mkdtemp(join(tmpdir(), "oxc-tsrx-discovery-launcher-"));
+  await mkdir(join(directory, "src"), { recursive: true });
+  await mkdir(join(directory, "ignored/copy"), { recursive: true });
+  await mkdir(join(directory, "many"), { recursive: true });
+  await writeFile(join(directory, ".gitignore"), "ignored/\n");
+  await writeFile(join(directory, ".oxlintrc.json"), '{ "rules": { "no-debugger": "error" } }\n');
+  const offending = "export function View() @{\n  debugger;\n  <p>hi</p>;\n}\n";
+  await writeFile(join(directory, "src/a.tsrx"), offending);
+  await writeFile(join(directory, "src/ordinary.ts"), "export const ordinary = 1;\n");
+  await writeFile(join(directory, "ignored/copy/b.tsrx"), offending);
+  const count = 1500;
+  await Promise.all(
+    Array.from({ length: count }, (_, index) =>
+      writeFile(join(directory, "many", `component-number-${index}.tsrx`), "export function Ok() @{\n  <p>ok</p>;\n}\n"),
+    ),
+  );
+  const listBytes = count * (join(directory, "many", "component-number-0000.tsrx").length + 1);
+  assert.ok(listBytes > 24_000, `the list must exceed the inline budget (${listBytes} bytes)`);
+
+  const result = await runCompanion(directory, ["--format=json", "."]);
+  assert.equal(result.code, 1, result.stderr || result.stdout);
+  const output = json(result);
+  assert.equal(output.number_of_files, count + 2, "every discovered file, and nothing from ignored/");
+  const files = new Set(output.diagnostics.map((item) => item.filename));
+  assert.equal(files.size, 1);
+  assert.ok([...files][0].endsWith("src/a.tsrx"), [...files][0]);
+  await rm(directory, { recursive: true, force: true });
 });

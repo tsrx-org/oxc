@@ -1,6 +1,6 @@
 import { nativePackageName, nativeTargetForHost } from "./native-targets.js";
-import { resolvePackageBinary } from "./package-binary.js";
 import { runCaptured, runPassthrough } from "./process.js";
+import { resolvePackageBinary } from "./package-binary.js";
 import { createRequire } from "node:module";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, parse, resolve, sep } from "node:path";
@@ -254,7 +254,7 @@ function slash(path) {
 function hasMagic(path) {
 	return /[*?[\]{}()!]/u.test(path);
 }
-async function classifyPattern(raw, cwd, positives, patterns) {
+async function classifyPattern(raw, cwd, positives, patterns, directories) {
 	const negative = raw.startsWith("!");
 	const value = negative ? raw.slice(1) : raw;
 	const absolute = isAbsolute(value) ? value : resolve(cwd, value);
@@ -266,31 +266,93 @@ async function classifyPattern(raw, cwd, positives, patterns) {
 			return;
 		}
 		if (metadata.isDirectory()) {
-			patterns.push(`${negative ? "!" : ""}${slash(join(absolute, "**/*.tsrx"))}`);
+			if (negative) patterns.push(`!${slash(join(absolute, "**/*.tsrx"))}`);
+			else directories.push(absolute);
 			return;
 		}
 	} catch {}
 	patterns.push(`${negative ? "!" : ""}${slash(value)}`);
 }
-async function classifyPatterns(inputs, cwd, positives, patterns) {
+async function classifyPatterns(inputs, cwd, positives, patterns, directories) {
 	const classified = await Promise.all(inputs.map(async (input) => {
 		const entryPositives = /* @__PURE__ */ new Set();
 		const entryPatterns = [];
-		await classifyPattern(input, cwd, entryPositives, entryPatterns);
+		const entryDirectories = [];
+		await classifyPattern(input, cwd, entryPositives, entryPatterns, entryDirectories);
 		return {
 			entryPositives,
-			entryPatterns
+			entryPatterns,
+			entryDirectories
 		};
 	}));
-	for (const { entryPositives, entryPatterns } of classified) {
+	for (const { entryPositives, entryPatterns, entryDirectories } of classified) {
 		for (const positive of entryPositives) positives.add(positive);
 		for (const pattern of entryPatterns) patterns.push(pattern);
+		for (const directory of entryDirectories) directories.push(directory);
 	}
 }
-async function discoverTsrxFiles(positionals, cwd = process.cwd()) {
+/**
+* A file list as arguments the native leaf accepts. A short list travels on the
+* command line as before. A long one is written to a temporary file and named
+* with `--paths-file`, because a host's argument limit is reached by a real
+* repository (E2BIG past about a megabyte on macOS and Linux, a 32 KiB command
+* line on Windows, which a few hundred paths fill). The caller disposes of it.
+*/
+async function pathArguments(files, budget = 24e3) {
+	if (files.reduce((total, file) => total + Buffer.byteLength(file) + 1, 0) <= budget) return {
+		args: [...files],
+		cleanup: async () => {}
+	};
+	const directory = await mkdtemp(join(tmpdir(), "oxc-tsrx-paths-"));
+	const path = join(directory, "paths.txt");
+	await writeFile(path, `${files.join("\n")}\n`);
+	return {
+		args: ["--paths-file", path],
+		cleanup: () => rm(directory, {
+			recursive: true,
+			force: true
+		})
+	};
+}
+/**
+* Directories are walked by the native leaf, on the same `ignore` crate
+* canonical Oxlint walks with, so `.gitignore` and `.ignore` files are honoured
+* and `node_modules` and `.git` are never entered. Without that, a monorepo
+* that keeps gitignored copies of itself handed every one of them to the leaf.
+* Returns null when no native package is installed, and the caller falls back
+* to the plain glob so the run can still reach the error that names the missing
+* package.
+*/
+async function walkWithNativeLeaf(directories, cwd, kind) {
+	let command;
+	try {
+		command = resolveNativeCommand(kind, ["--discover"]);
+	} catch {
+		return null;
+	}
+	const paths = await pathArguments(directories);
+	try {
+		const result = await runCaptured(command.executable, [...command.args, ...paths.args], { cwd });
+		if (result.status !== 0) throw new Error(`.tsrx discovery failed: ${(result.stderr || result.stdout).trim()}`);
+		const report = JSON.parse(result.stdout);
+		if (!Array.isArray(report?.files)) throw new Error(".tsrx discovery returned no file list");
+		return report.files.map((file) => resolve(file));
+	} finally {
+		await paths.cleanup();
+	}
+}
+/**
+* `kind` names the leaf that walks directories, `lint` or `format`: both
+* answer `--discover` identically, and each command resolves its own binary.
+*/
+async function discoverTsrxFiles(positionals, cwd = process.cwd(), kind = "lint") {
 	const positives = /* @__PURE__ */ new Set();
 	const patterns = [];
-	await classifyPatterns(positionals.length === 0 ? ["."] : positionals, cwd, positives, patterns);
+	const directories = [];
+	await classifyPatterns(positionals.length === 0 ? ["."] : positionals, cwd, positives, patterns, directories);
+	const walked = directories.length > 0 && !patterns.some((pattern) => pattern.startsWith("!")) ? await walkWithNativeLeaf(directories, cwd, kind) : null;
+	if (walked === null) for (const directory of directories) patterns.push(slash(join(directory, "**/*.tsrx")));
+	else for (const file of walked) positives.add(file);
 	if (patterns.length > 0) {
 		const { glob } = await import("tinyglobby");
 		const matches = await glob(patterns, {
@@ -320,4 +382,4 @@ function ensureSupportedOutput(format, files) {
 	if (files.length > 0 && format !== "default" && format !== "json") throw new Error(`OXC for TSRX currently combines default and json lint output; ${format} is unavailable for mixed .tsrx runs`);
 }
 //#endregion
-export { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, ensureSupportedOutput, isViteConfigPath, platformPackage, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveNativeBinary, resolveNativeCommand, resolvePackageBinary, runCaptured, runPassthrough };
+export { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, ensureSupportedOutput, isViteConfigPath, pathArguments, platformPackage, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveNativeBinary, resolveNativeCommand, resolvePackageBinary, runCaptured, runPassthrough };

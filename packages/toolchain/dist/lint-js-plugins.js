@@ -1,6 +1,6 @@
-import { resolvePackageBinary } from "./package-binary.js";
 import { runCaptured } from "./process.js";
-import { resolveNativeCommand } from "./runtime.js";
+import { resolvePackageBinary } from "./package-binary.js";
+import { pathArguments, resolveNativeCommand } from "./runtime.js";
 import { createRequire } from "node:module";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
@@ -434,8 +434,14 @@ async function preparePluginLane({ cwd, files, viteConfig, explicitConfig }) {
 async function emitProjections(cwd, files, nativeConfig) {
 	const args = ["--emit-plugin-projection"];
 	if (nativeConfig) args.push("--config", nativeConfig.path, "--config-base", nativeConfig.base);
-	const command = resolveNativeCommand("lint", [...args, ...files]);
-	const result = await runCaptured(command.executable, command.args, { cwd });
+	const paths = await pathArguments(files);
+	let result;
+	try {
+		const command = resolveNativeCommand("lint", [...args, ...paths.args]);
+		result = await runCaptured(command.executable, command.args, { cwd });
+	} finally {
+		await paths.cleanup();
+	}
 	if (result.status !== 0) throw new Error(`the native TSRX projection needed for JS plugins failed:\n${result.stderr || result.stdout}`);
 	let parsed;
 	try {

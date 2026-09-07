@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { copyFile, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
@@ -305,4 +305,40 @@ test('the lint leaf answers --help in the shape its formatter sibling already do
   const bare = await run([]);
   assert.equal(bare.code, 2, bare.stdout);
   assert.match(bare.stderr, /at least one explicit source file is required/u, bare.stderr);
+});
+
+test('--discover walks with .gitignore honoured and --paths-file carries a list past the argument limit', async () => {
+  // The drop-in oxlint hands the leaf a discovered file list. On a monorepo that keeps
+  // gitignored copies of itself the old Node-side walk handed over every copy and the
+  // command line overflowed (spawn E2BIG). The leaf now walks on the same `ignore`
+  // crate canonical Oxlint uses, and takes a list from a file.
+  const directory = await mkdtemp(join(tmpdir(), 'oxc-tsrx-discover-'));
+  await mkdir(join(directory, 'src/deep'), { recursive: true });
+  await mkdir(join(directory, 'ignored/copy'), { recursive: true });
+  await mkdir(join(directory, 'node_modules/dep'), { recursive: true });
+  await writeFile(join(directory, '.gitignore'), 'ignored/\n');
+  const component = 'export function View() @{\n  debugger;\n  <p>hi</p>;\n}\n';
+  await writeFile(join(directory, 'src/a.tsrx'), component);
+  await writeFile(join(directory, 'src/deep/b.tsrx'), component);
+  await writeFile(join(directory, 'src/c.ts'), 'export const c = 1;\n');
+  await writeFile(join(directory, 'ignored/copy/d.tsrx'), component);
+  await writeFile(join(directory, 'node_modules/dep/e.tsrx'), component);
+
+  const discovered = await run(['--discover', directory]);
+  assert.equal(discovered.code, 0, discovered.stderr || discovered.stdout);
+  const files = JSON.parse(discovered.stdout).files.map((file) => file.slice(directory.length + 1));
+  assert.deepEqual(files.sort(), ['src/a.tsrx', 'src/deep/b.tsrx']);
+
+  // A file named outright is kept even inside an ignored directory, as canonical Oxlint keeps it.
+  const named = await run(['--discover', join(directory, 'ignored/copy/d.tsrx')]);
+  assert.equal(JSON.parse(named.stdout).files.length, 1);
+
+  const list = join(directory, 'paths.txt');
+  await writeFile(list, `${join(directory, 'src/a.tsrx')}\r\n\n${join(directory, 'src/deep/b.tsrx')}\n`);
+  const linted = await run(['--paths-file', list]);
+  assert.equal(linted.code, 0, linted.stderr || linted.stdout);
+  const report = JSON.parse(linted.stdout);
+  assert.equal(report.number_of_files, 2);
+  assert.equal(report.diagnostics.filter((item) => item.code.includes('no-debugger')).length, 2);
+  await rm(directory, { recursive: true, force: true });
 });

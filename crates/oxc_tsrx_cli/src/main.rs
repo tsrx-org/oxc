@@ -26,6 +26,7 @@
 mod fmt;
 mod lint;
 mod lsp;
+mod paths;
 
 use std::{env, path::Path, process::ExitCode};
 

@@ -4,6 +4,7 @@ import {
   argumentValue,
   canonicalToolEnvironment,
   discoverTsrxFiles,
+  pathArguments,
   ensureSupportedOutput,
   isViteConfigPath,
   prepareVitePlusConfig,
@@ -590,6 +591,7 @@ export async function runCli(args, options: any = {}) {
     process.stderr.write(`${pluginLane.notice}\n`);
   }
 
+  let nativePaths = null;
   try {
     const stripped = removeExplicitTsrx(args, VALUE_OPTIONS);
     const shouldRunUpstream = !stripped.hadPositionals || stripped.remainingPositionals > 0;
@@ -617,8 +619,9 @@ export async function runCli(args, options: any = {}) {
     // minus `jsPlugins`, so `reject_unavailable_lint_capabilities` is never
     // reached and the plugins are hosted exactly once, by Oxlint.
     const nativeResolvedConfig = pluginLane?.nativeConfig ?? viteConfig;
+    nativePaths = files.length > 0 ? await pathArguments(files) : null;
     const nativeArgs =
-      files.length > 0 ? nativeArguments(args, files, nativeResolvedConfig) : null;
+      nativePaths ? nativeArguments(args, nativePaths.args, nativeResolvedConfig) : null;
     // Mutating invocations never prestart. Preflight their native lane before
     // canonical Oxlint can apply fixes to the ordinary half of a mixed batch.
     // Missing or mismatched artifacts therefore fail atomically instead of
@@ -751,6 +754,7 @@ export async function runCli(args, options: any = {}) {
     );
   } finally {
     await pluginLane?.cleanup?.();
+    await nativePaths?.cleanup();
     await viteConfig?.cleanup();
   }
 }

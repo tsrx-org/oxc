@@ -15,6 +15,7 @@ const HELP: &str = "\
 OXC for TSRX linter
 
 Usage: oxc-tsrx-lint [--fix] [--format=json] [-D RULE] PATH...
+       oxc-tsrx-lint --discover PATH...
 
 Options:
     --fix                   Apply the safe fixes and write the changed files
@@ -25,6 +26,11 @@ Options:
     --type-aware            Enable the type-aware rules
     --type-check            Enable the type-aware rules and type checking
     --format json           Output format; json is the only value, and the default
+    --paths-file PATH       Read more paths from PATH, one per line, so a list
+                            larger than the host's argument limit still arrives
+    --discover              Print {files:[...]}: every .tsrx file under the named
+                            paths, walked with .gitignore honoured and node_modules
+                            skipped, exactly as the drop-in oxlint discovers them
     -h, --help              Show this help
     -V, --version           Show the package and canonical OXC revision
 
@@ -91,6 +97,11 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<u8, String> {
     // arrives in the stdin request, so it is answered before argument parsing.
     if arguments.iter().any(|argument| argument == MAP_PLUGIN_DIAGNOSTICS) {
         return map_plugin_diagnostics();
+    }
+    // Discovery answers before parsing too: it takes paths and a paths file and nothing else.
+    if arguments.iter().any(|argument| argument == "--discover") {
+        println!("{}", crate::paths::run_discover(&arguments)?);
+        return Ok(0);
     }
     // The projection flag is answered after parsing, but the parser has never heard of it, so it
     // is filtered out on the way in rather than taught as an option that takes no value.
@@ -385,12 +396,21 @@ fn parse_arguments(mut arguments: impl Iterator<Item = String>) -> Result<Parsed
                     Some(PathBuf::from(arguments.next().ok_or("--config-base requires a path")?));
             }
             "--fix" => fix = true,
+            "--paths-file" => {
+                let path = arguments.next().ok_or("--paths-file requires a path")?;
+                files.extend(crate::paths::read_paths_file(Path::new(&path))?);
+            }
             "--type-aware" => type_aware = true,
             "--type-check" => {
                 type_aware = true;
                 type_check = true;
             }
             "-h" | "--help" | "-V" | "--version" => unreachable!("handled before parsing"),
+            value if value.starts_with("--paths-file=") => {
+                files.extend(crate::paths::read_paths_file(Path::new(
+                    value.trim_start_matches("--paths-file="),
+                ))?);
+            }
             value if value.starts_with('-') => {
                 return Err(format!("unsupported option in the current native CLI: {value}"));
             }
