@@ -8,19 +8,19 @@ use std::{
 };
 
 use oxc_adapter::{
-    DynamicTagContract, EngineDiagnostic, LintRequest, LintResult, OXC_REVISION, SourceKind,
-    TypeBatchFile,
+    DynamicTagContract, EngineDiagnostic, LintError as EngineLintError, LintRequest, LintResult,
+    OXC_REVISION, SourceKind, TypeBatchFile,
 };
 use tsrx_syntax::{
     MappedProjection, TypeProjection, project_for_lint, project_for_types, scan_for_parser,
 };
 
 use crate::{
-    error::LintError,
+    error::{LintError, UnparsedFile},
     fixes::{AppliedFixes, apply_safe_fixes},
     report::{
         FileCounts, FixOutput, Metadata, Output, TimingOutput, map_diagnostics,
-        projection_failure_output,
+        parse_failure_output, projection_failure_output,
     },
     session::LintSession,
     translate::{translate_diagnostics, translate_type_diagnostics},
@@ -65,6 +65,7 @@ pub(crate) fn lint_loaded_file(
 ) -> Result<Output, LintError> {
     match lint_loaded_source(session, path, source, allow_writes) {
         Err(LintError::Projection(error)) => Ok(projection_failure_output(session, path, &error)),
+        Err(LintError::Unparsed(unparsed)) => Ok(parse_failure_output(session, &unparsed)),
         result => result,
     }
 }
@@ -130,7 +131,7 @@ pub(crate) fn run_syntax_lint(
 ) -> Result<(PreparedSource, LintResult), LintError> {
     let prepared = prepare_source(path, source, session.engine.type_aware_enabled())?;
     let parse_source = prepared.parse_source(source);
-    let syntax = session.engine.lint(&LintRequest {
+    let request = LintRequest {
         path,
         original_source: source,
         parse_source,
@@ -142,8 +143,38 @@ pub(crate) fn run_syntax_lint(
                 DynamicTagContract { prefix, count, original_offsets }
             })
         }),
-    })?;
+    };
+    let syntax = match session.engine.lint(&request) {
+        Ok(syntax) => syntax,
+        // The projection is still in hand here, which is the only place the parser's spans can
+        // be mapped back to what the user wrote. A span the projection cannot map is dropped
+        // rather than invented; the file is still named, and the batch still continues.
+        Err(EngineLintError::Parse { detail, diagnostics }) => {
+            return Err(unparsed(path, "OXC parse failed", detail, diagnostics, &prepared));
+        }
+        Err(EngineLintError::Semantic { detail, diagnostics }) => {
+            let headline = "OXC semantic analysis failed";
+            return Err(unparsed(path, headline, detail, diagnostics, &prepared));
+        }
+        Err(error) => return Err(error.into()),
+    };
     Ok((prepared, syntax))
+}
+
+fn unparsed(
+    path: &Path,
+    headline: &str,
+    detail: String,
+    diagnostics: Vec<EngineDiagnostic>,
+    prepared: &PreparedSource,
+) -> LintError {
+    let translated = translate_diagnostics(diagnostics, prepared.projection.as_ref());
+    LintError::Unparsed(Box::new(UnparsedFile {
+        path: path.to_path_buf(),
+        headline: headline.to_string(),
+        detail,
+        diagnostics: translated.diagnostics,
+    }))
 }
 
 #[expect(

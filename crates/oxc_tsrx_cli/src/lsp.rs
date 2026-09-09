@@ -967,6 +967,12 @@ fn parse_error_diagnostic(source: &str, error: &LintError) -> EditorDiagnostic {
     let positioned = match error {
         LintError::Projection(error) => error.byte_offset(),
         LintError::Syntax(EngineLintError::DynamicTags(error)) => error.byte_offset(),
+        LintError::Unparsed(unparsed) => unparsed
+            .diagnostics
+            .iter()
+            .flat_map(|diagnostic| diagnostic.labels.iter())
+            .map(|label| label.offset)
+            .next(),
         LintError::UnreadableSource { .. }
         | LintError::UnwritableSource { .. }
         | LintError::TextLintWithFixes

@@ -17,7 +17,9 @@ use crate::{
         PendingBatchFile, finish_lint, lint_loaded_file, lint_loaded_source, run_syntax_lint,
         run_type_lint, virtual_type_path,
     },
-    report::{EditorFix, Output, aggregate_outputs, projection_failure_output},
+    report::{
+        EditorFix, Output, aggregate_outputs, parse_failure_output, projection_failure_output,
+    },
     translate::{translate_diagnostics, translate_type_diagnostics},
 };
 
@@ -170,6 +172,9 @@ impl LintSession {
                 }),
                 Err(LintError::Projection(error)) => {
                     ordered[slot] = Some(projection_failure_output(self, path, &error));
+                }
+                Err(LintError::Unparsed(unparsed)) => {
+                    ordered[slot] = Some(parse_failure_output(self, &unparsed));
                 }
                 Err(error) => return Err(error),
             }
