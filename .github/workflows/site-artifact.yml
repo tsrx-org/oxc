@@ -622,13 +622,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Check out the pin main carries
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
+      # No checkout and no build here, by contract: everything after the deploy
+      # job only looks. The pin this push carries is read straight from the API.
       - name: Prove oxc.tsrx.dev serves the pinned engine
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          expected="$(jq -r .wasm.sha256 website-oxc/wasm-pin.json)"
+          expected="$(gh api "repos/${GITHUB_REPOSITORY}/contents/website-oxc/wasm-pin.json?ref=${GITHUB_SHA}" --jq .content | base64 -d | jq -r .wasm.sha256)"
+          echo "pin at ${GITHUB_SHA:0:7}: ${expected:0:12}"
           base="https://oxc.tsrx.dev/assets/demo-wasm"
           deadline=$((SECONDS + 1200))
           while :; do
