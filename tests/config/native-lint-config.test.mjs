@@ -1004,8 +1004,26 @@ test("the drop-in oxlint names and positions a file OXC cannot parse and keeps t
   const result = await runCompanion(directory, ["."]);
   assert.equal(result.code, 1, `errors exit 1, never the tool-failure 2: ${result.stderr || result.stdout}`);
   assert.doesNotMatch(result.stderr, /OXC parse failed/u, "the failure is a diagnostic, not a stderr abort");
-  assert.match(result.stdout, /src\/Probe\.tsrx:3:\d+: error: OXC parse failed: /u, result.stdout);
-  assert.match(result.stdout, /src\/Clean\.tsrx:2:\d+: error eslint\(no-debugger\)/u, result.stdout);
+  // Whichever reporter this environment selects: a GitHub runner gets annotations, a terminal
+  // gets the positioned line. A rule-less diagnostic is titled `oxlint` by the annotation
+  // reporter, as canonical Oxlint titles its own parse errors.
+  assert.match(
+    result.stdout,
+    composedReporter === "github"
+      ? /^::error file=src\/Probe\.tsrx,line=3,endLine=\d+,col=\d+,endColumn=\d+,title=oxlint::OXC parse failed: /mu
+      : /^src\/Probe\.tsrx:3:\d+: error: OXC parse failed: /mu,
+    result.stdout,
+  );
+  assert.match(
+    result.stdout,
+    diagnosticPattern(composedReporter, {
+      file: "src/Clean.tsrx",
+      line: 2,
+      severity: "error",
+      code: "eslint(no-debugger)",
+    }),
+    result.stdout,
+  );
   assert.match(result.stdout, /on 3 files/u, result.stdout);
   await rm(directory, { recursive: true, force: true });
 });
