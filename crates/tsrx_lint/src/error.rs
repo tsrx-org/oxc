@@ -6,7 +6,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use oxc_adapter::{ConfigError, LintError as EngineLintError, SourceKindError, TypeLintError};
+use oxc_adapter::{
+    ConfigError, EngineDiagnostic, LintError as EngineLintError, SourceKindError, TypeLintError,
+};
 use tsrx_syntax::ProjectionError;
 
 /// Why a native lint run produced no report.
@@ -36,6 +38,21 @@ pub enum LintError {
     Syntax(EngineLintError),
     /// The type-aware lane failed.
     TypeAware(TypeLintError),
+    /// Canonical OXC refused the projected copy of one file. The diagnostics are the parser's
+    /// own, already mapped back to authored offsets where the projection could, so a batch
+    /// reports this file by name and position and goes on to the next one (tsrx-org/oxc#79).
+    Unparsed(Box<UnparsedFile>),
+}
+
+/// What canonical OXC said about one file it could not parse, in authored coordinates.
+#[derive(Debug)]
+pub struct UnparsedFile {
+    pub path: PathBuf,
+    /// `OXC parse failed` or `OXC semantic analysis failed`: the engine error's own headline.
+    pub headline: String,
+    /// The joined engine text, for the one-line form.
+    pub detail: String,
+    pub diagnostics: Vec<EngineDiagnostic>,
 }
 
 impl LintError {
@@ -68,6 +85,13 @@ impl fmt::Display for LintError {
             Self::Config(error) => error.fmt(formatter),
             Self::Syntax(error) => error.fmt(formatter),
             Self::TypeAware(error) => error.fmt(formatter),
+            Self::Unparsed(unparsed) => write!(
+                formatter,
+                "{}: {}: {}",
+                unparsed.path.display(),
+                unparsed.headline,
+                unparsed.detail
+            ),
         }
     }
 }
@@ -83,7 +107,7 @@ impl Error for LintError {
             Self::Config(error) => Some(error),
             Self::Syntax(error) => Some(error),
             Self::TypeAware(error) => Some(error),
-            Self::TextLintWithFixes | Self::CodeActionsWithoutFixes => None,
+            Self::TextLintWithFixes | Self::CodeActionsWithoutFixes | Self::Unparsed(_) => None,
         }
     }
 }

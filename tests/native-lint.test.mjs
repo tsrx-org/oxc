@@ -342,3 +342,27 @@ test('--discover walks with .gitignore honoured and --paths-file carries a list 
   assert.equal(report.diagnostics.filter((item) => item.code.includes('no-debugger')).length, 2);
   await rm(directory, { recursive: true, force: true });
 });
+
+test('a file OXC cannot parse is a named, positioned error and the rest of the batch still reports', async () => {
+  // tsrx-org/oxc#79: an editor-completion probe with an incomplete member access used to abort
+  // the whole batch with "OXC parse failed: Unexpected token" and no file name.
+  const directory = await mkdtemp(join(tmpdir(), 'oxc-tsrx-parse-failure-'));
+  const probe = "export function Probe() @{\n\tconst element = document.createElement('div');\n\tdocument./*completion*/;\n\t<div>{element.dataset}</div>\n}\n";
+  await writeFile(join(directory, 'probe.tsrx'), probe);
+  await writeFile(join(directory, 'clean.tsrx'), "export function Clean() @{\n\tdebugger;\n\t<p>hi</p>\n}\n");
+  const result = await run([join(directory, 'probe.tsrx'), join(directory, 'clean.tsrx')]);
+  // Error diagnostics exit 1, as for any lint error; the tool-failure exit 2 is what went away.
+  assert.equal(result.code, 1, result.stderr || result.stdout);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.number_of_files, 2);
+  const failures = report.diagnostics.filter((item) => item.filename.endsWith('probe.tsrx'));
+  assert.equal(failures.length, 1, JSON.stringify(report.diagnostics));
+  assert.equal(failures[0].severity, 'error');
+  assert.match(failures[0].message, /^OXC parse failed: /u);
+  const lineStart = probe.indexOf('\tdocument./*');
+  const lineEnd = probe.indexOf('\n', lineStart);
+  const offset = failures[0].labels[0]?.span.offset;
+  assert.ok(offset >= lineStart && offset <= lineEnd, `offset ${offset} not on the authored line ${lineStart}..${lineEnd}`);
+  assert.ok(report.diagnostics.some((item) => item.filename.endsWith('clean.tsrx') && item.code.includes('no-debugger')), 'the other file still reports');
+  await rm(directory, { recursive: true, force: true });
+});

@@ -1,5 +1,6 @@
 //! The project-owned diagnostic vocabulary, and the mapping from canonical OXC messages onto it.
 
+use oxc_diagnostics::OxcDiagnostic;
 use oxc_linter::{FixKind, Message, PossibleFixes};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,6 +50,28 @@ pub(super) fn map_message(message: &Message) -> EngineDiagnostic {
         message: message.error.message.to_string(),
         labels,
         fixes: fixes(&message.fixes),
+    }
+}
+
+/// A parser or semantic diagnostic, which has no rule and no fix: its labels address the
+/// source the engine was handed, so a projected buffer's spans still need mapping back.
+pub(super) fn map_oxc_diagnostic(error: &OxcDiagnostic) -> EngineDiagnostic {
+    EngineDiagnostic {
+        rule: None,
+        plugin: None,
+        code: error.code.to_string(),
+        severity: format!("{:?}", error.severity).to_ascii_lowercase(),
+        message: error.message.to_string(),
+        labels: error
+            .labels
+            .iter()
+            .map(|label| EngineSpan {
+                offset: label.offset(),
+                length: label.len(),
+                message: label.label().map(ToString::to_string),
+            })
+            .collect(),
+        fixes: Vec::new(),
     }
 }
 

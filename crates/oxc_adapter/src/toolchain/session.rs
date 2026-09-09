@@ -19,7 +19,7 @@ use oxc_semantic::SemanticBuilder;
 use rustc_hash::FxHashMap;
 
 use super::config::ConfigError;
-use super::diagnostics::{EngineDiagnostic, map_message};
+use super::diagnostics::{EngineDiagnostic, map_message, map_oxc_diagnostic};
 use super::engine::{LintEngine, LintEngineOptions};
 use super::timings::{EngineTimings, elapsed_ns};
 use super::tsgolint::{
@@ -34,10 +34,12 @@ use crate::{DynamicTagContract, DynamicTagError, SourceKind, validate_dynamic_ta
 pub enum LintError {
     /// The request's fix mode does not match the mode the session was compiled with.
     FixModeMismatch,
-    /// Canonical OXC could not parse the projected source. Holds its joined diagnostic text.
-    Parse { detail: String },
-    /// Canonical OXC could not build semantics. Holds its joined diagnostic text.
-    Semantic { detail: String },
+    /// Canonical OXC could not parse the projected source. Holds its joined diagnostic text and
+    /// the diagnostics themselves, whose labels address the parsed buffer, so a caller that
+    /// projected that buffer can map them back and report the failure at a real position.
+    Parse { detail: String, diagnostics: Vec<EngineDiagnostic> },
+    /// Canonical OXC could not build semantics. Same shape as `Parse`.
+    Semantic { detail: String, diagnostics: Vec<EngineDiagnostic> },
     /// The TSRX dynamic-tag scaffold did not survive the parse.
     DynamicTags(DynamicTagError),
     /// The single-shot [`lint`] entry point could not compile a configuration first.
@@ -50,8 +52,8 @@ impl fmt::Display for LintError {
             Self::FixModeMismatch => {
                 formatter.write_str("lint request fix mode differs from the compiled lint session")
             }
-            Self::Parse { detail } => write!(formatter, "OXC parse failed: {detail}"),
-            Self::Semantic { detail } => {
+            Self::Parse { detail, .. } => write!(formatter, "OXC parse failed: {detail}"),
+            Self::Semantic { detail, .. } => {
                 write!(formatter, "OXC semantic analysis failed: {detail}")
             }
             Self::DynamicTags(error) => error.fmt(formatter),
@@ -220,7 +222,8 @@ impl LintEngine {
         if !parsed.diagnostics.is_empty() {
             let detail =
                 parsed.diagnostics.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ");
-            return Err(LintError::Parse { detail });
+            let diagnostics = parsed.diagnostics.iter().map(map_oxc_diagnostic).collect();
+            return Err(LintError::Parse { detail, diagnostics });
         }
         validate_dynamic_tags(&parsed.program, request.dynamic_tags)?;
         let parse_ns = elapsed_ns(started);
@@ -239,7 +242,8 @@ impl LintEngine {
                 .map(ToString::to_string)
                 .collect::<Vec<_>>()
                 .join("; ");
-            return Err(LintError::Semantic { detail });
+            let diagnostics = semantic_return.diagnostics.iter().map(map_oxc_diagnostic).collect();
+            return Err(LintError::Semantic { detail, diagnostics });
         }
         let semantic = semantic_return.semantic;
 

@@ -988,3 +988,24 @@ test("the drop-in oxlint skips gitignored trees and survives a file list past th
   assert.ok([...files][0].endsWith("src/a.tsrx"), [...files][0]);
   await rm(directory, { recursive: true, force: true });
 });
+
+test("the drop-in oxlint names and positions a file OXC cannot parse and keeps the batch", async () => {
+  // tsrx-org/oxc#79: the whole run used to exit 2 with an unattributed parse failure.
+  const directory = await mkdtemp(join(tmpdir(), "oxc-tsrx-parse-failure-launcher-"));
+  await mkdir(join(directory, "src"), { recursive: true });
+  await writeFile(join(directory, ".oxlintrc.json"), '{ "rules": { "no-debugger": "error" } }\n');
+  await writeFile(
+    join(directory, "src/Probe.tsrx"),
+    "export function Probe() @{\n\tconst element = document.createElement('div');\n\tdocument./*completion*/;\n\t<div>{element.dataset}</div>\n}\n",
+  );
+  await writeFile(join(directory, "src/Clean.tsrx"), "export function Clean() @{\n\tdebugger;\n\t<p>hi</p>\n}\n");
+  await writeFile(join(directory, "src/ordinary.ts"), "export const ordinary = 1;\n");
+
+  const result = await runCompanion(directory, ["."]);
+  assert.equal(result.code, 1, `errors exit 1, never the tool-failure 2: ${result.stderr || result.stdout}`);
+  assert.doesNotMatch(result.stderr, /OXC parse failed/u, "the failure is a diagnostic, not a stderr abort");
+  assert.match(result.stdout, /src\/Probe\.tsrx:3:\d+: error: OXC parse failed: /u, result.stdout);
+  assert.match(result.stdout, /src\/Clean\.tsrx:2:\d+: error eslint\(no-debugger\)/u, result.stdout);
+  assert.match(result.stdout, /on 3 files/u, result.stdout);
+  await rm(directory, { recursive: true, force: true });
+});

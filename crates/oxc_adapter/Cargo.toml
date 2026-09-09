@@ -19,6 +19,7 @@ parser = [
 ]
 toolchain = [
   "dep:oxc_config",
+  "dep:oxc_diagnostics",
   "dep:oxc_formatter",
   "dep:oxc_formatter_core",
   "dep:oxc_linter",

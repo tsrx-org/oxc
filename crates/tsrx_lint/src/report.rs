@@ -9,7 +9,7 @@ use oxc_adapter::{EngineDiagnostic, OXC_REVISION};
 use serde::Serialize;
 use tsrx_syntax::ProjectionError;
 
-use crate::session::LintSession;
+use crate::{error::UnparsedFile, session::LintSession};
 
 #[derive(Debug, Serialize)]
 pub struct SpanOutput {
@@ -209,8 +209,9 @@ pub(crate) fn projection_failure_output(
         .map(|offset| LabelOutput { span: SpanOutput { offset, length: 0 }, message: None })
         .into_iter()
         .collect();
-    Output {
-        diagnostics: vec![DiagnosticOutput {
+    failure_shell(
+        session,
+        vec![DiagnosticOutput {
             filename: path.to_string_lossy().into_owned(),
             rule: String::new(),
             code: String::new(),
@@ -218,6 +219,13 @@ pub(crate) fn projection_failure_output(
             message: error.to_string(),
             labels,
         }],
+    )
+}
+
+/// The one-file report shell shared by every failure that stands in for a lint result.
+fn failure_shell(session: &LintSession, diagnostics: Vec<DiagnosticOutput>) -> Output {
+    Output {
+        diagnostics,
         number_of_files: 1,
         number_of_rules: session.engine.number_of_rules(),
         threads_count: 1,
@@ -242,6 +250,47 @@ pub(crate) fn projection_failure_output(
             type_aware_processes: 0,
         },
     }
+}
+
+/// The report for a file canonical OXC could not parse: one `error` per parser diagnostic,
+/// named by file and positioned where the projection could map the parser's span back to the
+/// authored source. Same rule-less, code-less shape as a projection failure, because the
+/// failure is the source itself. When no span maps, the joined engine text stands alone so the
+/// file is still named.
+pub(crate) fn parse_failure_output(session: &LintSession, unparsed: &UnparsedFile) -> Output {
+    let filename = unparsed.path.to_string_lossy().into_owned();
+    let mut diagnostics = unparsed
+        .diagnostics
+        .iter()
+        .map(|diagnostic| DiagnosticOutput {
+            filename: filename.clone(),
+            rule: String::new(),
+            code: String::new(),
+            severity: "error".to_string(),
+            message: format!("{}: {}", unparsed.headline, diagnostic.message),
+            labels: diagnostic
+                .labels
+                .iter()
+                .map(|label| LabelOutput {
+                    span: SpanOutput { offset: label.offset, length: label.length },
+                    message: label.message.clone(),
+                })
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+    if diagnostics.is_empty() {
+        diagnostics.push(DiagnosticOutput {
+            filename,
+            rule: String::new(),
+            code: String::new(),
+            severity: "error".to_string(),
+            message: format!("{}: {}", unparsed.headline, unparsed.detail),
+            labels: Vec::new(),
+        });
+    }
+    let mut output = failure_shell(session, diagnostics);
+    output.metadata.parse_count = 1;
+    output
 }
 
 pub(crate) fn map_diagnostics(

@@ -7,7 +7,7 @@ mod report;
 mod session;
 mod translate;
 
-pub use error::LintError;
+pub use error::{LintError, UnparsedFile};
 pub use oxc_adapter::{RuleFilter as ConfigRuleFilter, RuleSeverity as ConfigRuleSeverity};
 pub use report::{
     DiagnosticOutput, EditorFix, FileCounts, FixOutput, LabelOutput, Metadata, Output, SpanOutput,
