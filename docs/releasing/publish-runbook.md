@@ -631,9 +631,11 @@ gate above.
 What it does, on `linux-x64-gnu` only, because this is detection rather than
 coverage:
 
-1. waits for all nine names to be visible at the published version, retrying,
-   because a registry read can hit a replica that has not caught up with the
-   write that just succeeded;
+1. waits for all nine names to be visible at the published version, retrying
+   for up to five minutes, because a registry read can hit a replica that has
+   not caught up with the write that just succeeded. The old 60-second budget
+   went red on 0.11.0, 0.12.0 and 0.13.0 while every package had in fact
+   landed; the slowest replica took close to four minutes;
 2. installs `@tsrx/oxc@<version>` from the registry into a project outside the
    workspace, so the platform package is resolved through the published
    `optionalDependencies` the way a consumer's first install resolves it;
