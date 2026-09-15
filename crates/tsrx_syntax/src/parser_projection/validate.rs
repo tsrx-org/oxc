@@ -9,24 +9,7 @@ use crate::{
 pub(super) fn validate_projection_lane(overlay: &Overlay) -> Result<(), ProjectionError> {
     validate_parser_code_blocks(overlay)?;
     validate_parser_shorthand_attributes(overlay)?;
-    validate_parser_lazy_patterns(overlay)?;
     validate_parser_dynamic_boundaries(overlay)
-}
-
-fn validate_parser_lazy_patterns(overlay: &Overlay) -> Result<(), ProjectionError> {
-    let mut previous = None;
-    for pattern in &overlay.parser_lazy_patterns {
-        let ampersand = pattern.ampersand;
-        let pattern_start = pattern.pattern_start;
-        if ampersand >= pattern_start
-            || pattern_start > overlay.source_len
-            || previous.is_some_and(|offset| offset >= ampersand)
-        {
-            return Err(ProjectionError::StructuralMismatch);
-        }
-        previous = Some(ampersand);
-    }
-    Ok(())
 }
 
 fn validate_parser_shorthand_attributes(overlay: &Overlay) -> Result<(), ProjectionError> {

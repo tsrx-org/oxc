@@ -114,31 +114,6 @@ impl<'a> Builder<'a> {
         Ok(())
     }
 
-    fn copy_original_omitting_lazy_patterns(
-        &mut self,
-        span: ByteSpan,
-    ) -> Result<(), ProjectionError> {
-        let mut cursor = span.start;
-        for pattern in &self.overlay.parser_lazy_patterns {
-            if pattern.ampersand < span.start || pattern.ampersand >= span.end {
-                continue;
-            }
-            // A bare loop target opens `left` with the sigil, so there is nothing authored to copy
-            // ahead of it. Copying the empty span anyway records a degenerate segment, which splits
-            // the one authored gap the caller left before the pattern into two consumptions and
-            // fails `consume_allowed_gap` as a non-canonical affine projection map.
-            if cursor < pattern.ampersand {
-                self.copy_original(ByteSpan::new(cursor, pattern.ampersand))?;
-            }
-            cursor = pattern.ampersand.saturating_add(1);
-        }
-        self.copy_original(ByteSpan::new(cursor, span.end))
-    }
-
-    pub(super) const fn original_cursor(&self) -> usize {
-        self.cursor
-    }
-
     pub(super) fn wrapper_start(&mut self, node_index: u32) -> Result<(), ProjectionError> {
         let node = self.overlay.nodes[node_index as usize];
         self.copy_to(node.span.start as usize)?;
@@ -357,7 +332,7 @@ impl<'a> Builder<'a> {
         }
         self.copy_to(clause.header.start as usize)?;
         self.output.push('(');
-        self.copy_original_omitting_lazy_patterns(header.left)?;
+        self.copy_original(header.left)?;
         self.output.push_str(" of ");
         let callee_start = self.output.len();
         write!(self.output, "{}H{ordinal}_", self.prefix).expect("writing to a String cannot fail");
@@ -548,28 +523,6 @@ impl<'a> Builder<'a> {
         }
         self.copy_to(start)?;
         self.output.push(';');
-        Ok(())
-    }
-
-    pub(super) fn parser_lazy_pattern(
-        &mut self,
-        pattern_index: u32,
-    ) -> Result<(), ProjectionError> {
-        let pattern = self
-            .overlay
-            .parser_lazy_patterns
-            .get(pattern_index as usize)
-            .ok_or(ProjectionError::StructuralMismatch)?;
-        if pattern.pattern_start <= pattern.ampersand
-            || self.source.as_bytes().get(pattern.ampersand as usize) != Some(&b'&')
-        {
-            return Err(ProjectionError::StructuralMismatch);
-        }
-        self.copy_to(pattern.ampersand as usize)?;
-        if pattern.standalone {
-            self.output.push_str("var ");
-        }
-        self.cursor = pattern.ampersand.saturating_add(1) as usize;
         Ok(())
     }
 }

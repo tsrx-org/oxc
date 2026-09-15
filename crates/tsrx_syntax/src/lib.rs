@@ -14,8 +14,8 @@ pub use model::{
     ByteSpan, ClauseRole, ControlContext, ControlKind, EmbeddedKind, ForHeader, NONE_INDEX,
     Overlay, OverlayClause, OverlayDynamicTag, OverlayEmbedded, OverlayNode, OverlayStyleBlock,
     OverlayToken, OverlayView, PARSER_EXPRESSION_CODE_BLOCK_PREFIX, ParserCodeBlock,
-    ParserCodeBlockKind, ParserDynamicKind, ParserDynamicToken, ParserLazyPattern,
-    ParserShorthandAttribute, ScriptBlock, StructuralKind, StructuralToken,
+    ParserCodeBlockKind, ParserDynamicKind, ParserDynamicToken, ParserShorthandAttribute,
+    ScriptBlock, StructuralKind, StructuralToken,
 };
 pub use parser_projection::{MappedProjection as ParserProjection, project_for_parser};
 pub use parser_recovery::{PARSER_RECOVERY_DIAGNOSTIC, ParserRecovery, recover_for_parser};
@@ -68,7 +68,7 @@ pub fn scan(source: &str) -> Result<Overlay, ProjectionError> {
 }
 
 /// Performs the parser/tooling scan, including nested dynamic names, JSX code blocks,
-/// shorthand attributes, lazy patterns, and raw script regions.
+/// shorthand attributes, and raw script regions.
 ///
 /// # Errors
 ///

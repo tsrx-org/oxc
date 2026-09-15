@@ -13,9 +13,7 @@ pub(super) fn lift_parser_scaffolds(
     formatted: &str,
     projection: &FormatProjection,
 ) -> Result<String, ProjectionError> {
-    if projection.parser_code_blocks.is_empty()
-        && projection.parser_shorthand_attributes.is_empty()
-        && projection.parser_lazy_patterns.is_empty()
+    if projection.parser_code_blocks.is_empty() && projection.parser_shorthand_attributes.is_empty()
     {
         return Ok(formatted.to_string());
     }
@@ -26,9 +24,6 @@ pub(super) fn lift_parser_scaffolds(
     }
     for index in (0..projection.parser_shorthand_attributes.len()).rev() {
         lifted = lift_shorthand(&lifted, projection, index)?;
-    }
-    for index in (0..projection.parser_lazy_patterns.len()).rev() {
-        lifted = lift_lazy_pattern(&lifted, projection, index)?;
     }
     Ok(lifted)
 }
@@ -124,37 +119,6 @@ fn lift_shorthand(
         return Err(ProjectionError::ScaffoldMismatch { index });
     }
     replace_range(source, marker.start, end, "", index)
-}
-
-fn lift_lazy_pattern(
-    source: &str,
-    projection: &FormatProjection,
-    index: usize,
-) -> Result<String, ProjectionError> {
-    let pattern = projection
-        .parser_lazy_patterns
-        .get(index)
-        .ok_or(ProjectionError::ScaffoldMismatch { index })?;
-    let marker = unique_marker(source, &format!("/*{}Y{index}__*/", projection.prefix), index)?;
-    let pattern_start = skip_ascii_whitespace(source, marker.end);
-    if !matches!(source.as_bytes().get(pattern_start), Some(b'{' | b'[')) {
-        return Err(ProjectionError::ScaffoldMismatch { index });
-    }
-    let replace_start = if pattern.standalone {
-        let var_end = previous_non_whitespace(source, marker.start)
-            .ok_or(ProjectionError::ScaffoldMismatch { index })?
-            .saturating_add(1);
-        let var_start = var_end.saturating_sub(3);
-        if source.as_bytes().get(var_start..var_end) != Some(b"var")
-            || var_start > 0 && source.as_bytes()[var_start - 1].is_ascii_alphanumeric()
-        {
-            return Err(ProjectionError::ScaffoldMismatch { index });
-        }
-        var_start
-    } else {
-        marker.start
-    };
-    replace_range(source, replace_start, pattern_start, "&", index)
 }
 
 fn unique_marker(

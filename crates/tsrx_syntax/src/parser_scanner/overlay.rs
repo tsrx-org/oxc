@@ -20,7 +20,6 @@ pub(super) struct Checkpoint {
     pub(super) parser_dynamic_tokens: usize,
     pub(super) parser_code_blocks: usize,
     pub(super) parser_shorthand_attributes: usize,
-    pub(super) parser_lazy_patterns: usize,
     pub(super) dynamic_tags: usize,
     pub(super) dynamic_comments: usize,
     pub(super) style_blocks: usize,
@@ -45,7 +44,6 @@ impl Scanner<'_> {
             parser_dynamic_tokens: self.parser_dynamic_tokens,
             parser_code_blocks: self.parser_code_blocks,
             parser_shorthand_attributes: self.parser_shorthand_attributes,
-            parser_lazy_patterns: self.parser_lazy_patterns,
             dynamic_tags: self.dynamic_tags,
             dynamic_comments: self.dynamic_comments,
             style_blocks: self.style_blocks,
@@ -169,7 +167,6 @@ impl Scanner<'_> {
             parser_dynamic_tokens: self.parser_dynamic_tokens.len(),
             parser_code_blocks: self.parser_code_blocks.len(),
             parser_shorthand_attributes: self.parser_shorthand_attributes.len(),
-            parser_lazy_patterns: self.parser_lazy_patterns.len(),
             dynamic_tags: self.dynamic_tags.len(),
             dynamic_comments: self.dynamic_comments.len(),
             style_blocks: self.style_blocks.len(),
@@ -194,7 +191,6 @@ impl Scanner<'_> {
         self.parser_dynamic_tokens.truncate(checkpoint.parser_dynamic_tokens);
         self.parser_code_blocks.truncate(checkpoint.parser_code_blocks);
         self.parser_shorthand_attributes.truncate(checkpoint.parser_shorthand_attributes);
-        self.parser_lazy_patterns.truncate(checkpoint.parser_lazy_patterns);
         self.dynamic_tags.truncate(checkpoint.dynamic_tags);
         self.dynamic_comments.truncate(checkpoint.dynamic_comments);
         self.style_blocks.truncate(checkpoint.style_blocks);

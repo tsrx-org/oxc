@@ -173,16 +173,6 @@ pub struct ParserShorthandAttribute {
     pub identifier: ByteSpan,
 }
 
-/// One lazy destructuring marker before an array/object pattern.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ParserLazyPattern {
-    pub ampersand: u32,
-    pub pattern_start: u32,
-    /// `true` for a standalone `&{...} = value;` / `&[...] = value;` statement.
-    pub standalone: bool,
-}
-
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EmbeddedToken {
@@ -281,7 +271,6 @@ pub struct OverlayView<'a> {
     pub parser_dynamic: &'a [ParserDynamicToken],
     pub parser_code_blocks: &'a [ParserCodeBlock],
     pub parser_shorthand_attributes: &'a [ParserShorthandAttribute],
-    pub parser_lazy_patterns: &'a [ParserLazyPattern],
     pub dynamic_tags: &'a [OverlayDynamicTag],
     pub dynamic_comments: &'a [ByteSpan],
     pub style_blocks: &'a [OverlayStyleBlock],
@@ -302,7 +291,6 @@ pub struct Overlay {
     pub(crate) parser_dynamic_tokens: Vec<ParserDynamicToken>,
     pub(crate) parser_code_blocks: Vec<ParserCodeBlock>,
     pub(crate) parser_shorthand_attributes: Vec<ParserShorthandAttribute>,
-    pub(crate) parser_lazy_patterns: Vec<ParserLazyPattern>,
     pub(crate) dynamic_tags: Vec<DynamicTag>,
     pub(crate) dynamic_comments: Vec<ByteSpan>,
     pub(crate) style_blocks: Vec<StyleBlock>,
@@ -332,7 +320,6 @@ impl Overlay {
             parser_dynamic: &self.parser_dynamic_tokens,
             parser_code_blocks: &self.parser_code_blocks,
             parser_shorthand_attributes: &self.parser_shorthand_attributes,
-            parser_lazy_patterns: &self.parser_lazy_patterns,
             dynamic_tags: &self.dynamic_tags,
             dynamic_comments: &self.dynamic_comments,
             style_blocks: &self.style_blocks,

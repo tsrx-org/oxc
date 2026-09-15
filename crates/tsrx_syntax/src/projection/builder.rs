@@ -26,7 +26,6 @@ enum Action {
     ForBody(u32),
     Embedded(u32),
     ParserShorthand(u32),
-    ParserLazyPattern(u32),
     StatementBoundary(u32),
 }
 
@@ -47,9 +46,6 @@ impl Action {
             Self::Embedded(token) => (overlay.embedded_tokens[token as usize].span.start, 3),
             Self::ParserShorthand(attribute) => {
                 (overlay.parser_shorthand_attributes[attribute as usize].span.start, 2)
-            }
-            Self::ParserLazyPattern(pattern) => {
-                (overlay.parser_lazy_patterns[pattern as usize].ampersand, 2)
             }
             // The boundary precedes everything else written at the same markup opening.
             Self::StatementBoundary(boundary) => {
@@ -177,20 +173,6 @@ impl<'a> Builder<'a> {
             });
         }
         Ok(())
-    }
-
-    fn copy_original_with_lazy_markers(&mut self, span: ByteSpan) -> Result<(), ProjectionError> {
-        let mut cursor = span.start;
-        for (index, pattern) in self.overlay.parser_lazy_patterns.iter().enumerate() {
-            if pattern.ampersand < span.start || pattern.ampersand >= span.end {
-                continue;
-            }
-            self.copy_original(ByteSpan::new(cursor, pattern.ampersand))?;
-            write!(self.output, "/*{}Y{index}__*/", self.prefix)
-                .expect("writing to a String cannot fail");
-            cursor = pattern.ampersand.saturating_add(1);
-        }
-        self.copy_original(ByteSpan::new(cursor, span.end))
     }
 
     fn wrapper_start(&mut self, node_index: u32) -> Result<(), ProjectionError> {
@@ -422,7 +404,7 @@ impl<'a> Builder<'a> {
         }
         self.copy_to(clause.header.start as usize)?;
         self.output.push('(');
-        self.copy_original_with_lazy_markers(header.left)?;
+        self.copy_original(header.left)?;
         write!(self.output, " of {}H{ordinal}_(/*{}R{ordinal}S__*/", self.prefix, self.prefix)
             .expect("writing to a String cannot fail");
         self.copy_original(header.right)?;
@@ -478,11 +460,7 @@ impl<'a> Builder<'a> {
         {
             self.output.push_str("const ");
         }
-        // The lazy sigil has to be spent here, exactly as the non-type header spends it. Rewriting
-        // the header at all moves the cursor past the whole clause, and `PendingActions::next`
-        // then skips every lazy pattern behind that cursor — so an `&` copied verbatim is an `&`
-        // no later action will rewrite, and the type projection emits `const &{…}`.
-        self.copy_original_with_lazy_markers(header.left)?;
+        self.copy_original(header.left)?;
         self.output.push_str(" of ");
         self.copy_original(header.right)?;
         self.output.push(')');
@@ -490,11 +468,7 @@ impl<'a> Builder<'a> {
         Ok(())
     }
 
-    /// Copies an unannotated `@for` header verbatim, spending the lazy sigils on the way through.
-    ///
-    /// The sigils have to be spent here for the same reason the annotated header spends them:
-    /// rewriting the header moves the cursor past the whole clause, and `PendingActions::next`
-    /// then skips every lazy pattern behind that cursor.
+    /// Copies an unannotated `@for` header verbatim: it is already the TypeScript it projects to.
     fn unannotated_type_header(&mut self, header: ByteSpan) -> Result<(), ProjectionError> {
         let open = header.start as usize;
         if self.source.as_bytes().get(open) != Some(&b'(') || header.end <= header.start {
@@ -502,55 +476,9 @@ impl<'a> Builder<'a> {
         }
         let inner = ByteSpan::new(to_u32(open.saturating_add(1))?, header.end);
         self.copy_to(inner.start as usize)?;
-        // A bare lazy loop target — `@for (&{cell} of rows)` — is the one unannotated shape that is
-        // not already TypeScript: the sigil stands in for the declaration keyword, so the type lane
-        // writes the keyword the annotated lane writes for the very same target.
-        if self.has_bare_lazy_loop_target(inner) {
-            self.output.push_str("const ");
-        }
-        self.copy_original_with_lazy_markers(inner)?;
+        self.copy_original(inner)?;
         self.cursor = header.end as usize;
         Ok(())
-    }
-
-    /// Reports whether the header's iteration target is a lazy pattern with no declaration keyword
-    /// of its own, which is the shape `Scanner::register_lazy_loop_target` records.
-    ///
-    /// The scan has to step over full trivia rather than whitespace alone, because the scanner
-    /// reaches the sigil through `Scanner::skip_trivia`: in `@for (/* note */ &{cell} of rows)` the
-    /// `&` is registered behind a comment, and a whitespace-only scan stops at the `/` and never
-    /// matches the recorded position — so the type lane would omit the `const` the sigil stands in
-    /// for. That scanner helper is private to the scanner, so its comment handling is mirrored
-    /// here, bounded by the header span the scanner already balanced.
-    fn has_bare_lazy_loop_target(&self, inner: ByteSpan) -> bool {
-        let bytes = self.source.as_bytes();
-        let end = (inner.end as usize).min(bytes.len());
-        let mut index = (inner.start as usize).min(end);
-        let target = loop {
-            while index < end && bytes[index].is_ascii_whitespace() {
-                index += 1;
-            }
-            let rest = &bytes[index..end];
-            if rest.starts_with(b"//") {
-                index += 2;
-                while index < end && !matches!(bytes[index], b'\n' | b'\r') {
-                    index += 1;
-                }
-            } else if rest.starts_with(b"/*") {
-                // An unterminated block comment never reaches projection — the scanner rejects it
-                // before an overlay exists — so a missing `*/` only means there is no target here.
-                let Some(close) = rest[2..].windows(2).position(|pair| pair == b"*/") else {
-                    return false;
-                };
-                index += 2 + close + 2;
-            } else {
-                break index;
-            }
-        };
-        let Ok(target) = u32::try_from(target) else {
-            return false;
-        };
-        self.overlay.parser_lazy_patterns.iter().any(|pattern| pattern.ampersand == target)
     }
 
     fn for_body(&mut self, clause_index: u32) -> Result<(), ProjectionError> {
@@ -729,27 +657,6 @@ impl<'a> Builder<'a> {
         self.cursor = attribute.span.end as usize;
         Ok(())
     }
-
-    fn parser_lazy_pattern(&mut self, pattern_index: u32) -> Result<(), ProjectionError> {
-        let pattern = self
-            .overlay
-            .parser_lazy_patterns
-            .get(pattern_index as usize)
-            .ok_or(ProjectionError::StructuralMismatch)?;
-        if pattern.pattern_start <= pattern.ampersand
-            || self.source.as_bytes().get(pattern.ampersand as usize) != Some(&b'&')
-        {
-            return Err(ProjectionError::StructuralMismatch);
-        }
-        self.copy_to(pattern.ampersand as usize)?;
-        if pattern.standalone {
-            self.output.push_str("var ");
-        }
-        write!(self.output, "/*{}Y{pattern_index}__*/", self.prefix)
-            .expect("writing to a String cannot fail");
-        self.cursor = pattern.ampersand.saturating_add(1) as usize;
-        Ok(())
-    }
 }
 
 pub(super) fn build_projection(
@@ -779,7 +686,6 @@ struct PendingActions<'a> {
     header: usize,
     embedded: usize,
     shorthand: usize,
-    lazy_pattern: usize,
     statement_boundary: usize,
 }
 
@@ -804,17 +710,11 @@ impl<'a> PendingActions<'a> {
             header: 0,
             embedded: 0,
             shorthand: 0,
-            lazy_pattern: 0,
             statement_boundary: 0,
         }
     }
 
-    fn next(&mut self, original_cursor: usize) -> Result<Option<Action>, ProjectionError> {
-        while self.overlay.parser_lazy_patterns.get(self.lazy_pattern).is_some_and(|pattern| {
-            usize::try_from(pattern.ampersand).is_ok_and(|ampersand| ampersand < original_cursor)
-        }) {
-            self.lazy_pattern += 1;
-        }
+    fn next(&self) -> Result<Option<Action>, ProjectionError> {
         let token = (self.token < self.overlay.tokens.len())
             .then(|| to_u32(self.token).map(Action::Token))
             .transpose()?;
@@ -823,9 +723,6 @@ impl<'a> PendingActions<'a> {
             .transpose()?;
         let shorthand = (self.shorthand < self.overlay.parser_shorthand_attributes.len())
             .then(|| to_u32(self.shorthand).map(Action::ParserShorthand))
-            .transpose()?;
-        let lazy_pattern = (self.lazy_pattern < self.overlay.parser_lazy_patterns.len())
-            .then(|| to_u32(self.lazy_pattern).map(Action::ParserLazyPattern))
             .transpose()?;
         let statement_boundary = (self.statement_boundary
             < self.overlay.statement_boundaries.len())
@@ -839,7 +736,6 @@ impl<'a> PendingActions<'a> {
             self.headers.get(self.header).copied(),
             embedded,
             shorthand,
-            lazy_pattern,
             statement_boundary,
         ]
         .into_iter()
@@ -885,10 +781,6 @@ impl<'a> PendingActions<'a> {
                 self.shorthand += 1;
                 builder.parser_shorthand(attribute)
             }
-            Action::ParserLazyPattern(pattern) => {
-                self.lazy_pattern += 1;
-                builder.parser_lazy_pattern(pattern)
-            }
             Action::StatementBoundary(boundary) => {
                 self.statement_boundary += 1;
                 builder.statement_boundary(boundary)
@@ -933,7 +825,7 @@ pub(super) fn build_projection_with_purpose(
         &parser_code_block_end_actions,
         &header_actions,
     );
-    while let Some(action) = pending.next(builder.cursor)? {
+    while let Some(action) = pending.next()? {
         pending.apply(&mut builder, action)?;
     }
     let mut mapped = builder.finish()?;

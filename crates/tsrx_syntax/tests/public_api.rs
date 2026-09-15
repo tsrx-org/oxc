@@ -114,64 +114,6 @@ fn type_projection_preserves_loop_bindings_and_identity_fix_boundaries() {
     assert!(projection.map_fix_range(wrapper..wrapper + 3).is_none());
 }
 
-/// An annotated `@for` rewrites its header clause by clause, and the type lane rewrites it a
-/// second, different way. Both have to spend the lazy sigil: the shared action queue skips every
-/// lazy pattern the header already passed, so a `&` the type lane copies verbatim is a `&` nothing
-/// downstream will ever rewrite, and the projection lands on TypeScript that cannot parse.
-#[test]
-fn type_projection_rewrites_lazy_sigils_in_annotated_for_headers() {
-    let source = concat!(
-        "declare const items:{id:string;label:string}[];",
-        "function View() @{<ol>@for(&{id, label} of items;index i;key id){",
-        "<li>{i}{label}</li>}</ol>}"
-    );
-    let overlay = scan_for_parser(source).unwrap();
-    let projection = project_for_types(source, &overlay).unwrap();
-
-    assert!(!projection.source().contains('&'), "{}", projection.source());
-    assert!(!projection.source().contains("const &"), "{}", projection.source());
-    assert!(projection.source().contains(" of items)"), "{}", projection.source());
-    assert!(projection.source().contains("let i = 0;"), "{}", projection.source());
-
-    // The pattern's own bindings survive the rewrite, so type checking still sees them.
-    assert!(projection.source().contains("label"), "{}", projection.source());
-
-    // Rewriting the sigil must not shear the mapping: `label` inside the body still points at the
-    // authored `label` it came from, not at an offset shifted by the marker comment.
-    let projected = u32::try_from(projection.source().rfind("label").unwrap()).unwrap();
-    let authored = u32::try_from(source.rfind("label").unwrap()).unwrap();
-    assert_eq!(
-        projection.map_range(projected..projected + 5),
-        Some(authored..authored + 5),
-        "{}",
-        projection.source()
-    );
-
-    // An array pattern reaches the same rewrite through a different sigil position, and an
-    // `index`-only header exercises it without a `key` clause following.
-    let array = concat!(
-        "declare const pairs:string[][];",
-        "function View() @{<ul>@for(&[head] of pairs;index j){<li>{j}{head}</li>}</ul>}"
-    );
-    let array_projection = project_for_types(array, &scan_for_parser(array).unwrap()).unwrap();
-    assert!(!array_projection.source().contains('&'), "{}", array_projection.source());
-    assert!(
-        array_projection.source().contains("[head] of pairs)"),
-        "{}",
-        array_projection.source()
-    );
-
-    // A header with no lazy sigil is untouched by the rewrite, so the marker only ever appears
-    // where the author wrote an ampersand.
-    let plain = concat!(
-        "declare const items:{id:string}[];",
-        "function View() @{<ol>@for(const item of items;index i){<li>{i}{item.id}</li>}</ol>}"
-    );
-    let plain_projection = project_for_types(plain, &scan_for_parser(plain).unwrap()).unwrap();
-    assert!(plain_projection.source().contains("for(const item of items)"));
-    assert!(!plain_projection.source().contains("Y0__"), "{}", plain_projection.source());
-}
-
 #[test]
 fn type_projection_keeps_unannotated_for_headers_verbatim() {
     let source = concat!(
@@ -205,60 +147,30 @@ fn type_projection_keeps_unannotated_for_headers_verbatim() {
 }
 
 #[test]
-fn type_projection_declares_bare_lazy_targets_but_leaves_assignment_targets_alone() {
-    let source = concat!(
-        "declare const items:{id:string;label:string}[];",
-        "declare let cell:string;",
-        "declare const rows:string[];",
-        "function View() @{<ol>",
-        "@for (&{id, label} of items) {<li>{label}</li>}",
-        "@for ([cell] of rows.map(row=>[row])) {<li>{cell}</li>}",
-        "</ol>}"
+fn type_projection_keeps_plain_annotated_for_headers_and_assignment_targets() {
+    // An annotated header is rewritten clause by clause; a declared target comes through that
+    // rewrite exactly as authored.
+    let plain = concat!(
+        "declare const items:{id:string}[];",
+        "function View() @{<ol>@for(const item of items;index i){<li>{i}{item.id}</li>}</ol>}"
     );
-    let overlay = scan_for_parser(source).unwrap();
-    let projection = project_for_types(source, &overlay).unwrap();
-    let projected = projection.source();
-    assert!(!projected.contains('&'), "{projected}");
-
-    // The sigil stands in for the declaration keyword, so the type lane has to write one.
-    let lazy = header_target(projected, " of items)");
-    assert!(lazy.starts_with("const "), "{lazy}");
-    assert!(lazy.contains("{id, label}"), "{lazy}");
+    let plain_projection = project_for_types(plain, &scan_for_parser(plain).unwrap()).unwrap();
+    assert!(plain_projection.source().contains("for(const item of items)"));
+    assert!(!plain_projection.source().contains('&'), "{}", plain_projection.source());
 
     // A plain assignment target already declares nothing, and declaring it would change what the
     // authored loop means.
-    let assignment = header_target(projected, " of rows.map(");
-    assert!(!assignment.contains("const"), "{assignment}");
-    assert!(assignment.contains("[cell]"), "{assignment}");
-}
-
-#[test]
-fn type_projection_declares_bare_lazy_targets_behind_header_comments() {
-    // The scanner walks full trivia to find the sigil, so a comment between `(` and `&` still
-    // registers a bare lazy loop target. The type lane has to agree, or the `const` the sigil
-    // stands in for goes unwritten and the projected loop assigns to undeclared bindings.
     let source = concat!(
-        "declare const items:{id:string;label:string}[];",
-        "declare const rows:{cell:string}[];",
+        "declare let cell:string;",
+        "declare const rows:string[];",
         "function View() @{<ol>",
-        "@for (/* note */ &{id, label} of items) {<li>{label}</li>}",
-        "@for (// note\n&{cell} of rows) {<li>{cell}</li>}",
+        "@for ([cell] of rows.map(row=>[row])) {<li>{cell}</li>}",
         "</ol>}"
     );
-    let overlay = scan_for_parser(source).unwrap();
-    let projection = project_for_types(source, &overlay).unwrap();
-    let projected = projection.source();
-    assert!(!projected.contains('&'), "{projected}");
-
-    let block = header_target(projected, " of items)");
-    assert!(block.starts_with("const "), "{block}");
-    assert!(block.contains("/* note */"), "{block}");
-    assert!(block.contains("{id, label}"), "{block}");
-
-    let line = header_target(projected, " of rows)");
-    assert!(line.starts_with("const "), "{line}");
-    assert!(line.contains("// note"), "{line}");
-    assert!(line.contains("{cell}"), "{line}");
+    let projection = project_for_types(source, &scan_for_parser(source).unwrap()).unwrap();
+    let assignment = header_target(projection.source(), " of rows.map(");
+    assert!(!assignment.contains("const"), "{assignment}");
+    assert!(assignment.contains("[cell]"), "{assignment}");
 }
 
 /// Returns the projected `@for` target between its `for (` and the given ` of ...` tail.
@@ -453,10 +365,10 @@ fn parser_only_scaffolds_round_trip_through_the_format_projection() {
         "const value = @{ const ready = true; ready };\n",
         "const view = <main>@{ const ready = true; <p>{ready}</p> }</main>;\n",
         "const view = <Card {label} />;\n",
-        "const &{ value = 1, ...rest } = source;\n",
-        "&[first, ...rest] = source;\n",
-        "const rows = <List>{items.map((&{ id, label }) => <p>{id}{label}</p>)}</List>;\n",
-        "const view = <main>@{ const &{ value } = source; <p {value} /> }</main>;\n",
+        "const { value = 1, ...rest } = source;\n",
+        "const [first, ...rest] = source;\n",
+        "const rows = <List>{items.map(({ id, label }) => <p>{id}{label}</p>)}</List>;\n",
+        "const view = <main>@{ const { value } = source; <p {value} /> }</main>;\n",
         "const view = <script>if (ready) console.log(\"raw\");</script>;\n",
     ] {
         let projection =
@@ -471,7 +383,7 @@ fn parser_only_scaffolds_round_trip_through_the_format_projection() {
 fn lint_projection_maps_authored_parser_leaves_but_not_scaffolding() {
     let source = concat!(
         "const value = @{ console.log(input); input };\n",
-        "const &{ label } = props;\n",
+        "const { label } = props;\n",
         "const view = <Card {label} />;\n",
         "const raw = <script>console.log('opaque');</script>;\n",
     );
@@ -505,14 +417,13 @@ fn lint_projection_maps_authored_parser_leaves_but_not_scaffolding() {
 fn checked_lift_rejects_changed_parser_scaffold_identity() {
     let source = concat!(
         "const value = @{ input };\n",
-        "const &{ label } = props;\n",
+        "const { label } = props;\n",
         "const view = <Card {label}><script>raw()</script></Card>;\n",
     );
     let projection =
         project_for_format(source, &tsrx_syntax::scan_for_parser(source).unwrap()).unwrap();
     for changed in [
         projection.source().replacen("_t0_X0P__", "_t0_X9P__", 1),
-        projection.source().replacen("_t0_Y0__", "_t0_Y9__", 1),
         projection.source().replacen("_t0_V0_", "_t0_V9_", 1),
         projection.source().replacen("_t0_L0__", "_t0_L9__", 1),
     ] {

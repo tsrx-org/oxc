@@ -1398,20 +1398,20 @@ mod tests {
     }
 
     #[test]
-    fn formats_parser_only_code_blocks_shorthand_and_lazy_patterns() {
+    fn formats_parser_only_code_blocks_and_shorthand() {
         let source = concat!(
             "export function View(props:Props) @{\n",
             "const title=@{const prefix='Hi';`${prefix} ${props.name}`};\n",
-            "const &{value=1,...rest}=props;\n",
-            "&[first,...tail]=props.items;\n",
+            "const {value=1,...rest}=props;\n",
+            "const [first,...tail]=props.items;\n",
             "<main {title}><script>if (ready) console.log(\"raw\");</script>",
             "@{const label=rest.label;<p>{label}{value}{first}{tail.length}</p>}</main>\n",
             "}\n",
         );
         let first = format_text(Path::new("View.tsrx"), source).unwrap();
         assert!(first.code.contains("const title = @{"), "{}", first.code);
-        assert!(first.code.contains("const &{ value = 1, ...rest } = props;"), "{}", first.code);
-        assert!(first.code.contains("&[first, ...tail] = props.items;"), "{}", first.code);
+        assert!(first.code.contains("const { value = 1, ...rest } = props;"), "{}", first.code);
+        assert!(first.code.contains("const [first, ...tail] = props.items;"), "{}", first.code);
         assert!(first.code.contains("<main {title}>"), "{}", first.code);
         assert!(first.code.contains("if (ready) console.log(\"raw\");"), "{}", first.code);
         assert!(first.code.contains("@{"), "{}", first.code);
