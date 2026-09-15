@@ -239,8 +239,15 @@ jobs:
           if gh release view "${tag}" > /dev/null 2>&1; then
             echo "${tag} already exists; keeping its assets."
           else
+            # --latest=false: an engine release is plumbing for the playground,
+            # not a product release. Without it GitHub marks the newest release
+            # "Latest", and because the engine is rebuilt right after every
+            # release commit, wasm-demo-* took the badge from v0.12.0 and
+            # v0.13.0 and the repository front page showed a one-line engine
+            # note in place of the version's changelog.
             gh release create "${tag}" \
               --title "${tag}" \
+              --latest=false \
               --notes "Demo engine for the oxc.tsrx.dev playground, built from ${GITHUB_SHA} (engine inputs ${inputs_hash}). Immutable; pinned by website-oxc/wasm-pin.json. Not for installation." \
               "${wasm}" "${worker}"
           fi
