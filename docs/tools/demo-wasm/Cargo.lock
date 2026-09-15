@@ -813,7 +813,7 @@ dependencies = [
 
 [[package]]
 name = "oxc_adapter"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1771,7 +1771,7 @@ dependencies = [
 
 [[package]]
 name = "tsrx_format"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "globset",
  "ignore",
@@ -1784,7 +1784,7 @@ dependencies = [
 
 [[package]]
 name = "tsrx_lint"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "oxc_adapter",
  "serde",
@@ -1793,7 +1793,7 @@ dependencies = [
 
 [[package]]
 name = "tsrx_syntax"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "unicode-id-start",
 ]
