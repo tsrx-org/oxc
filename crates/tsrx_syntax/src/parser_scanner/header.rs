@@ -3,7 +3,7 @@
 
 use crate::{
     diagnostics::{ProjectionError, to_u32},
-    model::{ByteSpan, ClauseRole, ForHeader, ParserLazyPattern},
+    model::{ByteSpan, ClauseRole, ForHeader},
 };
 
 use super::Scanner;
@@ -11,78 +11,6 @@ use super::lexical::trim_ascii_end;
 use super::stack::TinyStack;
 
 impl Scanner<'_> {
-    pub(super) fn register_lazy_catch_parameter(
-        &mut self,
-        open: usize,
-    ) -> Result<(), ProjectionError> {
-        if self.bytes.get(open) != Some(&b'(') {
-            return Ok(());
-        }
-        let ampersand = self.skip_trivia(open + 1)?;
-        if self.bytes.get(ampersand) != Some(&b'&') {
-            return Ok(());
-        }
-        let pattern_start = self.skip_trivia(ampersand.saturating_add(1))?;
-        if !matches!(self.bytes.get(pattern_start), Some(b'{' | b'['))
-            || self
-                .parser_lazy_patterns
-                .iter()
-                .any(|pattern| pattern.ampersand as usize == ampersand)
-        {
-            return Ok(());
-        }
-        self.parser_lazy_patterns.push(ParserLazyPattern {
-            ampersand: to_u32(ampersand)?,
-            pattern_start: to_u32(pattern_start)?,
-            standalone: false,
-        });
-        Ok(())
-    }
-
-    /// A bare loop target — `for (&{ name } of items)`, `@for (&[key] in table)` — carries no
-    /// declaration keyword to admit the sigil and never reaches an arrow, so neither the
-    /// declaration lane nor the pending-arrow queue can fire on it. `open` is the header's `(`.
-    ///
-    /// The `of` or `in` after the pattern is the whole of the evidence: without it the same bytes
-    /// open a C-style header, where `&{ … }` is a bitwise `and` against an object literal and the
-    /// position is an ordinary expression rather than an assignment target. A declared target
-    /// (`for (const &{ a } of pairs)`) does not reach here at all — its keyword is what the
-    /// declaration lane reads, and the sigil no longer sits directly after the `(`.
-    pub(super) fn register_lazy_loop_target(&mut self, open: usize) -> Result<(), ProjectionError> {
-        if self.bytes.get(open) != Some(&b'(') {
-            return Ok(());
-        }
-        let ampersand = self.skip_trivia(open + 1)?;
-        if self.bytes.get(ampersand) != Some(&b'&') {
-            return Ok(());
-        }
-        let pattern_start = self.skip_trivia(ampersand.saturating_add(1))?;
-        if !matches!(self.bytes.get(pattern_start), Some(b'{' | b'[')) {
-            return Ok(());
-        }
-        let Some(pattern_end) = self.skip_balanced_pattern(pattern_start) else {
-            return Ok(());
-        };
-        // The `of`/`in` requirement is what keeps a C-style `for (init; cond; step)` header out:
-        // such a header has no iteration target, so its `&` stays the bitwise operator it always
-        // was. Everything that gets here is a real loop target, annotated `@for` clauses included —
-        // the annotated lane drops the sigil out of its own `left` copy whether or not anything
-        // precedes it there.
-        let keyword = self.skip_trivia(pattern_end)?;
-        if !self.bare_keyword_at(keyword, b"of") && !self.bare_keyword_at(keyword, b"in") {
-            return Ok(());
-        }
-        if self.parser_lazy_patterns.iter().any(|pattern| pattern.ampersand as usize == ampersand) {
-            return Ok(());
-        }
-        self.parser_lazy_patterns.push(ParserLazyPattern {
-            ampersand: to_u32(ampersand)?,
-            pattern_start: to_u32(pattern_start)?,
-            standalone: false,
-        });
-        Ok(())
-    }
-
     pub(super) fn parse_parenthesized(
         &mut self,
         start: usize,

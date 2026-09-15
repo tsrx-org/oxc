@@ -96,12 +96,6 @@ fn build_allowed_gaps(
         }
         token_gaps.push(ByteSpan::new(token.span.start, end));
     }
-    for pattern in overlay.parser_lazy_patterns {
-        if pattern.ampersand >= pattern.pattern_start || pattern.pattern_start > source_len {
-            return Err(TsrxParseError::Unsupported("invalid lazy pattern gap"));
-        }
-        token_gaps.push(ByteSpan::new(pattern.ampersand, pattern.ampersand.saturating_add(1)));
-    }
     token_gaps.sort_unstable_by_key(|gap| gap.start);
     let mut header_gaps = Vec::with_capacity(overlay.clauses.len().saturating_mul(2));
     for node in overlay.nodes {

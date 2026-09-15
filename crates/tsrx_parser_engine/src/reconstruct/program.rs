@@ -20,7 +20,6 @@ use super::{
     dynamic_tags::reconstruct_dynamic_tags,
     if_chain::IfReconstructor,
     layout_text::normalize_template_layout_text,
-    lazy_patterns::reconstruct_lazy_patterns,
     loops::{LoopReconstructor, build_header_ordinals},
     objects::ProjectedObjectIndex,
     script::reconstruct_script_elements,
@@ -126,14 +125,6 @@ pub(crate) fn reconstruct_projected(
         segments,
         prefix,
         &object_index.jsx_attributes,
-        &mut starts,
-    )?;
-    reconstruct_lazy_patterns(
-        tape,
-        overlay,
-        segments,
-        &object_index.patterns,
-        &parents,
         &mut starts,
     )?;
     normalize_control_body_lists(tape, &body_lists)?;
@@ -249,7 +240,6 @@ fn initial_authored_starts(
         .saturating_mul(2)
         .saturating_add(overlay.style_blocks.len().saturating_mul(3))
         .saturating_add(overlay.parser_shorthand_attributes.len())
-        .saturating_add(overlay.parser_lazy_patterns.len().saturating_mul(2))
         .saturating_add(overlay.script_blocks.len())
         .saturating_add(code_blocks.saturating_mul(2))
         .saturating_add(1);

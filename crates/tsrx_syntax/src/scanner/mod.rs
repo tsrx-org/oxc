@@ -81,7 +81,6 @@ impl<'a> Scanner<'a> {
             parser_dynamic_tokens: Vec::new(),
             parser_code_blocks: Vec::new(),
             parser_shorthand_attributes: Vec::new(),
-            parser_lazy_patterns: Vec::new(),
             dynamic_tags: self.dynamic_tags,
             dynamic_comments: self.dynamic_comments,
             style_blocks: self.style_blocks,

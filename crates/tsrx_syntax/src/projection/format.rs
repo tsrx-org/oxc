@@ -1,8 +1,8 @@
 use crate::{
     diagnostics::{ProjectionError, to_u32},
     model::{
-        ByteSpan, ControlContext, NONE, Overlay, ParserCodeBlock, ParserLazyPattern,
-        ParserShorthandAttribute, StructuralKind,
+        ByteSpan, ControlContext, NONE, Overlay, ParserCodeBlock, ParserShorthandAttribute,
+        StructuralKind,
     },
 };
 
@@ -90,7 +90,6 @@ pub struct FormatProjection {
     pub(super) scripts: Vec<ScriptManifest>,
     pub(super) parser_code_blocks: Vec<ParserCodeBlock>,
     pub(super) parser_shorthand_attributes: Vec<ParserShorthandAttribute>,
-    pub(super) parser_lazy_patterns: Vec<ParserLazyPattern>,
     pub(super) shape_fingerprint: u128,
 }
 
@@ -109,7 +108,6 @@ impl FormatProjection {
             + self.scripts.len()
             + self.parser_code_blocks.len()
             + self.parser_shorthand_attributes.len()
-            + self.parser_lazy_patterns.len()
     }
 
     #[must_use]
@@ -180,7 +178,6 @@ pub fn project_for_format(
         scripts,
         parser_code_blocks: overlay.parser_code_blocks.clone(),
         parser_shorthand_attributes: overlay.parser_shorthand_attributes.clone(),
-        parser_lazy_patterns: overlay.parser_lazy_patterns.clone(),
         shape_fingerprint: structural_fingerprint(overlay),
     })
 }

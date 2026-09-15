@@ -338,8 +338,8 @@ mod tests {
         let source = concat!(
             "export function View(props: Props) @{\n",
             "  const title = @{ console.log(props.name); props.name };\n",
-            "  const &{ value = 1, ...rest } = props;\n",
-            "  &[first, ...tail] = props.items;\n",
+            "  const { value = 1, ...rest } = props;\n",
+            "  const [first, ...tail] = props.items;\n",
             "  <main {title}>@{ debugger; <p>{value}{rest.label}{first}{tail.length}</p> }</main>\n",
             "}\n",
         );

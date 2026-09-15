@@ -16,7 +16,6 @@ mod edits;
 mod if_chain;
 mod jsx_statements;
 mod layout_text;
-mod lazy_patterns;
 mod loops;
 mod objects;
 mod program;

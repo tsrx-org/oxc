@@ -7,8 +7,8 @@ use crate::{
     diagnostics::{ProjectionError, to_u32},
     model::{
         ByteSpan, Clause, DynamicTag, EmbeddedToken, NONE, Overlay, ParserCodeBlock,
-        ParserDynamicToken, ParserLazyPattern, ParserShorthandAttribute, ScriptBlock,
-        StructuralToken, StyleBlock, SyntaxNode,
+        ParserDynamicToken, ParserShorthandAttribute, ScriptBlock, StructuralToken, StyleBlock,
+        SyntaxNode,
     },
 };
 
@@ -24,7 +24,6 @@ pub(crate) struct Scanner<'a> {
     pub(super) parser_dynamic_tokens: Vec<ParserDynamicToken>,
     pub(super) parser_code_blocks: Vec<ParserCodeBlock>,
     pub(super) parser_shorthand_attributes: Vec<ParserShorthandAttribute>,
-    pub(super) parser_lazy_patterns: Vec<ParserLazyPattern>,
     pub(super) dynamic_tags: Vec<DynamicTag>,
     pub(super) dynamic_comments: Vec<ByteSpan>,
     pub(super) style_blocks: Vec<StyleBlock>,
@@ -56,7 +55,6 @@ impl<'a> Scanner<'a> {
             parser_dynamic_tokens: Vec::new(),
             parser_code_blocks: Vec::new(),
             parser_shorthand_attributes: Vec::new(),
-            parser_lazy_patterns: Vec::new(),
             dynamic_tags: Vec::new(),
             dynamic_comments: Vec::new(),
             style_blocks: Vec::new(),
