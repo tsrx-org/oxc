@@ -10,8 +10,12 @@ const publicFamilies = ['comparative', 'editor', 'native-format', 'native-lint',
 const frozenBudgetHashes = {
   comparative: 'd3ca368e0dba5d10090c70f58130af78ad574496a28389c7804ac82d0d5b05e3',
   editor: '1fe5c78f1ac1543ca9a169c721d463ba6bc119631f678b896e572334d29592cd',
-  'native-format': 'a2cf813a0ad2418df49af0862db3d04b789e1bf906ca760a872f5176c694e819',
-  'native-lint': 'a8d95c3526dc7ebb20d9913622f63d45e6057200136877c30b5d8f760ad1c7b9',
+  // Re-frozen 2026-09-18 with the OXC crates v0.150.0 upgrade: the P07 RSS
+  // ceiling moved 1.15 -> 1.30 and the P02 equivalent-TSX floor 0.50 -> 0.45
+  // after the stock tools got leaner and faster while the candidate's absolute
+  // numbers held (docs/releasing/upgrades.md, "Re-baselined ratios").
+  'native-format': '5c95e4d4b9dfe266674717758f20c7b7cfed77fa6fcaf2662307c91fddeb102d',
+  'native-lint': '5a54761ef797aca67fd900068add0c35656ed37b341da59f99c7f1d3815e44fc',
   'type-aware': '799a15d0a986744f7e1d80688c35bc631697c32a926cde55595a7fbb591d0db4',
   vite: 'c9f43bdf0181cf25b15934ec6681bed475fb95fb9486564a3f585c452e74506d',
 }
@@ -502,7 +506,8 @@ test('every public performance lane is reproducible, structured, and budget-froz
   assert.equal(comparative.build.profile, 'release')
   assert.match(comparative.build.binary, /^node_modules\/@tsrx\/oxc\/bin\/oxlint/u)
   assert.match(comparative.build.oxcRevision, /^[0-9a-f]{40}$/u)
-  assert.match(comparative.versions.oxcTsrxLauncher, /^oxc-tsrx\s+\S+/u)
+  // The npm launcher reports itself as `@tsrx/oxc <version>` since the package rename.
+  assert.match(comparative.versions.oxcTsrxLauncher, /^(?:oxc-tsrx|@tsrx\/oxc)\s+\S+/u)
   for (const lane of ['eslint', 'oxlint', 'oxcTsrx', 'oxcTsrxMixed']) {
     assert.equal(comparative.tools[lane].rawMs.length, comparative.samplePolicy.measured, lane)
     assert.equal(comparative.validation[lane].files, comparative.corpus.files, `${lane}: files`)

@@ -60,17 +60,17 @@ although both absolute numbers improved). The generalized control lane additiona
 requires ≥15 MiB/s median, ≥12 MiB/s p95, ≤1.35× normalized full/half scaling,
 one OXC parse, and idempotence.
 
-Aggregate-selected representative report: `results-1789790938649.json`
+Aggregate-selected representative report: `results-1789794009881.json`
 (OXC crates v0.150.0, stock Oxfmt 0.68.0).
 
-- 114.31 MiB/s median (110.09 MiB/s p95) retained sequential corpus;
-- 770.19 MiB/s default-thread 16 MiB batch at p95;
-- 18.21 MiB/s generalized median and 17.76 MiB/s p95 across 394 dynamic tags
+- 117.41 MiB/s median (111.79 MiB/s p95) retained sequential corpus;
+- 801.20 MiB/s default-thread 16 MiB batch at p95;
+- 18.36 MiB/s generalized median and 17.81 MiB/s p95 across 394 dynamic tags
   and 197 raw style payloads;
-- 1.009× generalized normalized scaling;
+- 1.013× generalized normalized scaling;
 - one timed config load for two files/two parses with applied options;
-- 3.21 ms fresh stdin p95; and
-- 1.237× complete-output RSS.
+- 2.73 ms fresh stdin p95; and
+- 1.236× complete-output RSS.
 
 The report retains 30 raw samples for every sequential phase. No assertion
 landed inside the policy's 3% near-threshold band, so the aggregate selected

@@ -400,8 +400,13 @@ pub fn parse_failed_tsrx_metadata(
 
 /// Renders pinned-OXC codeframes after TSRX spans have been reconstructed into authored bytes.
 ///
-/// OXC types and the borrowed indexed source remain inside this revision-local adapter call. The
-/// result table retains only owned strings and revision-neutral records.
+/// OXC types and the borrowed source remain inside this revision-local adapter call. The result
+/// table retains only owned strings and revision-neutral records.
+///
+/// Every diagnostic is rendered in one batch through the pinned handler's shared-scanner entry
+/// point. Its per-report entry point builds a fresh line scanner of the whole source for each
+/// call, which would make rendering quadratic in source length once a file carries many
+/// diagnostics; the batch entry point scans the source once and reuses it for every report.
 ///
 /// # Errors
 ///
@@ -422,18 +427,53 @@ pub fn render_diagnostic_codeframes(
     // on to LSP and JSON consumers rather than to a terminal, so escape codes are
     // never wanted and the bytes must not depend on the environment.
     let handler = GraphicalReportHandler::new_themed(GraphicalTheme::none());
-    for index in 0..diagnostics.len() {
-        let record = diagnostics.records()[index];
-        let diagnostic = rebuild_diagnostic(diagnostics, &record)?;
-        let sourced = SourcedDiagnostic { diagnostic: &diagnostic, source: &named_source };
-        let index = u32::try_from(index)
-            .map(RecordIndex::new)
-            .map_err(|_| TapeBuildError::CapacityOverflow)?;
-        diagnostics
-            .write_codeframe(index, |writer| handler.render_report(writer, &sourced))?
-            .map_err(|_| {
-                ProjectedParseError::Invariant("failed to render diagnostic codeframe".to_string())
-            })?;
+    // Rebuild every diagnostic up front so the batch below borrows owned copies rather
+    // than the table it writes back into.
+    let rebuilt = diagnostics
+        .records()
+        .iter()
+        .map(|record| rebuild_diagnostic(diagnostics, record))
+        .collect::<Result<Vec<_>, _>>()?;
+    let sourced = rebuilt
+        .iter()
+        .map(|diagnostic| SourcedDiagnostic { diagnostic, source: &named_source })
+        .collect::<Vec<_>>();
+    let mut next_index = 0usize;
+    let mut failure: Option<ProjectedParseError> = None;
+    handler
+        .render_reports_until(
+            sourced.iter().map(|entry| entry as &dyn Diagnostic),
+            &mut |_, rendered| {
+                let stored = u32::try_from(next_index)
+                    .map(RecordIndex::new)
+                    .map_err(|_| ProjectedParseError::from(TapeBuildError::CapacityOverflow))
+                    .and_then(|index| {
+                        diagnostics
+                            .write_codeframe(index, |writer| {
+                                fmt::Write::write_str(writer, rendered)
+                            })
+                            .map_err(ProjectedParseError::from)?
+                            .map_err(|_| {
+                                ProjectedParseError::Invariant(
+                                    "failed to render diagnostic codeframe".to_string(),
+                                )
+                            })
+                    });
+                next_index += 1;
+                match stored {
+                    Ok(()) => true,
+                    Err(error) => {
+                        failure = Some(error);
+                        false
+                    }
+                }
+            },
+        )
+        .map_err(|_| {
+            ProjectedParseError::Invariant("failed to render diagnostic codeframe".to_string())
+        })?;
+    if let Some(error) = failure {
+        return Err(error);
     }
     Ok(())
 }

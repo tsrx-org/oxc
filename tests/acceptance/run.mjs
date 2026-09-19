@@ -313,6 +313,14 @@ try {
     ['build', '--release', '--locked', '-p', 'oxc_tsrx_cli', '--bins'],
     { cwd: cleanRoot, env: environment, label: 'fresh release native binaries' },
   )
+  // The packaging matrix packs the canonical parser addon from the release
+  // library and installs the compat facade in an outside consumer, so the
+  // clean room has to build that addon too, not only the CLI binaries.
+  await run(pnpm, ['run', 'build:parser-native'], {
+    cwd: cleanRoot,
+    env: environment,
+    label: 'fresh release parser addon',
+  })
   await run(pnpm, ['run', 'build:editor'], {
     cwd: cleanRoot,
     env: environment,

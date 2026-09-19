@@ -139,7 +139,10 @@ importers:
         version: oxfmt@0.68.0(vite-plus@0.2.4(@types/node@24.12.0)(jiti@2.7.0)(typescript@6.0.3)(vite@8.1.5(@types/node@24.12.0)(jiti@2.7.0)(yaml@2.9.0))(yaml@2.9.0))
       oxlint-current:
         specifier: npm:oxlint@1.83.0
-        version: oxlint@1.83.0(oxlint-tsgolint@0.24.0)(vite-plus@0.2.4(@types/node@24.12.0)(jiti@2.7.0)(typescript@6.0.3)(vite@8.1.5(@types/node@24.12.0)(jiti@2.7.0)(yaml@2.9.0))(yaml@2.9.0))
+        version: oxlint@1.83.0(oxlint-tsgolint@7.0.2002)(vite-plus@0.2.4(@types/node@24.12.0)(jiti@2.7.0)(typescript@6.0.3)(vite@8.1.5(@types/node@24.12.0)(jiti@2.7.0)(yaml@2.9.0))(yaml@2.9.0))
+      oxlint-tsgolint:
+        specifier: 7.0.2002
+        version: 7.0.2002
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -7313,30 +7316,6 @@ snapshots:
       '@oxlint/binding-win32-arm64-msvc': 1.72.0
       '@oxlint/binding-win32-ia32-msvc': 1.72.0
       '@oxlint/binding-win32-x64-msvc': 1.72.0
-      oxlint-tsgolint: 0.24.0
-      vite-plus: 0.2.4(@types/node@24.12.0)(jiti@2.7.0)(typescript@6.0.3)(vite@8.1.5(@types/node@24.12.0)(jiti@2.7.0)(yaml@2.9.0))(yaml@2.9.0)
-
-  oxlint@1.83.0(oxlint-tsgolint@0.24.0)(vite-plus@0.2.4(@types/node@24.12.0)(jiti@2.7.0)(typescript@6.0.3)(vite@8.1.5(@types/node@24.12.0)(jiti@2.7.0)(yaml@2.9.0))(yaml@2.9.0)):
-    optionalDependencies:
-      '@oxlint/binding-android-arm-eabi': 1.83.0
-      '@oxlint/binding-android-arm64': 1.83.0
-      '@oxlint/binding-darwin-arm64': 1.83.0
-      '@oxlint/binding-darwin-x64': 1.83.0
-      '@oxlint/binding-freebsd-x64': 1.83.0
-      '@oxlint/binding-linux-arm-gnueabihf': 1.83.0
-      '@oxlint/binding-linux-arm-musleabihf': 1.83.0
-      '@oxlint/binding-linux-arm64-gnu': 1.83.0
-      '@oxlint/binding-linux-arm64-musl': 1.83.0
-      '@oxlint/binding-linux-ppc64-gnu': 1.83.0
-      '@oxlint/binding-linux-riscv64-gnu': 1.83.0
-      '@oxlint/binding-linux-riscv64-musl': 1.83.0
-      '@oxlint/binding-linux-s390x-gnu': 1.83.0
-      '@oxlint/binding-linux-x64-gnu': 1.83.0
-      '@oxlint/binding-linux-x64-musl': 1.83.0
-      '@oxlint/binding-openharmony-arm64': 1.83.0
-      '@oxlint/binding-win32-arm64-msvc': 1.83.0
-      '@oxlint/binding-win32-ia32-msvc': 1.83.0
-      '@oxlint/binding-win32-x64-msvc': 1.83.0
       oxlint-tsgolint: 0.24.0
       vite-plus: 0.2.4(@types/node@24.12.0)(jiti@2.7.0)(typescript@6.0.3)(vite@8.1.5(@types/node@24.12.0)(jiti@2.7.0)(yaml@2.9.0))(yaml@2.9.0)
 

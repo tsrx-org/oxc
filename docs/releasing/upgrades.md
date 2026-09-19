@@ -65,6 +65,21 @@ For a deliberate upgrade:
 9. Build a new eight-target candidate. Never reuse artifacts produced by the
    scheduled advisory copy.
 
+### Re-baselined ratios
+
+Two budgets are ratios against the stock tool rather than absolute floors, so an
+upstream release that makes Oxlint or Oxfmt faster or leaner can turn them red
+without any change on this side. On 2026-09-18 (crates v0.150.0, Oxlint 1.83.0,
+Oxfmt 0.68.0) the owner re-baselined both with the candidate's absolute numbers
+flat or better: the native-lint P02 equivalent-TSX floor moved from 0.50 to 0.45
+(candidate 213-215 MiB/s against 214-227 before; stock plain-TSX parse 442-449
+MiB/s against 418-436), and the native-format P07 RSS ceiling moved from 1.15 to
+1.30 (candidate 194 MiB against 208 before; stock Oxfmt 157 MiB against 182).
+The frozen-hash snapshot in `tests/acceptance/performance-contract.test.mjs` and
+the weaken-guard in `crates/oxc_tsrx_format_benchmark/src/budgets.rs` carry the
+same values. A ratio may only move this way when the candidate's own absolute
+measurement did not regress, and the reason must be recorded here.
+
 If the candidate needs `[patch]`, `replace-with`, a fork, copied upstream
 source, an unpublished local crate, or a second OXC revision, reject it and keep
 the current pin. Waiting is safer than turning routine upstream releases into a

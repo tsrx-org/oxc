@@ -13,6 +13,7 @@ pub use diagnostics::{EngineDiagnostic, EngineFix, EngineSpan};
 pub use engine::{LintEngine, LintEngineOptions};
 pub use format::{
     EngineFormatResult, FormatError, FormatOptionError, FormatOptions, FormatRequest, format,
+    write_check_report_path,
 };
 pub use session::{
     LintError, LintRequest, LintResult, TypeBatchDiagnostic, TypeBatchFile, TypeBatchResult,

@@ -3,6 +3,7 @@
 use std::{collections::HashSet, error::Error, fmt, str::FromStr, time::Instant};
 
 use oxc_allocator::Allocator;
+use oxc_diagnostics::GraphicalTheme;
 use oxc_formatter::{
     ArrowParentheses, AttributePosition, BracketSameLine, BracketSpacing, CommentLineStrategy,
     CustomGroupDefinition, Expand, GroupEntry, ImportModifier, ImportSelector, JsFormatOptions,
@@ -683,6 +684,19 @@ fn jsdoc_options(setting: &JsdocSetting) -> Result<Option<JsdocOptions>, FormatO
         resolved.keep_unparsable_example_indent = value;
     }
     Ok(Some(resolved))
+}
+
+/// Appends one differing path to a `--check` report styled the way canonical Oxfmt styles it.
+///
+/// Since Oxfmt 0.60 the check report colours each differing path with the diagnostics theme's
+/// warning style, and detects colour support the same way its graphical report handler does:
+/// `CI` or `FORCE_COLOR` forces colour, a non-terminal gets none, and `NO_COLOR` strips it. The
+/// merged wrapper report interleaves canonical lines with TSRX lines, so both halves must make
+/// the same decision from the same environment; delegating to the pinned theme keeps them
+/// byte-identical without restating its rules here. `--list-different` output stays unstyled.
+pub fn write_check_report_path(output: &mut String, path: &str) {
+    // Writing into a `String` cannot fail.
+    let _ = GraphicalTheme::default().write_warning(output, path);
 }
 
 #[cfg(test)]

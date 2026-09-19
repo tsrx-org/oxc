@@ -8,6 +8,7 @@
     "eslint": "^10.7.0",
     "oxfmt-current": "npm:oxfmt@0.68.0",
     "oxlint-current": "npm:oxlint@1.83.0",
+    "oxlint-tsgolint": "7.0.2002",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "typescript-eslint": "^8.64.0",

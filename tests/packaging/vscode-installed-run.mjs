@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -19,8 +20,13 @@ const marklessSource = join(
 );
 const marklessExtension = join(markless, "packages/vscode-plugin");
 const harness = join(root, "tests/packaging/vscode-harness");
+// VS Code 1.136 renamed the app binary from `Electron` to `Code`; older builds
+// still ship the former. Either is the real editor, so take whichever exists.
 const executable =
   process.env.VSCODE_EXECUTABLE_PATH ??
+  ["Code", "Electron"]
+    .map((name) => `/Applications/Visual Studio Code.app/Contents/MacOS/${name}`)
+    .find((candidate) => existsSync(candidate)) ??
   "/Applications/Visual Studio Code.app/Contents/MacOS/Electron";
 const cli =
   process.env.VSCODE_CLI_PATH ??

@@ -7,7 +7,7 @@ const PACKAGE_VERSION = "0.13.0";
 const parserManifest = Object.freeze({
 	name: "@tsrx/oxc",
 	version: PACKAGE_VERSION,
-	dependencies: Object.freeze({ "@oxc-project/types": "0.140.0" }),
+	dependencies: Object.freeze({ "@oxc-project/types": "0.150.0" }),
 	optionalDependencies: Object.freeze(Object.fromEntries(NATIVE_TARGETS.map((target) => [nativePackageName(target), PACKAGE_VERSION])))
 });
 const API_VERSION = 1;
