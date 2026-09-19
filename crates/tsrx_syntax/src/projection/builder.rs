@@ -181,9 +181,13 @@ impl<'a> Builder<'a> {
         if node.context == ControlContext::JsxChild {
             self.output.push('{');
         }
+        // The scaffold object always prints expanded (its method has a body). Writing the line
+        // break after `{` here means the formatted projection holds no more pre-expanded objects
+        // than the projection did, which is what `tsrx_format` reads to decide whether the
+        // output needs a second pass (`objectWrap: "preserve"` drift).
         write!(
             self.output,
-            "{}W{node_index}_({{async *{}M{node_index}_(){{/*{}N{node_index}S__*/",
+            "{}W{node_index}_({{\nasync *{}M{node_index}_(){{/*{}N{node_index}S__*/",
             self.prefix, self.prefix, self.prefix
         )
         .expect("writing to a String cannot fail");
@@ -259,7 +263,7 @@ impl<'a> Builder<'a> {
                 }
                 write!(
                     self.output,
-                    "/*{}{token_index}*/{}T{}_({{async *{}B{}_()",
+                    "/*{}{token_index}*/{}T{}_({{\nasync *{}B{}_()",
                     self.prefix, self.prefix, token.owner, self.prefix, token.owner
                 )
                 .expect("writing to a String cannot fail");
@@ -577,7 +581,7 @@ impl<'a> Builder<'a> {
                     .dynamic_comments
                     .get(first..end)
                     .ok_or(ProjectionError::StructuralMismatch)?;
-                for (offset, comment) in comments.iter().enumerate() {
+                for comment in comments {
                     let comment_source = self
                         .source
                         .as_bytes()
@@ -590,9 +594,21 @@ impl<'a> Builder<'a> {
                     {
                         return Err(ProjectionError::StructuralMismatch);
                     }
-                    let ordinal = first + offset;
-                    write!(self.output, "{{/*{}Q{ordinal}__*/ null}}", self.prefix)
-                        .expect("writing to a String cannot fail");
+                    // The comment cannot stay inside the closing tag once the tag is restored from
+                    // its authored bytes, so it moves in front of the tag as a comment-only
+                    // expression child. Written into the projection as itself, Oxfmt formats it
+                    // on the first pass like any other comment (a bare restore would be JSX text,
+                    // rendered and re-formatted differently on the next pass).
+                    self.output.push('{');
+                    self.output.push_str(
+                        std::str::from_utf8(comment_source).map_err(|_| {
+                            ProjectionError::SourceChanged { offset: comment.start }
+                        })?,
+                    );
+                    if comment_source.starts_with(b"//") {
+                        self.output.push('\n');
+                    }
+                    self.output.push('}');
                 }
                 write!(self.output, "</{}D{}>", self.prefix, token.owner)
                     .expect("writing to a String cannot fail");

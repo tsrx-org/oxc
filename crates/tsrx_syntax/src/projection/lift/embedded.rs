@@ -17,13 +17,11 @@ pub(super) fn lift_embedded(
     let bytes = source.as_bytes();
     let dynamic_open = format!("<{}D", projection.prefix);
     let dynamic_close = format!("</{}D", projection.prefix);
-    let comment_marker = format!("{{/*{}Q", projection.prefix);
     let style_marker = format!("{{/*{}S", projection.prefix);
     let script_marker = format!("{{/*{}L", projection.prefix);
     let mut expressions = vec![ScaffoldSpan::MISSING; projection.dynamics.len()];
     let mut opened = vec![false; projection.dynamics.len()];
     let mut closed = vec![false; projection.dynamics.len()];
-    let mut comments = vec![false; projection.dynamic_comments.len()];
     let mut styles = vec![false; projection.styles.len()];
     let mut scripts = vec![false; projection.scripts.len()];
     let restored_bytes = projection
@@ -36,7 +34,6 @@ pub(super) fn lift_embedded(
                 .iter()
                 .map(|manifest| (manifest.payload.end - manifest.payload.start) as usize),
         )
-        .chain(projection.dynamic_comments.iter().map(|span| (span.end - span.start) as usize))
         .fold(0usize, usize::saturating_add);
     let mut output = String::with_capacity(source.len().saturating_add(restored_bytes));
     let mut copied = 0usize;
@@ -113,39 +110,6 @@ pub(super) fn lift_embedded(
             continue;
         }
 
-        if source[cursor..].starts_with(&comment_marker) {
-            let digits_start = cursor + comment_marker.len();
-            let (ordinal, digits_end) =
-                parse_decimal(bytes, digits_start).ok_or(ProjectionError::MarkerResidual)?;
-            let index = ordinal as usize;
-            let span =
-                *projection.dynamic_comments.get(index).ok_or(ProjectionError::MarkerResidual)?;
-            if comments[index] || source.as_bytes().get(digits_end..digits_end + 4) != Some(b"__*/")
-            {
-                return Err(ProjectionError::ScaffoldMismatch { index });
-            }
-            let mut end = expect_word_after_whitespace(source, digits_end + 4, b"null", index)?;
-            end = expect_byte_after_whitespace(source, end, b'}', index)?;
-            let comment = original_source
-                .get(span.start as usize..span.end as usize)
-                .ok_or(ProjectionError::StructuralMismatch)?;
-            output.push_str(&source[copied..cursor]);
-            // The comment left the closing tag's braces when the projection hoisted it in front
-            // of the tag, so it comes back as a comment-only expression child. Written bare it
-            // would be JSX text: rendered, and re-formatted as text (whitespace collapsed) on
-            // the next pass. A line comment needs the line break before the closing brace.
-            output.push('{');
-            output.push_str(comment);
-            if comment.starts_with("//") {
-                output.push_str(line_terminator(source));
-            }
-            output.push('}');
-            copied = end;
-            cursor = end;
-            comments[index] = true;
-            continue;
-        }
-
         if source[cursor..].starts_with(&style_marker) {
             let digits_start = cursor + style_marker.len();
             let (ordinal, digits_end) =
@@ -202,25 +166,9 @@ pub(super) fn lift_embedded(
         let index = styles.iter().position(|seen| !seen).unwrap_or(0);
         return Err(ProjectionError::ScaffoldMismatch { index });
     }
-    if comments.iter().any(|seen| !seen) {
-        let index = comments.iter().position(|seen| !seen).unwrap_or(0);
-        return Err(ProjectionError::ScaffoldMismatch { index });
-    }
     if scripts.iter().any(|seen| !seen) {
         let index = scripts.iter().position(|seen| !seen).unwrap_or(0);
         return Err(ProjectionError::ScaffoldMismatch { index });
     }
     Ok(output)
-}
-
-/// The line terminator the formatted output uses, so a restored line comment closes its
-/// expression container with the same one.
-fn line_terminator(source: &str) -> &'static str {
-    let bytes = source.as_bytes();
-    match bytes.iter().position(|byte| *byte == b'\r' || *byte == b'\n') {
-        Some(index) if bytes[index] == b'\n' => "\n",
-        Some(index) if bytes.get(index + 1) == Some(&b'\n') => "\r\n",
-        Some(_) => "\r",
-        None => "\n",
-    }
 }

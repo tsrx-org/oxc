@@ -45,6 +45,8 @@ pub struct FormatTimings {
     /// Canonical embedded-language formatting time; zero while raw CSS is preserved verbatim.
     pub embedded_format_ns: u64,
     pub lift_ns: u64,
+    /// Time spent deciding whether a second pass is needed (see [`settle_format`]).
+    pub check_ns: u64,
 }
 
 impl FormatTimings {
@@ -55,6 +57,7 @@ impl FormatTimings {
         self.format_ns = self.format_ns.saturating_add(other.format_ns);
         self.embedded_format_ns = self.embedded_format_ns.saturating_add(other.embedded_format_ns);
         self.lift_ns = self.lift_ns.saturating_add(other.lift_ns);
+        self.check_ns = self.check_ns.saturating_add(other.check_ns);
     }
 }
 
@@ -64,13 +67,15 @@ pub struct FormatMetadata {
     pub engine: &'static str,
     pub oxc_revision: &'static str,
     pub mode: FormatMode,
-    /// Formatter passes taken to settle the output: one for an already-formatted file, two for a
-    /// file that changed, three when the second pass had to correct the first (see
-    /// [`settle_format`]).
+    /// Formatter passes taken to settle the output; one unless a pass expanded an object literal
+    /// that was written flat (see [`settle_format`]).
     pub pass_count: u32,
     /// OXC parses across every pass; the pipeline parses each pass exactly once, so this always
     /// equals `pass_count`.
     pub parse_count: u32,
+    /// Extra parses of the output spent deciding whether another pass is needed: one per pass
+    /// that changed the file.
+    pub check_parse_count: u32,
     /// Zero while style payloads use the checked raw-preservation path.
     pub embedded_parse_count: u32,
     pub is_tsrx: bool,
@@ -584,10 +589,8 @@ pub fn format_text(path: &Path, source: &str) -> Result<FormatOutput, FormatErro
 
 /// The most formatter passes [`settle_format`] takes before it returns what it has.
 ///
-/// Every layout drift observed so far (`objectWrap: "preserve"` reading a break the first pass
-/// introduced as an authored one, upstream oxc-project/oxc#23852 and tsrx-org/oxc#93) settles on
-/// the second pass, so the third pass only ever confirms that. The cap keeps a pathological
-/// input from looping.
+/// The drift this settles (tsrx-org/oxc#93, oxc-project/oxc#23852) resolves on the second pass;
+/// the cap keeps a pathological input from looping.
 const MAX_FORMAT_PASSES: u32 = 3;
 
 fn format_text_with_options(
@@ -598,20 +601,23 @@ fn format_text_with_options(
     settle_format(source, |input| format_once(path, input, options))
 }
 
-/// Formats until the output stops changing, so one `--write` leaves nothing for `--check`.
+/// Formats again when the first pass could have changed what the next one reads, so one
+/// `--write` leaves nothing for `--check`.
 ///
 /// The formatter is not idempotent on every input: with the default `objectWrap: "preserve"`,
 /// an object literal that the first pass breaks leaves a newline after `{` that the second pass
 /// reads as an authored expansion, and an enclosing member chain can then pick a different
-/// layout. An already-formatted file costs one pass; a file that changed costs a second pass
-/// that either confirms the result or replaces it with the settled one. Pass metadata and
-/// timings are summed over the passes taken, and `changed` compares the final output with the
-/// original source.
+/// layout. An expanded object never collapses under `preserve`, so that can only happen when
+/// the formatted text holds more pre-expanded objects than its input did
+/// ([`oxc_adapter::count_expanded_objects`]). An unchanged file costs one pass, a changed file
+/// one pass and one parse of its output, and only a file whose pass expanded a flat object is
+/// formatted again. Pass metadata and timings are summed over the passes taken, and `changed`
+/// compares the final output with the original source.
 fn settle_format(
     source: &str,
-    mut format: impl FnMut(&str) -> Result<FormatOutput, FormatError>,
+    mut format: impl FnMut(&str) -> Result<(FormatOutput, DriftProbe), FormatError>,
 ) -> Result<FormatOutput, FormatError> {
-    let mut output = format(source)?;
+    let (mut output, mut probe) = format(source)?;
     // Oxfmt reads a lone CR inside JSX text as ordinary whitespace rather than a line break, so
     // re-formatting CR-terminated output inserts `{" "}` around expression children (verified on
     // the pinned stock binary with plain `.tsx`). Settling would bake that upstream misread into
@@ -620,7 +626,16 @@ fn settle_format(
         return Ok(output);
     }
     while output.changed && output.metadata.pass_count < MAX_FORMAT_PASSES {
-        let next = format(&output.code)?;
+        let started = Instant::now();
+        let may_drift = probe.may_drift();
+        output.metadata.check_parse_count += 1;
+        output.metadata.timings.check_ns =
+            output.metadata.timings.check_ns.saturating_add(elapsed_ns(started));
+        if !may_drift {
+            break;
+        }
+        let (next, next_probe) = format(&output.code)?;
+        probe = next_probe;
         output.metadata.pass_count += 1;
         output.metadata.parse_count += next.metadata.parse_count;
         output.metadata.embedded_parse_count += next.metadata.embedded_parse_count;
@@ -632,6 +647,25 @@ fn settle_format(
         output.changed = output.code != source;
     }
     Ok(output)
+}
+
+/// What one pass leaves behind for [`settle_format`] to decide whether another is needed: the
+/// legal TSX the engine printed and how many pre-expanded objects its input held.
+struct DriftProbe {
+    formatted: String,
+    source_kind: SourceKind,
+    expanded_before: u32,
+}
+
+impl DriftProbe {
+    /// One parse of the formatted text. Text that does not parse back is treated as drifting so
+    /// the next pass surfaces the real error.
+    fn may_drift(&self) -> bool {
+        match oxc_adapter::count_expanded_objects(&self.formatted, self.source_kind) {
+            Ok(after) => after > self.expanded_before,
+            Err(_) => true,
+        }
+    }
 }
 
 /// Whether `text` contains a `\r` that is not part of a `\r\n` pair.
@@ -647,7 +681,7 @@ fn format_once(
     path: &Path,
     source: &str,
     options: Option<&FileFormatOptions>,
-) -> Result<FormatOutput, FormatError> {
+) -> Result<(FormatOutput, DriftProbe), FormatError> {
     let is_tsrx = path.extension().is_some_and(|extension| extension == "tsrx");
     if !is_tsrx {
         return format_direct(path, source, options);
@@ -680,7 +714,7 @@ fn format_once(
     let code = apply_final_newline(code, options);
     timings.lift_ns = elapsed_ns(started);
 
-    Ok(FormatOutput {
+    let output = FormatOutput {
         changed: code != source,
         code,
         metadata: FormatMetadata {
@@ -690,6 +724,7 @@ fn format_once(
             mode: FormatMode::Projected,
             pass_count: 1,
             parse_count: engine.parse_count,
+            check_parse_count: 0,
             embedded_parse_count: EMBEDDED_CSS_PARSE_COUNT,
             is_tsrx: true,
             projection_bytes: projection.source().len(),
@@ -697,22 +732,29 @@ fn format_once(
             style_count,
             timings,
         },
-    })
+    };
+    let probe = DriftProbe {
+        formatted: engine.code,
+        source_kind: SourceKind::TypeScriptReact,
+        expanded_before: engine.expanded_objects,
+    };
+    Ok((output, probe))
 }
 
 fn format_direct(
     path: &Path,
     source: &str,
     options: Option<&FileFormatOptions>,
-) -> Result<FormatOutput, FormatError> {
+) -> Result<(FormatOutput, DriftProbe), FormatError> {
+    let source_kind = SourceKind::from_path(path)?;
     let engine = oxc_adapter::format(&FormatRequest {
         parse_source: source,
-        source_kind: SourceKind::from_path(path)?,
+        source_kind,
         dynamic_tags: None,
         options: options.map(|options| &options.engine),
     })?;
     let code = apply_final_newline(engine.code, options);
-    Ok(FormatOutput {
+    let output = FormatOutput {
         changed: code != source,
         code,
         metadata: FormatMetadata {
@@ -722,6 +764,7 @@ fn format_direct(
             mode: FormatMode::Direct,
             pass_count: 1,
             parse_count: engine.parse_count,
+            check_parse_count: 0,
             embedded_parse_count: EMBEDDED_CSS_PARSE_COUNT,
             is_tsrx: false,
             projection_bytes: 0,
@@ -733,7 +776,13 @@ fn format_direct(
                 ..FormatTimings::default()
             },
         },
-    })
+    };
+    let probe = DriftProbe {
+        formatted: output.code.clone(),
+        source_kind,
+        expanded_before: engine.expanded_objects,
+    };
+    Ok((output, probe))
 }
 
 fn apply_final_newline(mut code: String, options: Option<&FileFormatOptions>) -> String {
@@ -1417,9 +1466,8 @@ mod tests {
         .unwrap();
         // The comment written inside the closing tag's braces is hoisted in front of the tag as
         // a comment-only expression child, where `jsdoc` reflows it like any other doc comment.
-        // The first pass restores the authored bytes and the settling pass reflows them.
         assert_eq!(first.code.matches("{/** Inner doc */}").count(), 1, "{}", first.code);
-        assert_eq!(first.metadata.pass_count, 3);
+        assert_eq!(first.metadata.pass_count, 1);
         assert!(first.code.contains("<{Tag}>"), "{}", first.code);
         assert!(first.code.contains("</{Tag}>"), "{}", first.code);
         assert!(!first.code.contains("_t"), "{}", first.code);
@@ -1554,9 +1602,11 @@ mod tests {
         for name in ["repro.tsrx", "repro.ts"] {
             let first = format_text_with_options(Path::new(name), source, Some(&options)).unwrap();
             assert!(first.changed);
-            // The first pass drifted, the second corrected it, the third confirmed it.
-            assert_eq!(first.metadata.pass_count, 3, "{name}");
-            assert_eq!(first.metadata.parse_count, 3, "{name}");
+            // The first pass expanded the object argument, so its output was checked and
+            // formatted again; the second pass expanded nothing new, so it was only checked.
+            assert_eq!(first.metadata.pass_count, 2, "{name}");
+            assert_eq!(first.metadata.parse_count, 2, "{name}");
+            assert_eq!(first.metadata.check_parse_count, 2, "{name}");
             assert!(
                 first.code.starts_with(concat!(
                     "const params = new URLSearchParams(location.search);\n",
@@ -1574,23 +1624,26 @@ mod tests {
             assert!(!second.changed, "{name}");
             assert_eq!(second.metadata.pass_count, 1, "{name}");
             assert_eq!(second.metadata.parse_count, 1, "{name}");
+            assert_eq!(second.metadata.check_parse_count, 0, "{name}");
         }
     }
 
-    /// An input the formatter changes but does not drift on takes exactly two passes: the
-    /// second only confirms the first.
+    /// A change that expands no object literal is checked with one parse of the output and
+    /// takes exactly one formatting pass; an unchanged file is not even checked.
     #[test]
-    fn a_changed_file_takes_a_confirming_second_pass() {
+    fn a_change_that_expands_no_object_takes_one_pass() {
         let source = "export function View( ) @{ <p>hi</p>; }\n";
         let first = format_text(Path::new("View.tsrx"), source).unwrap();
         assert!(first.changed);
-        assert_eq!(first.metadata.pass_count, 2);
-        assert_eq!(first.metadata.parse_count, 2);
+        assert_eq!(first.metadata.pass_count, 1);
+        assert_eq!(first.metadata.parse_count, 1);
+        assert_eq!(first.metadata.check_parse_count, 1);
 
         let second = format_text(Path::new("View.tsrx"), &first.code).unwrap();
         assert!(!second.changed);
         assert_eq!(second.metadata.pass_count, 1);
         assert_eq!(second.metadata.parse_count, 1);
+        assert_eq!(second.metadata.check_parse_count, 0);
         assert_eq!(second.code, first.code);
     }
 

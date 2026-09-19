@@ -3,6 +3,8 @@
 use std::{collections::HashSet, error::Error, fmt, str::FromStr, time::Instant};
 
 use oxc_allocator::Allocator;
+use oxc_ast::ast::{ObjectExpression, Program, TSTypeLiteral};
+use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::GraphicalTheme;
 use oxc_formatter::{
     ArrowParentheses, AttributePosition, BracketSameLine, BracketSpacing, CommentLineStrategy,
@@ -11,6 +13,7 @@ use oxc_formatter::{
     SortOrder, TrailingCommas, format_program, parse_for_format,
 };
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineEnding, LineWidth};
+use oxc_span::GetSpan;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -340,6 +343,71 @@ pub struct EngineFormatResult {
     pub code: String,
     pub timings: FormatEngineTimings,
     pub parse_count: u32,
+    /// Pre-expanded objects in the input, see [`count_expanded_objects`].
+    pub expanded_objects: u32,
+}
+
+/// Counts the objects `objectWrap: "preserve"` prints expanded regardless of width: non-empty
+/// object literals and type literals whose source has a line break between `{` and the first
+/// member.
+///
+/// When the formatter breaks an object that was written flat, the next pass reads that break as
+/// an authored expansion, and an enclosing `best_fitting!` (a member chain, hugged arguments)
+/// measures it differently and can pick another layout (tsrx-org/oxc#93,
+/// oxc-project/oxc#23852). An expanded object never collapses under `preserve`, so formatted
+/// output can drift only when this count is higher for the output than for the input. One
+/// parse; the caller decides when the output is worth checking.
+///
+/// # Errors
+///
+/// Returns [`FormatError::Parse`] when the source does not parse.
+pub fn count_expanded_objects(source: &str, source_kind: SourceKind) -> Result<u32, FormatError> {
+    let allocator = Allocator::default();
+    let parsed = parse_for_format(&allocator, source, source_kind.source_type());
+    if !parsed.diagnostics.is_empty() {
+        let detail =
+            parsed.diagnostics.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ");
+        return Err(FormatError::Parse { detail });
+    }
+    Ok(expanded_objects(&parsed.program, source))
+}
+
+/// Counts non-empty object and type literals whose source has a line break between `{` and the
+/// first member: the ones `objectWrap: "preserve"` prints expanded regardless of width.
+struct ExpandedObjects<'s> {
+    source: &'s str,
+    count: u32,
+}
+
+impl ExpandedObjects<'_> {
+    fn note(&mut self, open: u32, first_member: u32) {
+        let gap = &self.source[open as usize..first_member as usize];
+        if gap.chars().any(|ch| matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}')) {
+            self.count += 1;
+        }
+    }
+}
+
+impl<'a> Visit<'a> for ExpandedObjects<'_> {
+    fn visit_object_expression(&mut self, it: &ObjectExpression<'a>) {
+        if let Some(first) = it.properties.first() {
+            self.note(it.span.start, first.span().start);
+        }
+        walk::walk_object_expression(self, it);
+    }
+
+    fn visit_ts_type_literal(&mut self, it: &TSTypeLiteral<'a>) {
+        if let Some(first) = it.members.first() {
+            self.note(it.span.start, first.span().start);
+        }
+        walk::walk_ts_type_literal(self, it);
+    }
+}
+
+fn expanded_objects(program: &Program<'_>, source: &str) -> u32 {
+    let mut visitor = ExpandedObjects { source, count: 0 };
+    visitor.visit_program(program);
+    visitor.count
 }
 
 /// Formats one legal JavaScript/TypeScript projection with canonical Oxfmt.
@@ -379,6 +447,7 @@ pub fn format(request: &FormatRequest<'_>) -> Result<EngineFormatResult, FormatE
         code,
         timings: FormatEngineTimings { parse_ns, format_ns },
         parse_count: 1,
+        expanded_objects: expanded_objects(&parsed.program, request.parse_source),
     })
 }
 

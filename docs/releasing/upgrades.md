@@ -81,19 +81,17 @@ same values. A ratio may only move this way when the candidate's own absolute
 measurement did not regress, and the reason must be recorded here.
 
 One deliberate exception, on 2026-09-19: the formatter's settling pass
-(tsrx-org/oxc#93) formats a file the first pass changed a second time and
-returns the settled output, so one `--write` leaves nothing for `--check`. The
-format benchmark corpora are unformatted, so every sample pays that second
-pass: the P04 direct-route ratio against the single-pass canonical control moved
-from 1.05/1.08 to 2.25/2.3 (observed 2.04 median, 1.95 p95) and the
-generalized-control floors from 15/12 MiB/s to 7/6 MiB/s (observed 8.26-8.93
-median, 7.35-8.48 p95 across two runs).
-The Vite boundary lane's mixed format p95 ratio ceiling moved from 2 to 2.25 for
-the same reason (observed 1.955 before, 2.05-2.11 after). The candidate's single-pass
-cost did not change; already-formatted input, which
-is what `--check` on a clean tree and the editor see, still costs one pass. The
-owner chose this over gating the second pass on a re-parse of the output
-(narrower, about 1.2x) and over waiting for the upstream formatter fix.
+(tsrx-org/oxc#93). A file the first pass changed is parsed once more to count
+the object literals `objectWrap: "preserve"` will read as pre-expanded, and only
+when that count grew, the one condition under which the next pass can lay the
+file out differently, is it formatted again. The format benchmark corpora are
+unformatted, so every sample pays that check parse: the P04 direct-route ratio
+against the single-pass canonical control moved from 1.05/1.08 to 1.25/1.35
+(observed 1.15 median, 1.26 p95) and the generalized-control floors from 15/12
+MiB/s to 12/10 MiB/s (observed 16.1/15.0). The Vite boundary lane's mixed format
+p95 ratio ceiling moved from 2 to 2.1 for the same reason (observed 1.955
+before). Already-formatted input, which is what `--check` on a clean tree and
+the editor see, still costs one pass and no check.
 
 If the candidate needs `[patch]`, `replace-with`, a fork, copied upstream
 source, an unpublished local crate, or a second OXC revision, reject it and keep

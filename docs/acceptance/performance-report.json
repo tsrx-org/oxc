@@ -1,86 +1,86 @@
 {
   "schemaVersion": 1,
   "status": "passed",
-  "startedAt": "2026-09-19T17:40:31.681Z",
-  "completedAt": "2026-09-19T17:41:23.068Z",
+  "startedAt": "2026-09-19T19:40:26.362Z",
+  "completedAt": "2026-09-19T19:41:51.458Z",
   "commands": [
     {
       "label": "fresh native lint performance gate",
       "command": "npm run benchmark:native-lint",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1789839631682,
-      "completedAtUnixMs": 1789839639485,
-      "durationMs": 7802.6,
-      "reportPath": "benchmarks/native-lint/results-1789839639381.json"
+      "startedAtUnixMs": 1789846826363,
+      "completedAtUnixMs": 1789846860018,
+      "durationMs": 33654.3,
+      "reportPath": "benchmarks/native-lint/results-1789846859997.json"
     },
     {
       "label": "fresh native format performance gate",
       "command": "npm run benchmark:native-format",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1789839639487,
-      "completedAtUnixMs": 1789839644934,
-      "durationMs": 5447.3,
-      "reportPath": "benchmarks/native-format/results-1789839644878.json"
+      "startedAtUnixMs": 1789846860019,
+      "completedAtUnixMs": 1789846871552,
+      "durationMs": 11533.3,
+      "reportPath": "benchmarks/native-format/results-1789846871499.json"
     },
     {
       "label": "fresh type-aware performance gate",
       "command": "npm run benchmark:type-aware",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1789839644935,
-      "completedAtUnixMs": 1789839646419,
-      "durationMs": 1484.6,
-      "reportPath": "benchmarks/type-aware/results-1789839646411.json"
+      "startedAtUnixMs": 1789846871554,
+      "completedAtUnixMs": 1789846873139,
+      "durationMs": 1585.7,
+      "reportPath": "benchmarks/type-aware/results-1789846873134.json"
     },
     {
       "label": "fresh Vite/Vite+ boundary gate",
       "command": "/Users/jacksm5pro/.local/share/fnm/node-versions/v24.15.0/installation/bin/node benchmarks/vite/run.mjs",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1789839646420,
-      "completedAtUnixMs": 1789839658927,
-      "durationMs": 12506.6,
-      "reportPath": "benchmarks/vite/results-1789839658924.json"
+      "startedAtUnixMs": 1789846873140,
+      "completedAtUnixMs": 1789846886127,
+      "durationMs": 12986.9,
+      "reportPath": "benchmarks/vite/results-1789846886123.json"
     },
     {
       "label": "fresh incremental editor performance gate",
       "command": "npm run benchmark:editor",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1789839658927,
-      "completedAtUnixMs": 1789839659599,
-      "durationMs": 672,
-      "reportPath": "benchmarks/editor/results-1789839659592.json"
+      "startedAtUnixMs": 1789846886128,
+      "completedAtUnixMs": 1789846886880,
+      "durationMs": 752.3,
+      "reportPath": "benchmarks/editor/results-1789846886872.json"
     },
     {
       "label": "fresh like-for-like comparative gate",
       "command": "/Users/jacksm5pro/.local/share/fnm/node-versions/v24.15.0/installation/bin/node benchmarks/comparative/run.mjs",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1789839659599,
-      "completedAtUnixMs": 1789839683067,
-      "durationMs": 23467.8,
-      "reportPath": "benchmarks/comparative/results-1789839682891.json"
+      "startedAtUnixMs": 1789846886881,
+      "completedAtUnixMs": 1789846911458,
+      "durationMs": 24577.2,
+      "reportPath": "benchmarks/comparative/results-1789846911273.json"
     }
   ],
   "results": {
     "native-lint": {
-      "path": "benchmarks/native-lint/results-1789839639381.json",
-      "generatedAtUnixMs": 1789839639381,
+      "path": "benchmarks/native-lint/results-1789846859997.json",
+      "generatedAtUnixMs": 1789846859997,
       "assertions": [
         {
           "name": "P01 median standard-path latency ratio",
           "comparison": "<=",
-          "observed": 0.9956956493853554,
+          "observed": 1.000572104951667,
           "threshold": 1.05,
           "pass": true
         },
         {
           "name": "P01 p95 standard-path latency ratio",
           "comparison": "<=",
-          "observed": 0.9705448739124615,
+          "observed": 1.0049108450119073,
           "threshold": 1.08,
           "pass": true
         },
@@ -101,49 +101,49 @@
         {
           "name": "P02 median scan+copy+parse throughput",
           "comparison": ">=",
-          "observed": 217.81763816264922,
+          "observed": 216.30414930202753,
           "threshold": 75,
           "pass": true
         },
         {
           "name": "P02 p95 scan+copy+parse throughput",
           "comparison": ">=",
-          "observed": 204.4314733189978,
+          "observed": 201.42555684771958,
           "threshold": 60,
           "pass": true
         },
         {
           "name": "P02 equivalent-TSX throughput ratio",
           "comparison": ">=",
-          "observed": 0.4803331849297465,
+          "observed": 0.49069455668012335,
           "threshold": 0.45,
           "pass": true
         },
         {
           "name": "P02 warm 10 KiB p95 scan+copy+parse latency",
           "comparison": "<=",
-          "observed": 0.048415,
+          "observed": 0.048083,
           "threshold": 1,
           "pass": true
         },
         {
           "name": "P03 in-process one-thread lint throughput",
           "comparison": ">=",
-          "observed": 117.15368753368288,
+          "observed": 110.39312377508229,
           "threshold": 35,
           "pass": true
         },
         {
           "name": "P03 CLI one-thread lint throughput",
           "comparison": ">=",
-          "observed": 70.0238302995267,
+          "observed": 67.84121587906857,
           "threshold": 35,
           "pass": true
         },
         {
           "name": "P03 end-to-end CLI latency ratio",
           "comparison": "<=",
-          "observed": 1.231803966769099,
+          "observed": 1.2210007635508744,
           "threshold": 1.35,
           "pass": true
         },
@@ -178,14 +178,14 @@
         {
           "name": "P05 fresh-process TSRX p95 latency",
           "comparison": "<=",
-          "observed": 3.448917,
+          "observed": 3.882208,
           "threshold": 50,
           "pass": true
         },
         {
           "name": "P05 fresh-process upstream latency ratio",
           "comparison": "<=",
-          "observed": 0.10068997796474236,
+          "observed": 0.10774433799425205,
           "threshold": 1.25,
           "pass": true
         },
@@ -199,8 +199,8 @@
         {
           "name": "P07 TSRX peak RSS",
           "comparison": "<=",
-          "observed": 231161856,
-          "threshold": 250658816,
+          "observed": 231030784,
+          "threshold": 250626048,
           "pass": true,
           "thresholdDerivation": "min(candidateTsxMedianRssBytes * 1.25, candidateTsxMedianRssBytes + 33554432)"
         }
@@ -246,7 +246,7 @@
         "triggeredBy": [],
         "requiredReports": 1,
         "decision": "passed",
-        "selectedReport": "benchmarks/native-lint/results-1789839639381.json",
+        "selectedReport": "benchmarks/native-lint/results-1789846859997.json",
         "selectionPolicy": {
           "kind": "median-normalized-budget-pressure",
           "assertions": [],
@@ -256,14 +256,14 @@
           "selectedIndex": 0,
           "orderedReports": [
             {
-              "path": "benchmarks/native-lint/results-1789839639381.json",
+              "path": "benchmarks/native-lint/results-1789846859997.json",
               "budgetPressure": 0
             }
           ]
         },
         "reports": [
           {
-            "path": "benchmarks/native-lint/results-1789839639381.json",
+            "path": "benchmarks/native-lint/results-1789846859997.json",
             "reportPassed": true,
             "budgetPressure": 0,
             "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
@@ -286,13 +286,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 0.9956956493853554,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 1.000572104951667,
                 "threshold": 1.05,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.05171842915680445,
-                "budgetPressure": 0.9482815708431955
+                "relativeMargin": 0.04707418576031725,
+                "budgetPressure": 0.9529258142396827
               }
             ]
           },
@@ -306,13 +306,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 0.9705448739124615,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 1.0049108450119073,
                 "threshold": 1.08,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.10134733896994315,
-                "budgetPressure": 0.8986526610300568
+                "relativeMargin": 0.06952699535934515,
+                "budgetPressure": 0.9304730046406549
               }
             ]
           },
@@ -326,7 +326,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
+                "path": "benchmarks/native-lint/results-1789846859997.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -346,7 +346,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
+                "path": "benchmarks/native-lint/results-1789846859997.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -366,13 +366,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 217.81763816264922,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 216.30414930202753,
                 "threshold": 75,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 1.9042351755019895,
-                "budgetPressure": 0.3443247325269217
+                "relativeMargin": 1.8840553240270337,
+                "budgetPressure": 0.3467339865740476
               }
             ]
           },
@@ -386,13 +386,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 204.4314733189978,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 201.42555684771958,
                 "threshold": 60,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 2.4071912219832967,
-                "budgetPressure": 0.293496881991234
+                "relativeMargin": 2.3570926141286597,
+                "budgetPressure": 0.29787679845095727
               }
             ]
           },
@@ -406,13 +406,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 0.4803331849297465,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 0.49069455668012335,
                 "threshold": 0.45,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 0.06740707762165891,
-                "budgetPressure": 0.9368496995805463
+                "relativeMargin": 0.09043234817805186,
+                "budgetPressure": 0.9170674381320852
               }
             ]
           },
@@ -426,13 +426,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 0.048415,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 0.048083,
                 "threshold": 1,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.951585,
-                "budgetPressure": 0.048415
+                "relativeMargin": 0.951917,
+                "budgetPressure": 0.048083
               }
             ]
           },
@@ -446,13 +446,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 117.15368753368288,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 110.39312377508229,
                 "threshold": 35,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 2.3472482152480825,
-                "budgetPressure": 0.2987528667412807
+                "relativeMargin": 2.1540892507166367,
+                "budgetPressure": 0.3170487327753301
               }
             ]
           },
@@ -466,13 +466,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 70.0238302995267,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 67.84121587906857,
                 "threshold": 35,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 1.0006808657007626,
-                "budgetPressure": 0.4998298415023517
+                "relativeMargin": 0.9383204536876735,
+                "budgetPressure": 0.5159105647868959
               }
             ]
           },
@@ -486,13 +486,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 1.231803966769099,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 1.2210007635508744,
                 "threshold": 1.35,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.08755261720807489,
-                "budgetPressure": 0.912447382791925
+                "relativeMargin": 0.09555498996231533,
+                "budgetPressure": 0.9044450100376846
               }
             ]
           },
@@ -506,7 +506,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
+                "path": "benchmarks/native-lint/results-1789846859997.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -526,7 +526,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
+                "path": "benchmarks/native-lint/results-1789846859997.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -546,7 +546,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
+                "path": "benchmarks/native-lint/results-1789846859997.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -566,7 +566,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
+                "path": "benchmarks/native-lint/results-1789846859997.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -586,13 +586,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 3.448917,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 3.882208,
                 "threshold": 50,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.93102166,
-                "budgetPressure": 0.06897834
+                "relativeMargin": 0.92235584,
+                "budgetPressure": 0.07764416
               }
             ]
           },
@@ -606,13 +606,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 0.10068997796474236,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 0.10774433799425205,
                 "threshold": 1.25,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.9194480176282062,
-                "budgetPressure": 0.08055198237179388
+                "relativeMargin": 0.9138045296045985,
+                "budgetPressure": 0.08619547039540164
               }
             ]
           },
@@ -626,7 +626,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
+                "path": "benchmarks/native-lint/results-1789846859997.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -646,13 +646,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1789839639381.json",
-                "observed": 231161856,
-                "threshold": 250658816,
+                "path": "benchmarks/native-lint/results-1789846859997.json",
+                "observed": 231030784,
+                "threshold": 250626048,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.0777828616249428,
-                "budgetPressure": 0.9222171383750571
+                "relativeMargin": 0.07818526508465712,
+                "budgetPressure": 0.9218147349153428
               }
             ]
           }
@@ -660,21 +660,21 @@
       }
     },
     "native-format": {
-      "path": "benchmarks/native-format/results-1789839644878.json",
-      "generatedAtUnixMs": 1789839644878,
+      "path": "benchmarks/native-format/results-1789846871499.json",
+      "generatedAtUnixMs": 1789846871499,
       "assertions": [
         {
           "name": "p04_direct_median_ratio",
           "comparison": "candidate standard median / canonical formatter median",
-          "observed": 2.0411498365121767,
-          "threshold": 2.25,
+          "observed": 1.2110445118406699,
+          "threshold": 1.25,
           "pass": true
         },
         {
           "name": "p04_direct_p95_ratio",
           "comparison": "candidate standard p95 / canonical formatter p95",
-          "observed": 2.0472723584472003,
-          "threshold": 2.3,
+          "observed": 1.2216736929593544,
+          "threshold": 1.35,
           "pass": true
         },
         {
@@ -694,49 +694,49 @@
         {
           "name": "p04_sequential_median_mib_s",
           "comparison": "complete TSRX format median throughput",
-          "observed": 55.68001635647757,
+          "observed": 99.18449249923711,
           "threshold": 15,
           "pass": true
         },
         {
           "name": "p04_sequential_p95_mib_s",
           "comparison": "complete TSRX format throughput at p95 latency",
-          "observed": 48.6915885291746,
+          "observed": 87.90107764423021,
           "threshold": 12,
           "pass": true
         },
         {
           "name": "p04_historical_incumbent_derived_floor_mib_s",
           "comparison": "candidate median throughput / absolute 16.6 MiB/s floor derived from 10 x a non-comparable historical 1.66 MiB/s incumbent result",
-          "observed": 55.68001635647757,
+          "observed": 99.18449249923711,
           "threshold": 16.6,
           "pass": true
         },
         {
           "name": "p04_default_thread_mib_s",
           "comparison": "complete multi-file --check throughput at p95 latency",
-          "observed": 688.6359938752405,
+          "observed": 322.3545778088716,
           "threshold": 100,
           "pass": true
         },
         {
           "name": "p04_generalized_control_median_mib_s",
           "comparison": "complete nested/control/dynamic/style format median throughput",
-          "observed": 8.813644910868486,
-          "threshold": 7,
+          "observed": 16.12776370996111,
+          "threshold": 12,
           "pass": true
         },
         {
           "name": "p04_generalized_control_p95_mib_s",
           "comparison": "complete nested/control/dynamic/style format throughput at p95 latency",
-          "observed": 7.802868357188544,
-          "threshold": 6,
+          "observed": 14.89726866847682,
+          "threshold": 10,
           "pass": true
         },
         {
           "name": "p04_generalized_control_linear_scaling",
           "comparison": "full/half median latency normalized by corpus byte ratio",
-          "observed": 1.0194202723205532,
+          "observed": 1.0085469779867922,
           "threshold": 1.35,
           "pass": true
         },
@@ -813,14 +813,14 @@
         {
           "name": "p05_stdin_p95_ms",
           "comparison": "fresh candidate TSRX stdin p95 milliseconds",
-          "observed": 2.824708,
+          "observed": 3.364042,
           "threshold": 110,
           "pass": true
         },
         {
           "name": "p05_upstream_ratio",
           "comparison": "candidate TSRX stdin p95 / stock Oxfmt TSX stdin p95",
-          "observed": 0.08846679895568946,
+          "observed": 0.10099751211166919,
           "threshold": 1.25,
           "pass": true
         },
@@ -834,7 +834,7 @@
         {
           "name": "p07_rss_ratio",
           "comparison": "candidate TSRX RSS / canonical TSX RSS",
-          "observed": 1.1705235318867584,
+          "observed": 1.1183888575192924,
           "threshold": 1.3,
           "pass": true
         }
@@ -857,14 +857,14 @@
         "candidateBinary": "target/release/oxc-tsrx-fmt",
         "stockOxfmtBinary": "node_modules/oxfmt-current/bin/oxfmt",
         "p04": {
-          "directMedianLatencyRatioMax": 2.25,
-          "directP95LatencyRatioMax": 2.3,
+          "directMedianLatencyRatioMax": 1.25,
+          "directP95LatencyRatioMax": 1.35,
           "sequentialMedianMibPerSecondMin": 15,
           "sequentialP95MibPerSecondMin": 12,
           "historicalIncumbentDerivedMibPerSecondMin": 16.6,
           "defaultThreadMibPerSecondMin": 100,
-          "generalizedControlMedianMibPerSecondMin": 7,
-          "generalizedControlP95MibPerSecondMin": 6,
+          "generalizedControlMedianMibPerSecondMin": 12,
+          "generalizedControlP95MibPerSecondMin": 10,
           "generalizedControlScalingRatioMax": 1.35
         },
         "p05": {
@@ -881,7 +881,7 @@
         "triggeredBy": [],
         "requiredReports": 1,
         "decision": "passed",
-        "selectedReport": "benchmarks/native-format/results-1789839644878.json",
+        "selectedReport": "benchmarks/native-format/results-1789846871499.json",
         "selectionPolicy": {
           "kind": "median-normalized-budget-pressure",
           "assertions": [],
@@ -891,19 +891,19 @@
           "selectedIndex": 0,
           "orderedReports": [
             {
-              "path": "benchmarks/native-format/results-1789839644878.json",
+              "path": "benchmarks/native-format/results-1789846871499.json",
               "budgetPressure": 0
             }
           ]
         },
         "reports": [
           {
-            "path": "benchmarks/native-format/results-1789839644878.json",
+            "path": "benchmarks/native-format/results-1789846871499.json",
             "reportPassed": true,
             "budgetPressure": 0,
             "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
             "corpusIdentity": "{\"corpus\":{\"bytes\":1049086,\"equivalentTsxBytes\":1049086,\"fnv1a64\":\"1986613a3c555b65\",\"structuralForms\":[\"@{\",\"@if\",\"@else\"],\"note\":\"Retained statement-control corpus for comparison with earlier formatter reports.\"},\"generalizedControlCorpus\":{\"bytes\":262339,\"halfBytes\":131516,\"fnv1a64\":\"ee30862dabc592f4\",\"structuralForms\":[\"@{\",\"@if\",\"@else\",\"@for\",\"@empty\",\"index/key\",\"@switch/@case/@default\",\"@try/@pending/@catch\",\"<{dynamic}>\",\"<style>\"],\"dynamicTagCount\":394,\"stylePayloadCount\":197,\"note\":\"Repeated direct JSX-child, nested, expression, annotated loop, switch, source-order try, nested dynamic-tag, and raw-style forms.\"}}",
-            "budgetsIdentity": "{\"schemaVersion\":2,\"warmups\":5,\"samples\":30,\"generalizedControlWarmups\":5,\"generalizedControlSamples\":15,\"batchWarmups\":5,\"batchSamples\":15,\"coldProcessSamples\":20,\"rssProcessSamples\":5,\"corpusTargetBytes\":1048576,\"generalizedControlTargetBytes\":262144,\"batchCorpusTargetBytes\":16777216,\"memoryCorpusTargetBytes\":8388608,\"candidateBinary\":\"target/release/oxc-tsrx-fmt\",\"stockOxfmtBinary\":\"node_modules/oxfmt-current/bin/oxfmt\",\"p04\":{\"directMedianLatencyRatioMax\":2.25,\"directP95LatencyRatioMax\":2.3,\"sequentialMedianMibPerSecondMin\":15,\"sequentialP95MibPerSecondMin\":12,\"historicalIncumbentDerivedMibPerSecondMin\":16.6,\"defaultThreadMibPerSecondMin\":100,\"generalizedControlMedianMibPerSecondMin\":7,\"generalizedControlP95MibPerSecondMin\":6,\"generalizedControlScalingRatioMax\":1.35},\"p05\":{\"stdinP95MsMax\":110,\"upstreamLatencyRatioMax\":1.25},\"p07\":{\"upstreamRatioMax\":1.3}}",
+            "budgetsIdentity": "{\"schemaVersion\":2,\"warmups\":5,\"samples\":30,\"generalizedControlWarmups\":5,\"generalizedControlSamples\":15,\"batchWarmups\":5,\"batchSamples\":15,\"coldProcessSamples\":20,\"rssProcessSamples\":5,\"corpusTargetBytes\":1048576,\"generalizedControlTargetBytes\":262144,\"batchCorpusTargetBytes\":16777216,\"memoryCorpusTargetBytes\":8388608,\"candidateBinary\":\"target/release/oxc-tsrx-fmt\",\"stockOxfmtBinary\":\"node_modules/oxfmt-current/bin/oxfmt\",\"p04\":{\"directMedianLatencyRatioMax\":1.25,\"directP95LatencyRatioMax\":1.35,\"sequentialMedianMibPerSecondMin\":15,\"sequentialP95MibPerSecondMin\":12,\"historicalIncumbentDerivedMibPerSecondMin\":16.6,\"defaultThreadMibPerSecondMin\":100,\"generalizedControlMedianMibPerSecondMin\":12,\"generalizedControlP95MibPerSecondMin\":10,\"generalizedControlScalingRatioMax\":1.35},\"p05\":{\"stdinP95MsMax\":110,\"upstreamLatencyRatioMax\":1.25},\"p07\":{\"upstreamRatioMax\":1.3}}",
             "hostIdentity": "{\"os\":\"macos\",\"architecture\":\"aarch64\",\"rustc\":\"rustc 1.97.1 (8bab26f4f 2026-07-14) (Homebrew)\",\"system\":\"Darwin Jacks-MacBook-Pro.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:19:08 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T6050 arm64\",\"buildProfile\":\"release (codegen-units=1, thin LTO, panic=abort, stripped)\",\"oxcRevision\":\"5a6e37e5cf895143a5b34050c50109c46e2ae96a\",\"stockOxfmtVersion\":\"Version: 0.68.0\"}",
             "buildIdentity": "{}",
             "versionsIdentity": "{}",
@@ -921,13 +921,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 2.0411498365121767,
-                "threshold": 2.25,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 1.2110445118406699,
+                "threshold": 1.25,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.092822294883477,
-                "budgetPressure": 0.907177705116523
+                "relativeMargin": 0.031164390527464114,
+                "budgetPressure": 0.9688356094725359
               }
             ]
           },
@@ -941,13 +941,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 2.0472723584472003,
-                "threshold": 2.3,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 1.2216736929593544,
+                "threshold": 1.35,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.10988158328382587,
-                "budgetPressure": 0.8901184167161741
+                "relativeMargin": 0.09505652373381165,
+                "budgetPressure": 0.9049434762661883
               }
             ]
           },
@@ -961,7 +961,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -981,7 +981,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1001,13 +1001,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 55.68001635647757,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 99.18449249923711,
                 "threshold": 15,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 2.7120010904318383,
-                "budgetPressure": 0.2693964725866135
+                "relativeMargin": 5.612299499949141,
+                "budgetPressure": 0.15123331906059181
               }
             ]
           },
@@ -1021,13 +1021,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 48.6915885291746,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 87.90107764423021,
                 "threshold": 12,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 3.057632377431217,
-                "budgetPressure": 0.24644913757147077
+                "relativeMargin": 6.325089803685851,
+                "budgetPressure": 0.1365170976466143
               }
             ]
           },
@@ -1041,13 +1041,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 55.68001635647757,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 99.18449249923711,
                 "threshold": 16.6,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 2.3542178527998536,
-                "budgetPressure": 0.2981320963291856
+                "relativeMargin": 4.974969427664886,
+                "budgetPressure": 0.1673648730937216
               }
             ]
           },
@@ -1061,13 +1061,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 688.6359938752405,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 322.3545778088716,
                 "threshold": 100,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 5.886359938752405,
-                "budgetPressure": 0.1452145994246663
+                "relativeMargin": 2.2235457780887162,
+                "budgetPressure": 0.3102174030836669
               }
             ]
           },
@@ -1081,13 +1081,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 8.813644910868486,
-                "threshold": 7,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 16.12776370996111,
+                "threshold": 12,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 0.2590921301240695,
-                "budgetPressure": 0.7942230564982256
+                "relativeMargin": 0.3439803091634257,
+                "budgetPressure": 0.7440585201895259
               }
             ]
           },
@@ -1101,13 +1101,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 7.802868357188544,
-                "threshold": 6,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 14.89726866847682,
+                "threshold": 10,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 0.300478059531424,
-                "budgetPressure": 0.7689479977542341
+                "relativeMargin": 0.4897268668476819,
+                "budgetPressure": 0.6712639895634276
               }
             ]
           },
@@ -1121,13 +1121,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 1.0194202723205532,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 1.0085469779867922,
                 "threshold": 1.35,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.24487387235514582,
-                "budgetPressure": 0.7551261276448542
+                "relativeMargin": 0.25292816445422805,
+                "budgetPressure": 0.747071835545772
               }
             ]
           },
@@ -1141,7 +1141,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1161,7 +1161,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1181,7 +1181,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1201,7 +1201,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1221,7 +1221,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1241,7 +1241,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1261,7 +1261,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1281,7 +1281,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1301,7 +1301,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1321,7 +1321,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1341,13 +1341,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 2.824708,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 3.364042,
                 "threshold": 110,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.9743208363636363,
-                "budgetPressure": 0.025679163636363637
+                "relativeMargin": 0.9694178,
+                "budgetPressure": 0.0305822
               }
             ]
           },
@@ -1361,13 +1361,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 0.08846679895568946,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 0.10099751211166919,
                 "threshold": 1.25,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.9292265608354484,
-                "budgetPressure": 0.07077343916455156
+                "relativeMargin": 0.9192019903106647,
+                "budgetPressure": 0.08079800968933534
               }
             ]
           },
@@ -1381,7 +1381,7 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
+                "path": "benchmarks/native-format/results-1789846871499.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1401,13 +1401,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1789839644878.json",
-                "observed": 1.1705235318867584,
+                "path": "benchmarks/native-format/results-1789846871499.json",
+                "observed": 1.1183888575192924,
                 "threshold": 1.3,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.09959728316403203,
-                "budgetPressure": 0.900402716835968
+                "relativeMargin": 0.13970087883131357,
+                "budgetPressure": 0.8602991211686865
               }
             ]
           }
@@ -1415,7 +1415,7 @@
       },
       "rssAdjudication": {
         "bandFraction": 0.03,
-        "relativeMargin": 0.09959728316403203,
+        "relativeMargin": 0.13970087883131357,
         "triggered": false,
         "requiredReports": 1,
         "passCount": 1,
@@ -1423,8 +1423,8 @@
         "decision": "passed",
         "reports": [
           {
-            "path": "benchmarks/native-format/results-1789839644878.json",
-            "ratio": 1.1705235318867584,
+            "path": "benchmarks/native-format/results-1789846871499.json",
+            "ratio": 1.1183888575192924,
             "threshold": 1.3,
             "pass": true,
             "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
@@ -1434,8 +1434,8 @@
       }
     },
     "type-aware": {
-      "path": "benchmarks/type-aware/results-1789839646411.json",
-      "generatedAtUnixMs": 1789839646410,
+      "path": "benchmarks/type-aware/results-1789846873134.json",
+      "generatedAtUnixMs": 1789846873133,
       "assertions": [
         {
           "name": "defaultSyntaxP95",
@@ -1483,8 +1483,8 @@
       }
     },
     "vite": {
-      "path": "benchmarks/vite/results-1789839658924.json",
-      "generatedAtUnixMs": 1789839658922,
+      "path": "benchmarks/vite/results-1789846886123.json",
+      "generatedAtUnixMs": 1789846886122,
       "assertions": [
         {
           "name": "directLintP95",
@@ -1525,7 +1525,7 @@
         "directLintP95MsMax": 150,
         "directLintVsCanonicalP95RatioMax": 2.5,
         "directFormatP95MsMax": 220,
-        "directFormatVsCanonicalP95RatioMax": 2.25,
+        "directFormatVsCanonicalP95RatioMax": 2.1,
         "directOrdinaryFormatP95MsMax": 150,
         "directOrdinaryFormatVsCanonicalP95RatioMax": 1.25,
         "vitePlusCurrentLintP95MsMax": 750,
@@ -1533,8 +1533,8 @@
       }
     },
     "editor": {
-      "path": "benchmarks/editor/results-1789839659592.json",
-      "generatedAtUnixMs": 1789839659591,
+      "path": "benchmarks/editor/results-1789846886872.json",
+      "generatedAtUnixMs": 1789846886871,
       "assertions": [
         {
           "name": "initialOpen",
@@ -1581,26 +1581,26 @@
       }
     },
     "comparative": {
-      "path": "benchmarks/comparative/results-1789839682891.json",
-      "generatedAtUnixMs": 1789839682891,
+      "path": "benchmarks/comparative/results-1789846911273.json",
+      "generatedAtUnixMs": 1789846911273,
       "assertions": [
         {
           "name": "nearOxlintParity",
-          "observed": 1.1915388556982691,
+          "observed": 1.206287213495976,
           "threshold": 1.25,
           "comparison": "<=",
           "pass": true
         },
         {
           "name": "fasterThanEslint",
-          "observed": 13.245472373375835,
+          "observed": 13.177472462022202,
           "threshold": 2,
           "comparison": ">=",
           "pass": true
         },
         {
           "name": "mixedNoBlowup",
-          "observed": 1.414416440323947,
+          "observed": 1.4093488653296804,
           "threshold": 1.5,
           "comparison": "<=",
           "pass": true
@@ -1623,7 +1623,7 @@
         "triggeredBy": [],
         "requiredReports": 1,
         "decision": "passed",
-        "selectedReport": "benchmarks/comparative/results-1789839682891.json",
+        "selectedReport": "benchmarks/comparative/results-1789846911273.json",
         "selectionPolicy": {
           "kind": "median-normalized-budget-pressure",
           "assertions": [],
@@ -1633,14 +1633,14 @@
           "selectedIndex": 0,
           "orderedReports": [
             {
-              "path": "benchmarks/comparative/results-1789839682891.json",
+              "path": "benchmarks/comparative/results-1789846911273.json",
               "budgetPressure": 0
             }
           ]
         },
         "reports": [
           {
-            "path": "benchmarks/comparative/results-1789839682891.json",
+            "path": "benchmarks/comparative/results-1789846911273.json",
             "reportPassed": true,
             "budgetPressure": 0,
             "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
@@ -1663,13 +1663,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/comparative/results-1789839682891.json",
-                "observed": 1.1915388556982691,
+                "path": "benchmarks/comparative/results-1789846911273.json",
+                "observed": 1.206287213495976,
                 "threshold": 1.25,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.04676891544138471,
-                "budgetPressure": 0.9532310845586153
+                "relativeMargin": 0.03497022920321928,
+                "budgetPressure": 0.9650297707967808
               }
             ]
           },
@@ -1683,13 +1683,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/comparative/results-1789839682891.json",
-                "observed": 13.245472373375835,
+                "path": "benchmarks/comparative/results-1789846911273.json",
+                "observed": 13.177472462022202,
                 "threshold": 2,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 5.622736186687917,
-                "budgetPressure": 0.15099499237340266
+                "relativeMargin": 5.588736231011101,
+                "budgetPressure": 0.15177417412664296
               }
             ]
           },
@@ -1703,13 +1703,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/comparative/results-1789839682891.json",
-                "observed": 1.414416440323947,
+                "path": "benchmarks/comparative/results-1789846911273.json",
+                "observed": 1.4093488653296804,
                 "threshold": 1.5,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.057055706450702015,
-                "budgetPressure": 0.942944293549298
+                "relativeMargin": 0.060434089780213064,
+                "budgetPressure": 0.939565910219787
               }
             ]
           }

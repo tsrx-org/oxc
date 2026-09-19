@@ -1,0 +1,274 @@
+{
+  "schemaVersion": 3,
+  "generatedAtUnixMs": 1789846911273,
+  "timestamp": "2026-09-19T19:41:51.273Z",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5 Pro",
+    "cores": 18,
+    "osRelease": "25.6.0",
+    "node": "v24.15.0"
+  },
+  "build": {
+    "profile": "release",
+    "binary": "node_modules/@tsrx/oxc/bin/oxlint (all TSX -> in-process oxlint-current declared bin; mixed -> public oxlint-current Node child + target/release/oxc-tsrx)",
+    "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a"
+  },
+  "corpus": {
+    "files": 1000,
+    "tsrxShare": 0.2,
+    "tsxBytes": 527570,
+    "mixedBytes": 522170,
+    "tsxSha256": "d750dcd9b4a56e71b6f575d9ed907666de03c207851bf712b37fcc1feb0915b0",
+    "mixedSha256": "1a6ee24b7e052bf686e0a9e955561b3b7859a76544948b2f98041ae2f001867b",
+    "pairedSpecificationSha256": "c6b3fb65e113af11e5b807c6bdad3c8f09a8fb77270459c5025febd90cd3693a",
+    "generator": "benchmarks/comparative/run.mjs schema 3"
+  },
+  "boundary": {
+    "rules": [
+      "no-debugger"
+    ],
+    "fileSelection": "same explicit file list",
+    "output": "zero-diagnostic default output",
+    "crossToolCorpus": "byte-identical TSX files",
+    "launch": "every lane measured through its npm CLI entry point, Node launcher included",
+    "compileCache": "@tsrx/oxc enables the Node module compile cache before routing; five fresh-process warmups precede measurements",
+    "productRouting": {
+      "allTsx": "@tsrx/oxc npm launcher -> oxlint-current declared npm binary in the same Node process",
+      "mixed": "@tsrx/oxc npm launcher -> public oxlint-current declared npm binary in a Node subprocess plus target/release/oxc-tsrx; the canonical child starts while the bridge loads"
+    },
+    "executables": {
+      "eslint": "node_modules/.bin/eslint",
+      "oxlint": "node_modules/oxlint-current/bin/oxlint",
+      "oxcTsrx": "node_modules/@tsrx/oxc/bin/oxlint",
+      "oxcTsrxMixed": "node_modules/@tsrx/oxc/bin/oxlint"
+    },
+    "argumentShape": {
+      "eslint": "--config eslint.config.mjs --no-ignore --no-warn-ignored <1,000 explicit TSX files>",
+      "oxlint": "--allow all --deny no-debugger --no-ignore <1,000 explicit TSX files>",
+      "oxcTsrx": "--allow all --deny no-debugger --no-ignore <1,000 explicit TSX files>",
+      "oxcTsrxMixed": "--allow all --deny no-debugger --no-ignore <1,000 explicit paired TSX/TSRX files>"
+    },
+    "mixedComparison": "paired generated component specifications; internal OXC for TSRX workload ratio only",
+    "configSha256": "413bac026c6018f2f92e63f7e48f74ffb9ba603904fbeee676095efa0e52c07b"
+  },
+  "samplePolicy": {
+    "warmups": 5,
+    "measured": 20,
+    "percentile": "nearest-rank"
+  },
+  "versions": {
+    "eslint": "v10.7.0",
+    "typescriptEslint": "8.64.0",
+    "oxlint": "Version: 1.83.0",
+    "oxcTsrx": "oxc-tsrx 0.14.0 (OXC 5a6e37e5cf895143a5b34050c50109c46e2ae96a)",
+    "oxcTsrxLauncher": "@tsrx/oxc 0.14.0"
+  },
+  "validation": {
+    "eslint": {
+      "files": 1000,
+      "diagnostics": 0
+    },
+    "oxlint": {
+      "files": 1000,
+      "diagnostics": 0
+    },
+    "oxcTsrx": {
+      "files": 1000,
+      "diagnostics": 0
+    },
+    "oxcTsrxMixed": {
+      "files": 1000,
+      "diagnostics": 0
+    },
+    "routeEvidence": {
+      "ordinaryDispatchEvents": 0,
+      "mixedDispatchEvents": 2,
+      "publicCanonicalNodeChildren": 1,
+      "nativeTsrxChildren": 1,
+      "privateInProcessAdapterChildren": 0,
+      "mixedUsesPublicCanonicalNodeChild": true,
+      "mixedUsesNativeTsrxChild": true,
+      "mixedUsesPrivateInProcessAdapter": false
+    }
+  },
+  "tools": {
+    "eslint": {
+      "warmupMs": [
+        735.730917,
+        701.878375,
+        739.694833,
+        716.411167,
+        728.390292
+      ],
+      "rawMs": [
+        709.080167,
+        742.222833,
+        703.28075,
+        731.111167,
+        732.88325,
+        734.318666,
+        726.748834,
+        747.254708,
+        708.241833,
+        729.820042,
+        784.287167,
+        750.853166,
+        714.902583,
+        848.9525,
+        757.862625,
+        760.358333,
+        758.206542,
+        725.7015,
+        752.329917,
+        712.164334
+      ],
+      "medianMs": 732.88325,
+      "p95Ms": 784.287167
+    },
+    "oxlint": {
+      "warmupMs": [
+        47.370875,
+        47.160709,
+        47.66425,
+        44.77125,
+        44.949333
+      ],
+      "rawMs": [
+        45.208167,
+        45.105833,
+        44.866417,
+        46.105417,
+        47.30375,
+        45.305792,
+        46.725417,
+        55.88025,
+        43.474,
+        46.443917,
+        61.646917,
+        54.74225,
+        45.940375,
+        46.950125,
+        46.292125,
+        50.070333,
+        46.088625,
+        46.106083,
+        44.84,
+        45.557042
+      ],
+      "medianMs": 46.105417,
+      "p95Ms": 55.88025
+    },
+    "oxcTsrx": {
+      "warmupMs": [
+        54.485042,
+        59.346542,
+        56.329292,
+        59.019667,
+        56.66325
+      ],
+      "rawMs": [
+        59.994166,
+        54.72425,
+        55.199292,
+        55.411292,
+        58.958666,
+        64.148375,
+        63.701458,
+        55.616375,
+        59.78775,
+        72.096125,
+        53.035083,
+        54.411375,
+        55.440542,
+        60.139917,
+        59.779375,
+        59.993125,
+        53.437667,
+        54.05775,
+        56.925042,
+        54.88375
+      ],
+      "medianMs": 55.616375,
+      "p95Ms": 64.148375
+    },
+    "oxcTsrxMixed": {
+      "warmupMs": [
+        81.364792,
+        75.955833,
+        76.862542,
+        77.676375,
+        77.392334
+      ],
+      "rawMs": [
+        76.783875,
+        74.712583,
+        78.365292,
+        78.2025,
+        80.566375,
+        99.313,
+        78.382875,
+        80.013125,
+        81.85075,
+        77.487167,
+        79.808417,
+        80.416375,
+        82.212417,
+        79.14125,
+        77.815,
+        76.382083,
+        76.922709,
+        76.555208,
+        80.730083,
+        83.587917
+      ],
+      "medianMs": 78.382875,
+      "p95Ms": 83.587917
+    }
+  },
+  "ratios": {
+    "oxcTsrxVsOxlint": 1.206287213495976,
+    "eslintVsOxcTsrx": 13.177472462022202,
+    "mixedVsTsx": 1.4093488653296804
+  },
+  "budgets": {
+    "schemaVersion": 3,
+    "warmups": 5,
+    "samples": 20,
+    "files": 1000,
+    "tsrxShare": 0.2,
+    "oxcTsrxVsOxlintMax": 1.25,
+    "eslintVsOxcTsrxMin": 2,
+    "mixedVsTsxMax": 1.5
+  },
+  "assertions": {
+    "nearOxlintParity": true,
+    "fasterThanEslint": true,
+    "mixedNoBlowup": true
+  },
+  "assertionDetails": [
+    {
+      "name": "nearOxlintParity",
+      "observed": 1.206287213495976,
+      "threshold": 1.25,
+      "comparison": "<=",
+      "pass": true
+    },
+    {
+      "name": "fasterThanEslint",
+      "observed": 13.177472462022202,
+      "threshold": 2,
+      "comparison": ">=",
+      "pass": true
+    },
+    {
+      "name": "mixedNoBlowup",
+      "observed": 1.4093488653296804,
+      "threshold": 1.5,
+      "comparison": "<=",
+      "pass": true
+    }
+  ],
+  "passed": true
+}
