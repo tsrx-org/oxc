@@ -1010,7 +1010,7 @@ test("the drop-in oxlint names and positions a file OXC cannot parse and keeps t
   assert.match(
     result.stdout,
     composedReporter === "github"
-      ? /^::error file=src\/Probe\.tsrx,line=3,endLine=\d+,col=\d+,endColumn=\d+,title=oxlint::OXC parse failed: /mu
+      ? /^::error file=src\/Probe\.tsrx,line=3,endLine=\d+,col=\d+,endColumn=\d+,title=oxlint::src\/Probe\.tsrx:3:\d+: OXC parse failed: /mu
       : /^src\/Probe\.tsrx:3:\d+: error: OXC parse failed: /mu,
     result.stdout,
   );

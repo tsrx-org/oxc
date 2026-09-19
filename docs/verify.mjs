@@ -1198,8 +1198,15 @@ const copiedMd = await page.evaluate(() => navigator.clipboard.readText())
 check(copiedMd.includes('# Linting'), 'copy-md: page markdown lands on the clipboard')
 await page.goto(`${baseUrl}/`, { waitUntil: 'load' })
 const badge = (await page.locator('.footer-badge').textContent()).trim()
+// The badge shows the first twelve characters of the adapter's pinned revision,
+// read from the one place the pin is declared so an upgrade cannot leave the
+// verifier expecting the previous revision.
+const pinnedRevision = (
+  await readFile(path.join(docsDir, '..', 'crates/oxc_adapter/src/lib.rs'), 'utf8')
+).match(/pub const OXC_REVISION: &str = "([0-9a-f]{40})"/u)?.[1]
 check(
-  badge.includes('Pinned OXC 8e0ed2ebb961') && /\d{4}-\d{2}-\d{2}/.test(badge),
+  badge.includes(`Pinned OXC ${(pinnedRevision ?? '').slice(0, 12)}`) &&
+    /\d{4}-\d{2}-\d{2}/.test(badge),
   'badge: footer shows pinned OXC revision and report date',
   badge,
 )

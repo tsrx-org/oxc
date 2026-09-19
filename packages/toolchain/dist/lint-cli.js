@@ -291,6 +291,12 @@ function summaryLines(result, elapsedMilliseconds) {
 	}
 	return lines;
 }
+function escapeGitHubData(value) {
+	return value.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
+}
+function escapeGitHubProperty(value) {
+	return escapeGitHubData(value).replaceAll(":", "%3A").replaceAll(",", "%2C");
+}
 function renderGitHub(result, cwd, elapsedMilliseconds) {
 	const lines = sortedDiagnostics(result).map((diagnostic) => {
 		const span = diagnostic.labels?.[0]?.span;
@@ -301,7 +307,9 @@ function renderGitHub(result, cwd, elapsedMilliseconds) {
 		const filename = relative(cwd, diagnostic.filename) || diagnostic.filename;
 		const severity = diagnostic.severity === "error" ? "error" : "warning";
 		const title = diagnostic.code || diagnostic.rule || "oxlint";
-		return `::${severity} ${`file=${filename},line=${line},endLine=${endLine},col=${column},endColumn=${endColumn}`},title=${title}::${diagnostic.message}`;
+		const message = escapeGitHubData(diagnostic.message);
+		if (!filename) return `::${severity} title=${title}::${message}`;
+		return `::${severity} ${`file=${escapeGitHubProperty(filename)},line=${line},endLine=${endLine},col=${column},endColumn=${endColumn}`},title=${title}::${escapeGitHubData(filename)}:${line}:${column}: ${message}`;
 	});
 	if (lines.length > 0) lines.push("");
 	lines.push(...summaryLines(result, elapsedMilliseconds));
