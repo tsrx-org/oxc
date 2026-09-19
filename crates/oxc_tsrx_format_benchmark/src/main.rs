@@ -152,10 +152,12 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
             && metadata.projection_bytes == 0
     });
     let parse_count = projected[0].2.parse_count;
+    let pass_count = projected[0].2.pass_count;
     let first_code = &projected[0].1;
     let idempotent = format_text(tsrx_path, first_code)
         .is_ok_and(|second| second.code == *first_code && !second.changed);
     let generalized_control_parse_count = generalized_control_samples[0].2.parse_count;
+    let generalized_control_pass_count = generalized_control_samples[0].2.pass_count;
     let generalized_control_embedded_parse_count =
         generalized_control_samples[0].2.embedded_parse_count;
     let generalized_control_embedded_format_ns =
@@ -296,7 +298,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
     assert_bool(
         &mut assertions,
         "p04_generalized_control_one_parse",
-        generalized_control_parse_count == 1,
+        generalized_control_parse_count == generalized_control_pass_count,
     );
     assert_bool(
         &mut assertions,
@@ -315,7 +317,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
             && generalized_control_embedded_format_ns == 0,
     );
     assert_bool(&mut assertions, "p04_idempotent", idempotent);
-    assert_bool(&mut assertions, "p04_one_parse", parse_count == 1);
+    assert_bool(&mut assertions, "p04_one_parse", parse_count == pass_count);
     assert_bool(
         &mut assertions,
         "p04_config_compiled_once",
@@ -324,7 +326,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
     assert_bool(
         &mut assertions,
         "p04_config_one_parse_per_file",
-        config_session.files == 2 && config_session.parse_count == config_session.files,
+        config_session.files == 2 && config_session.parse_count == config_session.pass_count,
     );
     assert_bool(&mut assertions, "p04_config_options_applied", config_session.options_applied);
     assert_max(
@@ -411,12 +413,14 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
                 generalized_control_scaling_ratio,
                 generalized_control_idempotent,
                 generalized_control_parse_count,
+                generalized_control_pass_count,
                 generalized_control_embedded_parse_count,
                 generalized_control_embedded_format_ns,
                 generalized_control_style_count,
             },
             idempotent,
             parse_count,
+            pass_count,
         },
         p05: P05Summary {
             candidate_tsrx_stdin: candidate_stdin_distribution,

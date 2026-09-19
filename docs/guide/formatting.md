@@ -47,12 +47,26 @@ Four steps:
 1. **Copy.** Build a valid TSX copy, the same idea as
    [linting](/guide/linting), except the placeholders here are markers designed
    to survive formatting.
-2. **Format.** Oxfmt parses and formats that copy, once.
+2. **Format.** Oxfmt parses and formats that copy, once per pass.
 3. **Convert back.** Markers become `@if`, `@for`, `@switch`, and `@try` again,
    and your code keeps its new formatting.
 4. **Check.** The result is re-read and compared against the original. If the
    structure does not match, the tool errors out instead of writing a broken
    file.
+
+If a pass changed the file, the result is formatted once more before it is
+returned, and the settled output wins. Oxfmt is not idempotent on every input:
+with the default `objectWrap: "preserve"`, an object literal that the first
+pass breaks leaves a newline after `{` that a second pass reads as an authored
+expansion, and an enclosing member chain can then pick a different layout
+([#93](https://github.com/tsrx-org/oxc/issues/93),
+[oxc#23852](https://github.com/oxc-project/oxc/issues/23852)). Settling means
+one `--write` leaves nothing for `--check` to find. An already-formatted file
+costs one pass; a file that changed costs two, and `pass_count` in the format
+metadata says how many were taken. The one exception is CR-terminated output,
+which is returned as the single pass produced it, because Oxfmt reads a lone CR
+inside JSX text as ordinary whitespace and re-formatting would insert `{" "}`
+around expression children.
 
 Two things are carried over rather than reformatted: dynamic closing tags are
 rebuilt from their opening expression, and whatever is inside a raw `<style>`
@@ -108,10 +122,11 @@ Both options work the same way on `.ts` and `.tsx` files, where the output is
 byte-for-byte what stock Oxfmt produces. A misspelled sub-option or an
 unusable value is refused with an error rather than quietly ignored.
 
-One caveat for `jsdoc`. A dynamic tag's region is restored from the bytes you
-wrote, not reprinted, so a doc comment written inside one comes back exactly as
-you authored it instead of being reflowed. Everything outside those regions is
-formatted normally.
+A dynamic tag's expression is restored from the bytes you wrote, not
+reprinted. A comment written inside a closing tag's braces (`</{Tag /* note */}>`)
+has no home there once the tag is restored, so it is moved in front of the tag
+as a comment-only child, `{/* note */}`, and formatted like any other comment,
+including by `jsdoc`.
 
 ## CSS inside `<style>` is preserved, not formatted
 

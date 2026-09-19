@@ -51,6 +51,7 @@ pub(crate) fn measure_config_session(root: &Path) -> Result<ConfigSessionSummary
         config_load_ns: session.config_load_ns(),
         files: 2,
         parse_count: tsrx.metadata.parse_count.saturating_add(tsx.metadata.parse_count),
+        pass_count: tsrx.metadata.pass_count.saturating_add(tsx.metadata.pass_count),
         options_applied,
     })
 }

@@ -95,13 +95,18 @@ pub(crate) fn validate_budgets(budgets: &Budgets) -> Result<(), String> {
     {
         return Err("formatter sample counts are below the frozen minima".to_string());
     }
-    if budgets.p04.direct_median_latency_ratio_max > 1.05
-        || budgets.p04.direct_p95_latency_ratio_max > 1.08
+    // Re-baselined with the settling pass (tsrx-org/oxc#93): a file the formatter changes is
+    // formatted a second time to confirm or correct the first pass, and every benchmark corpus
+    // is unformatted, so the direct-route ratio against the single-pass canonical control moved
+    // from 1.05/1.08 to 2.25/2.3 (observed 2.04/1.95) and the generalized-control floors from
+    // 15/12 MiB/s to 7/6 MiB/s (observed 8.26-8.93 median, 7.35-8.48 p95). Clean input still costs one pass.
+    if budgets.p04.direct_median_latency_ratio_max > 2.25
+        || budgets.p04.direct_p95_latency_ratio_max > 2.3
         || budgets.p04.sequential_median_mib_per_second_min < 15.0
         || budgets.p04.historical_incumbent_derived_mib_per_second_min < 16.6
         || budgets.p04.default_thread_mib_per_second_min < 100.0
-        || budgets.p04.generalized_control_median_mib_per_second_min < 15.0
-        || budgets.p04.generalized_control_p95_mib_per_second_min < 12.0
+        || budgets.p04.generalized_control_median_mib_per_second_min < 7.0
+        || budgets.p04.generalized_control_p95_mib_per_second_min < 6.0
         || budgets.p04.generalized_control_scaling_ratio_max > 1.35
         || budgets.p05.stdin_p95_ms_max > 110.0
         || budgets.p05.upstream_latency_ratio_max > 1.25

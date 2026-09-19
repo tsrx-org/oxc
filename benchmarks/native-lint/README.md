@@ -32,9 +32,9 @@ raw nanosecond/RSS arrays, summaries, and assertions. The harness enforces at
 least five warmups, 30 throughput samples, 100 warm 10 KiB samples, 20 fresh
 processes, and five RSS processes.
 
-Aggregate-selected representative report: `results-1789793998670.json`, with 216.73 MiB/s
-scan/project/parse-and-dynamic-validation, 73.91 MiB/s complete CLI lint,
-1.237× CLI latency versus equivalent TSX, and 3.28 ms fresh-process p95. Its
+Aggregate-selected representative report: `results-1789839639381.json`, with 217.82 MiB/s
+scan/project/parse-and-dynamic-validation, 70.02 MiB/s complete CLI lint,
+1.232× CLI latency versus equivalent TSX, and 3.45 ms fresh-process p95. Its
 configuration assertions record one timed config load, one file/one parse, and
 one real configured `no-debugger` diagnostic. No numeric threshold was
 weakened.
