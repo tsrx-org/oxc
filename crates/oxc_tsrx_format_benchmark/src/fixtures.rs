@@ -102,7 +102,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("{error}\n{source}"));
         let second = format_text(Path::new("benchmark.tsrx"), &first.code).unwrap();
         assert_eq!(second.code, first.code);
-        assert_eq!(first.metadata.parse_count, 1);
+        assert_eq!(first.metadata.parse_count, first.metadata.pass_count);
         assert!(first.metadata.style_count > 0);
         assert_eq!(first.metadata.embedded_parse_count, 0);
     }

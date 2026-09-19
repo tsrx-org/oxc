@@ -47,12 +47,29 @@ pub struct FormatTimings {
     pub lift_ns: u64,
 }
 
+impl FormatTimings {
+    fn add(&mut self, other: &Self) {
+        self.scan_ns = self.scan_ns.saturating_add(other.scan_ns);
+        self.projection_ns = self.projection_ns.saturating_add(other.projection_ns);
+        self.parse_ns = self.parse_ns.saturating_add(other.parse_ns);
+        self.format_ns = self.format_ns.saturating_add(other.format_ns);
+        self.embedded_format_ns = self.embedded_format_ns.saturating_add(other.embedded_format_ns);
+        self.lift_ns = self.lift_ns.saturating_add(other.lift_ns);
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FormatMetadata {
     pub native: bool,
     pub engine: &'static str,
     pub oxc_revision: &'static str,
     pub mode: FormatMode,
+    /// Formatter passes taken to settle the output: one for an already-formatted file, two for a
+    /// file that changed, three when the second pass had to correct the first (see
+    /// [`settle_format`]).
+    pub pass_count: u32,
+    /// OXC parses across every pass; the pipeline parses each pass exactly once, so this always
+    /// equals `pass_count`.
     pub parse_count: u32,
     /// Zero while style payloads use the checked raw-preservation path.
     pub embedded_parse_count: u32,
@@ -565,7 +582,68 @@ pub fn format_text(path: &Path, source: &str) -> Result<FormatOutput, FormatErro
     format_text_with_options(path, source, None)
 }
 
+/// The most formatter passes [`settle_format`] takes before it returns what it has.
+///
+/// Every layout drift observed so far (`objectWrap: "preserve"` reading a break the first pass
+/// introduced as an authored one, upstream oxc-project/oxc#23852 and tsrx-org/oxc#93) settles on
+/// the second pass, so the third pass only ever confirms that. The cap keeps a pathological
+/// input from looping.
+const MAX_FORMAT_PASSES: u32 = 3;
+
 fn format_text_with_options(
+    path: &Path,
+    source: &str,
+    options: Option<&FileFormatOptions>,
+) -> Result<FormatOutput, FormatError> {
+    settle_format(source, |input| format_once(path, input, options))
+}
+
+/// Formats until the output stops changing, so one `--write` leaves nothing for `--check`.
+///
+/// The formatter is not idempotent on every input: with the default `objectWrap: "preserve"`,
+/// an object literal that the first pass breaks leaves a newline after `{` that the second pass
+/// reads as an authored expansion, and an enclosing member chain can then pick a different
+/// layout. An already-formatted file costs one pass; a file that changed costs a second pass
+/// that either confirms the result or replaces it with the settled one. Pass metadata and
+/// timings are summed over the passes taken, and `changed` compares the final output with the
+/// original source.
+fn settle_format(
+    source: &str,
+    mut format: impl FnMut(&str) -> Result<FormatOutput, FormatError>,
+) -> Result<FormatOutput, FormatError> {
+    let mut output = format(source)?;
+    // Oxfmt reads a lone CR inside JSX text as ordinary whitespace rather than a line break, so
+    // re-formatting CR-terminated output inserts `{" "}` around expression children (verified on
+    // the pinned stock binary with plain `.tsx`). Settling would bake that upstream misread into
+    // the first pass, so CR-terminated output is returned as the single pass produced it.
+    if contains_bare_carriage_return(&output.code) {
+        return Ok(output);
+    }
+    while output.changed && output.metadata.pass_count < MAX_FORMAT_PASSES {
+        let next = format(&output.code)?;
+        output.metadata.pass_count += 1;
+        output.metadata.parse_count += next.metadata.parse_count;
+        output.metadata.embedded_parse_count += next.metadata.embedded_parse_count;
+        output.metadata.timings.add(&next.metadata.timings);
+        if !next.changed {
+            break;
+        }
+        output.code = next.code;
+        output.changed = output.code != source;
+    }
+    Ok(output)
+}
+
+/// Whether `text` contains a `\r` that is not part of a `\r\n` pair.
+fn contains_bare_carriage_return(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    bytes
+        .iter()
+        .enumerate()
+        .any(|(index, byte)| *byte == b'\r' && bytes.get(index + 1) != Some(&b'\n'))
+}
+
+fn format_once(
     path: &Path,
     source: &str,
     options: Option<&FileFormatOptions>,
@@ -610,6 +688,7 @@ fn format_text_with_options(
             engine: "oxc_formatter",
             oxc_revision: OXC_REVISION,
             mode: FormatMode::Projected,
+            pass_count: 1,
             parse_count: engine.parse_count,
             embedded_parse_count: EMBEDDED_CSS_PARSE_COUNT,
             is_tsrx: true,
@@ -641,6 +720,7 @@ fn format_direct(
             engine: "oxc_formatter",
             oxc_revision: OXC_REVISION,
             mode: FormatMode::Direct,
+            pass_count: 1,
             parse_count: engine.parse_count,
             embedded_parse_count: EMBEDDED_CSS_PARSE_COUNT,
             is_tsrx: false,
@@ -732,7 +812,7 @@ mod tests {
         let first =
             format_text_with_options(Path::new("Card.tsrx"), source, Some(&options)).unwrap();
         assert_eq!(first.metadata.mode, FormatMode::Projected);
-        assert_eq!(first.metadata.parse_count, 1);
+        assert_eq!(first.metadata.parse_count, first.metadata.pass_count);
         // The comment is attached to the import it was authored above, so it travels with it.
         assert!(
             first.code.starts_with(concat!(
@@ -1226,7 +1306,7 @@ mod tests {
         let first =
             format_text_with_options(Path::new("Doc.tsrx"), source, Some(&options)).unwrap();
         assert_eq!(first.metadata.mode, FormatMode::Projected);
-        assert_eq!(first.metadata.parse_count, 1);
+        assert_eq!(first.metadata.parse_count, first.metadata.pass_count);
         assert!(
             first.code.contains(concat!(
                 "/**\n",
@@ -1324,7 +1404,7 @@ mod tests {
     }
 
     #[test]
-    fn jsdoc_keeps_a_dynamic_tag_region_byte_identical() {
+    fn jsdoc_reflows_a_comment_hoisted_out_of_a_dynamic_closing_tag() {
         let source = concat!(
             "export function View({Tag,ok}:{Tag:string;ok:boolean}) @{",
             "<main>@if(ok){<{Tag}>hi</{Tag /**   inner   doc  */}>}</main>}\n",
@@ -1335,12 +1415,22 @@ mod tests {
             Some(&jsdoc_options(&json!(true))),
         )
         .unwrap();
-        // The lift restores a dynamic-tag region from the authored bytes, so the comment written
-        // inside its braces comes back exactly as authored rather than reflowed.
-        assert_eq!(first.code.matches("/**   inner   doc  */").count(), 1, "{}", first.code);
+        // The comment written inside the closing tag's braces is hoisted in front of the tag as
+        // a comment-only expression child, where `jsdoc` reflows it like any other doc comment.
+        // The first pass restores the authored bytes and the settling pass reflows them.
+        assert_eq!(first.code.matches("{/** Inner doc */}").count(), 1, "{}", first.code);
+        assert_eq!(first.metadata.pass_count, 3);
         assert!(first.code.contains("<{Tag}>"), "{}", first.code);
         assert!(first.code.contains("</{Tag}>"), "{}", first.code);
         assert!(!first.code.contains("_t"), "{}", first.code);
+        let second = format_text_with_options(
+            Path::new("Dyn.tsrx"),
+            &first.code,
+            Some(&jsdoc_options(&json!(true))),
+        )
+        .unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
     }
 
     /// Formatting runs the parser scan, so a decorator whose name only begins with a control
@@ -1384,7 +1474,7 @@ mod tests {
         let source = "export function View({ready}:{ready:boolean}) @{ @if(ready){<p>Crème 🚀</p>;}@else{<span>no</span>;} }\n";
         let first = format_text(Path::new("View.tsrx"), source).unwrap();
         assert_eq!(first.metadata.mode, FormatMode::Projected);
-        assert_eq!(first.metadata.parse_count, 1);
+        assert_eq!(first.metadata.parse_count, first.metadata.pass_count);
         assert_eq!(first.metadata.embedded_parse_count, 0);
         assert_eq!(first.metadata.marker_count, 3);
         assert!(first.metadata.projection_bytes > source.len());
@@ -1427,7 +1517,7 @@ mod tests {
         let source = "export const view=<main>hello</main>\n";
         let output = format_text(Path::new("View.tsx"), source).unwrap();
         assert_eq!(output.metadata.mode, FormatMode::Direct);
-        assert_eq!(output.metadata.parse_count, 1);
+        assert_eq!(output.metadata.parse_count, output.metadata.pass_count);
         assert_eq!(output.metadata.embedded_parse_count, 0);
         assert_eq!(output.metadata.timings.scan_ns, 0);
         assert_eq!(output.metadata.timings.projection_ns, 0);
@@ -1446,6 +1536,64 @@ mod tests {
         assert_eq!(second.code, first.code);
     }
 
+    /// tsrx-org/oxc#93: with `objectWrap: "preserve"`, the first pass over this source breaks
+    /// the object argument and expands the outer optional chain, and a second pass over that
+    /// output collapses the chain again. The settle pass returns the collapsed form at once, on
+    /// both the projected `.tsrx` route and the direct `.ts` route.
+    #[test]
+    fn settles_a_member_chain_whose_object_argument_breaks_on_the_first_pass() {
+        let source = concat!(
+            "const params = new URLSearchParams(location.search);\n",
+            "document.querySelector(\"#load\")?.addEventListener(\"click\", () => service.load(\n",
+            "  { ...(params.has(\"page\") ? { startingPage: params.get(\"page\") } : {}), ",
+            "...(params.get(\"extra\") === \"1\" ? { showMetadata: true, reserveActionSpace: true } : {}) },\n",
+            "  params.get(\"mode\") ?? \"fresh\",\n",
+            ").catch((error) => console.error(error)));\n",
+        );
+        let options = root_options(&json!({ "printWidth": 100 }));
+        for name in ["repro.tsrx", "repro.ts"] {
+            let first = format_text_with_options(Path::new(name), source, Some(&options)).unwrap();
+            assert!(first.changed);
+            // The first pass drifted, the second corrected it, the third confirmed it.
+            assert_eq!(first.metadata.pass_count, 3, "{name}");
+            assert_eq!(first.metadata.parse_count, 3, "{name}");
+            assert!(
+                first.code.starts_with(concat!(
+                    "const params = new URLSearchParams(location.search);\n",
+                    "document.querySelector(\"#load\")?.addEventListener(\"click\", () =>\n",
+                    "  service\n",
+                    "    .load(\n",
+                )),
+                "{name}: {}",
+                first.code
+            );
+
+            let second =
+                format_text_with_options(Path::new(name), &first.code, Some(&options)).unwrap();
+            assert_eq!(second.code, first.code, "{name}");
+            assert!(!second.changed, "{name}");
+            assert_eq!(second.metadata.pass_count, 1, "{name}");
+            assert_eq!(second.metadata.parse_count, 1, "{name}");
+        }
+    }
+
+    /// An input the formatter changes but does not drift on takes exactly two passes: the
+    /// second only confirms the first.
+    #[test]
+    fn a_changed_file_takes_a_confirming_second_pass() {
+        let source = "export function View( ) @{ <p>hi</p>; }\n";
+        let first = format_text(Path::new("View.tsrx"), source).unwrap();
+        assert!(first.changed);
+        assert_eq!(first.metadata.pass_count, 2);
+        assert_eq!(first.metadata.parse_count, 2);
+
+        let second = format_text(Path::new("View.tsrx"), &first.code).unwrap();
+        assert!(!second.changed);
+        assert_eq!(second.metadata.pass_count, 1);
+        assert_eq!(second.metadata.parse_count, 1);
+        assert_eq!(second.code, first.code);
+    }
+
     #[test]
     fn switch_and_source_order_try_format_with_one_parse_and_converge() {
         let source = concat!(
@@ -1455,14 +1603,14 @@ mod tests {
             "@default:{<em/>}}</main>}\n"
         );
         let first = format_text(Path::new("View.tsrx"), source).unwrap();
-        assert_eq!(first.metadata.parse_count, 1);
+        assert_eq!(first.metadata.parse_count, first.metadata.pass_count);
         assert_eq!(first.metadata.embedded_parse_count, 0);
         assert_eq!(first.metadata.style_count, 0);
         assert!(first.code.contains("@switch (value)"));
         assert!(first.code.contains("} @pending {"));
         assert!(first.code.contains("} @catch (error: Error, reset: () => void) {"));
         let second = format_text(Path::new("View.tsrx"), &first.code).unwrap();
-        assert_eq!(second.metadata.parse_count, 1);
+        assert_eq!(second.metadata.parse_count, second.metadata.pass_count);
         assert_eq!(second.code, first.code);
     }
 
@@ -1480,7 +1628,7 @@ mod tests {
     fn dynamic_tags_and_raw_css_preservation_format_natively_and_converge() {
         let source = "export function View({tag}:{tag:string}) @{<main><{tag}>Hi</{tag}><style>.card{color:red}</style></main>}\n";
         let first = format_text(Path::new("List.tsrx"), source).unwrap();
-        assert_eq!(first.metadata.parse_count, 1);
+        assert_eq!(first.metadata.parse_count, first.metadata.pass_count);
         assert_eq!(first.metadata.embedded_parse_count, 0);
         assert_eq!(first.metadata.style_count, 1);
         assert!(first.code.contains("<{tag}>"));
@@ -1504,8 +1652,10 @@ mod tests {
             "}\n",
         );
         let first = format_text(Path::new("Comments.tsrx"), source).unwrap();
-        assert_eq!(first.code.matches("/* closing block */").count(), 1);
-        assert_eq!(first.code.matches("// closing line").count(), 1);
+        // Each hoisted comment is an expression child, not JSX text that would render.
+        assert_eq!(first.code.matches("{/* closing block */}").count(), 1, "{}", first.code);
+        assert_eq!(first.code.matches("// closing line\n").count(), 1, "{}", first.code);
+        assert!(!first.code.contains("line// closing line"), "{}", first.code);
         assert!(first.code.contains("</{Tag}>"));
         let second = format_text(Path::new("Comments.tsrx"), &first.code).unwrap();
         assert_eq!(second.code, first.code);

@@ -106,7 +106,7 @@ Formatting a `.tsrx` file is a three-step round trip:
 Dynamic closing tag names are rebuilt from the formatted opening expression, and
 each raw `<style>` payload is copied from the original source rather than
 reformatted, until OXC exposes its CSS formatter publicly. The indexed lift
-renderer holds 18.36 MiB/s on the stress corpus and 117.41 MiB/s on the fast
+renderer holds 8.81 MiB/s on the stress corpus and 55.68 MiB/s on the fast
 path for pure statement controls.
 
 `oxc-tsrx-fmt` supports stdin, check mode, transactional writes, explicit
@@ -147,8 +147,8 @@ results:
 - Linting and formatting ordinary JS/TS/TSX files adds no measurable
   overhead over plain OXC. TSRX scanning and TSX copy run in the hundreds
   of MiB/s.
-- On a matched 1,000-file corpus the CLI finishes in about 51 ms, where
-  official Oxlint takes about 44 ms and ESLint takes about 650 ms.
+- On a matched 1,000-file corpus the CLI finishes in about 53 ms, where
+  official Oxlint takes about 44 ms and ESLint takes about 696 ms.
 - Type-aware lint costs roughly 24 ms per file, and editor responses stay
   well under a millisecond after a fresh open of about 2.6 ms.
 

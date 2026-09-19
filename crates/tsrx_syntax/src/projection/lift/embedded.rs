@@ -130,7 +130,16 @@ pub(super) fn lift_embedded(
                 .get(span.start as usize..span.end as usize)
                 .ok_or(ProjectionError::StructuralMismatch)?;
             output.push_str(&source[copied..cursor]);
+            // The comment left the closing tag's braces when the projection hoisted it in front
+            // of the tag, so it comes back as a comment-only expression child. Written bare it
+            // would be JSX text: rendered, and re-formatted as text (whitespace collapsed) on
+            // the next pass. A line comment needs the line break before the closing brace.
+            output.push('{');
             output.push_str(comment);
+            if comment.starts_with("//") {
+                output.push_str(line_terminator(source));
+            }
+            output.push('}');
             copied = end;
             cursor = end;
             comments[index] = true;
@@ -202,4 +211,16 @@ pub(super) fn lift_embedded(
         return Err(ProjectionError::ScaffoldMismatch { index });
     }
     Ok(output)
+}
+
+/// The line terminator the formatted output uses, so a restored line comment closes its
+/// expression container with the same one.
+fn line_terminator(source: &str) -> &'static str {
+    let bytes = source.as_bytes();
+    match bytes.iter().position(|byte| *byte == b'\r' || *byte == b'\n') {
+        Some(index) if bytes[index] == b'\n' => "\n",
+        Some(index) if bytes.get(index + 1) == Some(&b'\n') => "\r\n",
+        Some(_) => "\r",
+        None => "\n",
+    }
 }

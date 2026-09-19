@@ -88,6 +88,41 @@ test('preserves lexical @ text while formatting nested statement control flow', 
   assert.equal((result.stdout.match(/@else \{/g) ?? []).length, 1);
 });
 
+// tsrx-org/oxc#93. With the default `objectWrap: "preserve"`, the first formatter pass over
+// this source breaks the object argument, and a second pass over that output reads the
+// break it introduced as authored and collapses the outer optional chain. The native
+// formatter settles the output before returning it, so one write leaves nothing for check
+// to find, on the projected `.tsrx` route and the direct `.ts` route alike.
+test('settles a member chain whose object argument breaks on the first pass (#93)', async () => {
+  const source = [
+    'const params = new URLSearchParams(location.search);',
+    'document.querySelector("#load")?.addEventListener("click", () => service.load(',
+    '  { ...(params.has("page") ? { startingPage: params.get("page") } : {}), ...(params.get("extra") === "1" ? { showMetadata: true, reserveActionSpace: true } : {}) },',
+    '  params.get("mode") ?? "fresh",',
+    ').catch((error) => console.error(error)));',
+    '',
+  ].join('\n');
+  const directory = await mkdtemp(join(tmpdir(), 'oxc-tsrx-format-settle-'));
+  const configPath = join(directory, '.oxfmtrc.json');
+  await writeFile(configPath, '{ "printWidth": 100 }\n');
+
+  for (const name of ['repro.tsrx', 'repro.ts']) {
+    const first = await runFormat([`--config=${configPath}`, `--stdin-filepath=${name}`], source);
+    assert.equal(first.code, 0, first.stderr || first.stdout);
+    assert.match(first.stdout, /^document\.querySelector\("#load"\)\?\.addEventListener\("click", \(\) =>\n {2}service\n/mu, name);
+    const second = await runFormat([`--config=${configPath}`, `--stdin-filepath=${name}`], first.stdout);
+    assert.equal(second.code, 0, second.stderr || second.stdout);
+    assert.equal(second.stdout, first.stdout, name);
+  }
+
+  const path = join(directory, 'repro.tsrx');
+  await writeFile(path, source);
+  const write = await runFormat([`--config=${configPath}`, '--write', path]);
+  assert.equal(write.code, 0, write.stderr || write.stdout);
+  const check = await runFormat([`--config=${configPath}`, '--check', path]);
+  assert.equal(check.code, 0, check.stderr || check.stdout);
+});
+
 test('check and write converge without touching an unformatted file during check', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'oxc-tsrx-format-'));
   const path = join(directory, 'Counter.tsrx');

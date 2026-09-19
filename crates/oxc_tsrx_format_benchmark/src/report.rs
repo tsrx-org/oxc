@@ -75,6 +75,7 @@ pub(crate) struct P04Summary {
     pub(crate) generalized_control: GeneralizedControlSummary,
     pub(crate) idempotent: bool,
     pub(crate) parse_count: u32,
+    pub(crate) pass_count: u32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -85,6 +86,7 @@ pub(crate) struct GeneralizedControlSummary {
     pub(crate) generalized_control_scaling_ratio: f64,
     pub(crate) generalized_control_idempotent: bool,
     pub(crate) generalized_control_parse_count: u32,
+    pub(crate) generalized_control_pass_count: u32,
     pub(crate) generalized_control_embedded_parse_count: u32,
     pub(crate) generalized_control_embedded_format_ns: u64,
     pub(crate) generalized_control_style_count: usize,
@@ -118,6 +120,7 @@ pub(crate) struct ConfigSessionSummary {
     pub(crate) config_load_ns: u64,
     pub(crate) files: u32,
     pub(crate) parse_count: u32,
+    pub(crate) pass_count: u32,
     pub(crate) options_applied: bool,
 }
 

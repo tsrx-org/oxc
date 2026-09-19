@@ -3,7 +3,7 @@
   "directLintP95MsMax": 150,
   "directLintVsCanonicalP95RatioMax": 2.5,
   "directFormatP95MsMax": 220,
-  "directFormatVsCanonicalP95RatioMax": 2,
+  "directFormatVsCanonicalP95RatioMax": 2.25,
   "directOrdinaryFormatP95MsMax": 150,
   "directOrdinaryFormatVsCanonicalP95RatioMax": 1.25,
   "vitePlusCurrentLintP95MsMax": 750,
