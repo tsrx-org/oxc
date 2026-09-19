@@ -81,7 +81,7 @@
     "benchmark:type-aware": "node benchmarks/type-aware/run.mjs",
     "benchmark:editor": "node benchmarks/editor/run.mjs",
     "benchmark:comparative": "node benchmarks/comparative/run.mjs --assert",
-    "test:parser-api": "node --test tests/parser-api/bulk-transfer.test.mjs tests/parser-api/bundle-safety.test.mjs tests/parser-api/host-product.test.mjs tests/parser-api/loader-integrity.test.mjs tests/parser-api/stack-safety.test.mjs tests/parser-api/utf16-lazy.test.mjs",
+    "test:parser-api": "node --test tests/parser-api/bulk-transfer.test.mjs tests/parser-api/bundle-safety.test.mjs tests/parser-api/host-product.test.mjs tests/parser-api/loader-integrity.test.mjs tests/parser-api/loc-alignment.test.mjs tests/parser-api/stack-safety.test.mjs tests/parser-api/utf16-lazy.test.mjs",
     "test:packaging:compat": "node --test tests/packaging/toolchain-compat.test.mjs",
     "test:parser-addon": "node --test tests/parser-api/addon-load.test.mjs"
   },
