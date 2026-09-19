@@ -1,126 +1,86 @@
 {
   "schemaVersion": 1,
   "status": "passed",
-  "startedAt": "2026-07-29T03:41:18.416Z",
-  "completedAt": "2026-07-29T03:42:53.330Z",
+  "startedAt": "2026-09-19T04:08:47.071Z",
+  "completedAt": "2026-09-19T04:09:36.002Z",
   "commands": [
     {
       "label": "fresh native lint performance gate",
       "command": "npm run benchmark:native-lint",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1785296478418,
-      "completedAtUnixMs": 1785296491695,
-      "durationMs": 13220.9,
-      "reportPath": "benchmarks/native-lint/results-1785296491666.json"
-    },
-    {
-      "label": "fresh native lint performance gate confidence rerun 2/3",
-      "command": "npm run benchmark:native-lint",
-      "status": 0,
-      "signal": null,
-      "startedAtUnixMs": 1785296491697,
-      "completedAtUnixMs": 1785296504918,
-      "durationMs": 13221.1,
-      "reportPath": "benchmarks/native-lint/results-1785296504890.json"
-    },
-    {
-      "label": "fresh native lint performance gate confidence rerun 3/3",
-      "command": "npm run benchmark:native-lint",
-      "status": 0,
-      "signal": null,
-      "startedAtUnixMs": 1785296504918,
-      "completedAtUnixMs": 1785296517456,
-      "durationMs": 12537.8,
-      "reportPath": "benchmarks/native-lint/results-1785296517432.json"
+      "startedAtUnixMs": 1789790927072,
+      "completedAtUnixMs": 1789790934952,
+      "durationMs": 7879.5,
+      "reportPath": "benchmarks/native-lint/results-1789790934847.json"
     },
     {
       "label": "fresh native format performance gate",
       "command": "npm run benchmark:native-format",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1785296517457,
-      "completedAtUnixMs": 1785296522317,
-      "durationMs": 4860.1,
-      "reportPath": "benchmarks/native-format/results-1785296522210.json"
-    },
-    {
-      "label": "fresh native format performance gate confidence rerun 2/3",
-      "command": "npm run benchmark:native-format",
-      "status": 0,
-      "signal": null,
-      "startedAtUnixMs": 1785296522318,
-      "completedAtUnixMs": 1785296527102,
-      "durationMs": 4783.9,
-      "reportPath": "benchmarks/native-format/results-1785296526997.json"
-    },
-    {
-      "label": "fresh native format performance gate confidence rerun 3/3",
-      "command": "npm run benchmark:native-format",
-      "status": 0,
-      "signal": null,
-      "startedAtUnixMs": 1785296527102,
-      "completedAtUnixMs": 1785296531948,
-      "durationMs": 4845.9,
-      "reportPath": "benchmarks/native-format/results-1785296531837.json"
+      "startedAtUnixMs": 1789790934953,
+      "completedAtUnixMs": 1789790938705,
+      "durationMs": 3751.8,
+      "reportPath": "benchmarks/native-format/results-1789790938649.json"
     },
     {
       "label": "fresh type-aware performance gate",
       "command": "npm run benchmark:type-aware",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1785296531954,
-      "completedAtUnixMs": 1785296533526,
-      "durationMs": 1572.4,
-      "reportPath": "benchmarks/type-aware/results-1785296533520.json"
+      "startedAtUnixMs": 1789790938706,
+      "completedAtUnixMs": 1789790940155,
+      "durationMs": 1449.1,
+      "reportPath": "benchmarks/type-aware/results-1789790940149.json"
     },
     {
       "label": "fresh Vite/Vite+ boundary gate",
       "command": "/Users/jacksm5pro/.local/share/fnm/node-versions/v24.15.0/installation/bin/node benchmarks/vite/run.mjs",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1785296533527,
-      "completedAtUnixMs": 1785296550672,
-      "durationMs": 17145.1,
-      "reportPath": "benchmarks/vite/results-1785296550669.json"
+      "startedAtUnixMs": 1789790940156,
+      "completedAtUnixMs": 1789790952484,
+      "durationMs": 12328.3,
+      "reportPath": "benchmarks/vite/results-1789790952481.json"
     },
     {
       "label": "fresh incremental editor performance gate",
       "command": "npm run benchmark:editor",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1785296550672,
-      "completedAtUnixMs": 1785296551328,
-      "durationMs": 655.9,
-      "reportPath": "benchmarks/editor/results-1785296551322.json"
+      "startedAtUnixMs": 1789790952485,
+      "completedAtUnixMs": 1789790953143,
+      "durationMs": 658.4,
+      "reportPath": "benchmarks/editor/results-1789790953137.json"
     },
     {
       "label": "fresh like-for-like comparative gate",
       "command": "/Users/jacksm5pro/.local/share/fnm/node-versions/v24.15.0/installation/bin/node benchmarks/comparative/run.mjs",
       "status": 0,
       "signal": null,
-      "startedAtUnixMs": 1785296551329,
-      "completedAtUnixMs": 1785296573329,
-      "durationMs": 22000.5,
-      "reportPath": "benchmarks/comparative/results-1785296573160.json"
+      "startedAtUnixMs": 1789790953144,
+      "completedAtUnixMs": 1789790976001,
+      "durationMs": 22857,
+      "reportPath": "benchmarks/comparative/results-1789790975810.json"
     }
   ],
   "results": {
     "native-lint": {
-      "path": "benchmarks/native-lint/results-1785296504890.json",
-      "generatedAtUnixMs": 1785296504890,
+      "path": "benchmarks/native-lint/results-1789790934847.json",
+      "generatedAtUnixMs": 1789790934847,
       "assertions": [
         {
           "name": "P01 median standard-path latency ratio",
           "comparison": "<=",
-          "observed": 0.9884686688913608,
+          "observed": 0.9995440526230998,
           "threshold": 1.05,
           "pass": true
         },
         {
           "name": "P01 p95 standard-path latency ratio",
           "comparison": "<=",
-          "observed": 0.9647187073158665,
+          "observed": 0.9929404873507931,
           "threshold": 1.08,
           "pass": true
         },
@@ -141,49 +101,49 @@
         {
           "name": "P02 median scan+copy+parse throughput",
           "comparison": ">=",
-          "observed": 214.84611478328523,
+          "observed": 220.4424931584394,
           "threshold": 75,
           "pass": true
         },
         {
           "name": "P02 p95 scan+copy+parse throughput",
           "comparison": ">=",
-          "observed": 187.82049989469633,
+          "observed": 210.61901294994274,
           "threshold": 60,
           "pass": true
         },
         {
           "name": "P02 equivalent-TSX throughput ratio",
           "comparison": ">=",
-          "observed": 0.5135620097439448,
-          "threshold": 0.5,
+          "observed": 0.4877655647617932,
+          "threshold": 0.45,
           "pass": true
         },
         {
           "name": "P02 warm 10 KiB p95 scan+copy+parse latency",
           "comparison": "<=",
-          "observed": 0.049958,
+          "observed": 0.048249,
           "threshold": 1,
           "pass": true
         },
         {
           "name": "P03 in-process one-thread lint throughput",
           "comparison": ">=",
-          "observed": 108.57823031569367,
+          "observed": 118.18868812660416,
           "threshold": 35,
           "pass": true
         },
         {
           "name": "P03 CLI one-thread lint throughput",
           "comparison": ">=",
-          "observed": 64.02854091319017,
+          "observed": 71.55089060101302,
           "threshold": 35,
           "pass": true
         },
         {
           "name": "P03 end-to-end CLI latency ratio",
           "comparison": "<=",
-          "observed": 1.1991655772955454,
+          "observed": 1.2294632583008565,
           "threshold": 1.35,
           "pass": true
         },
@@ -218,14 +178,14 @@
         {
           "name": "P05 fresh-process TSRX p95 latency",
           "comparison": "<=",
-          "observed": 4.80675,
+          "observed": 3.961958,
           "threshold": 50,
           "pass": true
         },
         {
           "name": "P05 fresh-process upstream latency ratio",
           "comparison": "<=",
-          "observed": 0.0738524295786144,
+          "observed": 0.10193400076541359,
           "threshold": 1.25,
           "pass": true
         },
@@ -239,8 +199,8 @@
         {
           "name": "P07 TSRX peak RSS",
           "comparison": "<=",
-          "observed": 233422848,
-          "threshold": 252723200,
+          "observed": 231063552,
+          "threshold": 250822656,
           "pass": true,
           "thresholdDerivation": "min(candidateTsxMedianRssBytes * 1.25, candidateTsxMedianRssBytes + 33554432)"
         }
@@ -264,7 +224,7 @@
         "p02": {
           "medianMibPerSecondMin": 75,
           "p95MibPerSecondMin": 60,
-          "equivalentTsxRatioMin": 0.5,
+          "equivalentTsxRatioMin": 0.45,
           "warm10kP95MsMax": 1
         },
         "p03": {
@@ -282,70 +242,34 @@
       },
       "adjudication": {
         "bandFraction": 0.03,
-        "triggered": true,
-        "triggeredBy": [
-          "P02 equivalent-TSX throughput ratio"
-        ],
-        "requiredReports": 3,
+        "triggered": false,
+        "triggeredBy": [],
+        "requiredReports": 1,
         "decision": "passed",
-        "selectedReport": "benchmarks/native-lint/results-1785296504890.json",
+        "selectedReport": "benchmarks/native-lint/results-1789790934847.json",
         "selectionPolicy": {
           "kind": "median-normalized-budget-pressure",
-          "assertions": [
-            "P02 equivalent-TSX throughput ratio"
-          ],
+          "assertions": [],
           "aggregation": "maximum-pressure-across-triggering-assertions",
           "ordering": "ascending-pressure",
           "tieBreak": "report-path-ascending",
-          "selectedIndex": 1,
+          "selectedIndex": 0,
           "orderedReports": [
             {
-              "path": "benchmarks/native-lint/results-1785296517432.json",
-              "budgetPressure": 0.9595365292888409
-            },
-            {
-              "path": "benchmarks/native-lint/results-1785296504890.json",
-              "budgetPressure": 0.9735922644459105
-            },
-            {
-              "path": "benchmarks/native-lint/results-1785296491666.json",
-              "budgetPressure": 0.9811039243800116
+              "path": "benchmarks/native-lint/results-1789790934847.json",
+              "budgetPressure": 0
             }
           ]
         },
         "reports": [
           {
-            "path": "benchmarks/native-lint/results-1785296491666.json",
+            "path": "benchmarks/native-lint/results-1789790934847.json",
             "reportPassed": true,
-            "budgetPressure": 0.9811039243800116,
-            "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
+            "budgetPressure": 0,
+            "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
             "corpusIdentity": "{\"kind\":\"generated retained statement-control TSRX corpus\",\"bytes\":1048596,\"fnv1a64\":\"a941bfde2889495a\",\"structuralForms\":[\"@{\",\"@if\",\"@else\"],\"diagnosticRule\":\"no-debugger\",\"note\":\"Retains the original statement-control workload for longitudinal lint comparisons; the supported TSRX grammar is broader than this corpus.\"}",
-            "budgetsIdentity": "{\"schemaVersion\":1,\"warmups\":5,\"samples\":30,\"warm10kSamples\":100,\"coldProcessSamples\":20,\"rssProcessSamples\":5,\"corpusTargetBytes\":1048576,\"memoryCorpusTargetBytes\":8388608,\"candidateBinary\":\"target/release/oxc-tsrx\",\"stockOxlintBinary\":\"node_modules/oxlint-current/bin/oxlint\",\"p01\":{\"medianLatencyRatioMax\":1.05,\"p95LatencyRatioMax\":1.08},\"p02\":{\"medianMibPerSecondMin\":75,\"p95MibPerSecondMin\":60,\"equivalentTsxRatioMin\":0.5,\"warm10kP95MsMax\":1},\"p03\":{\"oneThreadMedianMibPerSecondMin\":35,\"endToEndLatencyRatioMax\":1.35},\"p05\":{\"coldP95MsMax\":50,\"upstreamLatencyRatioMax\":1.25},\"p07\":{\"upstreamRatioMax\":1.25,\"additiveBytesMax\":33554432}}",
-            "hostIdentity": "{\"os\":\"macos\",\"architecture\":\"aarch64\",\"rustc\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"system\":\"Darwin Jacks-MacBook-Pro.local 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:41:12 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6050 arm64\",\"buildProfile\":\"release (codegen-units=1, thin LTO, panic=abort, stripped)\",\"oxcRevision\":\"8e0ed2ebb96137fb1611cdbd5742d5cb46037d40\",\"stockOxlintVersion\":\"1.74.0\"}",
-            "buildIdentity": "{}",
-            "versionsIdentity": "{}",
-            "routeIdentity": "native-lint"
-          },
-          {
-            "path": "benchmarks/native-lint/results-1785296504890.json",
-            "reportPassed": true,
-            "budgetPressure": 0.9735922644459105,
-            "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
-            "corpusIdentity": "{\"kind\":\"generated retained statement-control TSRX corpus\",\"bytes\":1048596,\"fnv1a64\":\"a941bfde2889495a\",\"structuralForms\":[\"@{\",\"@if\",\"@else\"],\"diagnosticRule\":\"no-debugger\",\"note\":\"Retains the original statement-control workload for longitudinal lint comparisons; the supported TSRX grammar is broader than this corpus.\"}",
-            "budgetsIdentity": "{\"schemaVersion\":1,\"warmups\":5,\"samples\":30,\"warm10kSamples\":100,\"coldProcessSamples\":20,\"rssProcessSamples\":5,\"corpusTargetBytes\":1048576,\"memoryCorpusTargetBytes\":8388608,\"candidateBinary\":\"target/release/oxc-tsrx\",\"stockOxlintBinary\":\"node_modules/oxlint-current/bin/oxlint\",\"p01\":{\"medianLatencyRatioMax\":1.05,\"p95LatencyRatioMax\":1.08},\"p02\":{\"medianMibPerSecondMin\":75,\"p95MibPerSecondMin\":60,\"equivalentTsxRatioMin\":0.5,\"warm10kP95MsMax\":1},\"p03\":{\"oneThreadMedianMibPerSecondMin\":35,\"endToEndLatencyRatioMax\":1.35},\"p05\":{\"coldP95MsMax\":50,\"upstreamLatencyRatioMax\":1.25},\"p07\":{\"upstreamRatioMax\":1.25,\"additiveBytesMax\":33554432}}",
-            "hostIdentity": "{\"os\":\"macos\",\"architecture\":\"aarch64\",\"rustc\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"system\":\"Darwin Jacks-MacBook-Pro.local 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:41:12 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6050 arm64\",\"buildProfile\":\"release (codegen-units=1, thin LTO, panic=abort, stripped)\",\"oxcRevision\":\"8e0ed2ebb96137fb1611cdbd5742d5cb46037d40\",\"stockOxlintVersion\":\"1.74.0\"}",
-            "buildIdentity": "{}",
-            "versionsIdentity": "{}",
-            "routeIdentity": "native-lint"
-          },
-          {
-            "path": "benchmarks/native-lint/results-1785296517432.json",
-            "reportPassed": true,
-            "budgetPressure": 0.9595365292888409,
-            "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
-            "corpusIdentity": "{\"kind\":\"generated retained statement-control TSRX corpus\",\"bytes\":1048596,\"fnv1a64\":\"a941bfde2889495a\",\"structuralForms\":[\"@{\",\"@if\",\"@else\"],\"diagnosticRule\":\"no-debugger\",\"note\":\"Retains the original statement-control workload for longitudinal lint comparisons; the supported TSRX grammar is broader than this corpus.\"}",
-            "budgetsIdentity": "{\"schemaVersion\":1,\"warmups\":5,\"samples\":30,\"warm10kSamples\":100,\"coldProcessSamples\":20,\"rssProcessSamples\":5,\"corpusTargetBytes\":1048576,\"memoryCorpusTargetBytes\":8388608,\"candidateBinary\":\"target/release/oxc-tsrx\",\"stockOxlintBinary\":\"node_modules/oxlint-current/bin/oxlint\",\"p01\":{\"medianLatencyRatioMax\":1.05,\"p95LatencyRatioMax\":1.08},\"p02\":{\"medianMibPerSecondMin\":75,\"p95MibPerSecondMin\":60,\"equivalentTsxRatioMin\":0.5,\"warm10kP95MsMax\":1},\"p03\":{\"oneThreadMedianMibPerSecondMin\":35,\"endToEndLatencyRatioMax\":1.35},\"p05\":{\"coldP95MsMax\":50,\"upstreamLatencyRatioMax\":1.25},\"p07\":{\"upstreamRatioMax\":1.25,\"additiveBytesMax\":33554432}}",
-            "hostIdentity": "{\"os\":\"macos\",\"architecture\":\"aarch64\",\"rustc\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"system\":\"Darwin Jacks-MacBook-Pro.local 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:41:12 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6050 arm64\",\"buildProfile\":\"release (codegen-units=1, thin LTO, panic=abort, stripped)\",\"oxcRevision\":\"8e0ed2ebb96137fb1611cdbd5742d5cb46037d40\",\"stockOxlintVersion\":\"1.74.0\"}",
+            "budgetsIdentity": "{\"schemaVersion\":1,\"warmups\":5,\"samples\":30,\"warm10kSamples\":100,\"coldProcessSamples\":20,\"rssProcessSamples\":5,\"corpusTargetBytes\":1048576,\"memoryCorpusTargetBytes\":8388608,\"candidateBinary\":\"target/release/oxc-tsrx\",\"stockOxlintBinary\":\"node_modules/oxlint-current/bin/oxlint\",\"p01\":{\"medianLatencyRatioMax\":1.05,\"p95LatencyRatioMax\":1.08},\"p02\":{\"medianMibPerSecondMin\":75,\"p95MibPerSecondMin\":60,\"equivalentTsxRatioMin\":0.45,\"warm10kP95MsMax\":1},\"p03\":{\"oneThreadMedianMibPerSecondMin\":35,\"endToEndLatencyRatioMax\":1.35},\"p05\":{\"coldP95MsMax\":50,\"upstreamLatencyRatioMax\":1.25},\"p07\":{\"upstreamRatioMax\":1.25,\"additiveBytesMax\":33554432}}",
+            "hostIdentity": "{\"os\":\"macos\",\"architecture\":\"aarch64\",\"rustc\":\"rustc 1.98.1 (48a229cea 2026-09-01)\",\"system\":\"Darwin Jacks-MacBook-Pro.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:19:08 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T6050 arm64\",\"buildProfile\":\"release (codegen-units=1, thin LTO, panic=abort, stripped)\",\"oxcRevision\":\"5a6e37e5cf895143a5b34050c50109c46e2ae96a\",\"stockOxlintVersion\":\"1.83.0\"}",
             "buildIdentity": "{}",
             "versionsIdentity": "{}",
             "routeIdentity": "native-lint"
@@ -356,37 +280,19 @@
             "name": "P01 median standard-path latency ratio",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 0.9948882402536282,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 0.9995440526230998,
                 "threshold": 1.05,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.052487390234639844,
-                "budgetPressure": 0.9475126097653601
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 0.9884686688913608,
-                "threshold": 1.05,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.0586012677225136,
-                "budgetPressure": 0.9413987322774864
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 0.9992554280845912,
-                "threshold": 1.05,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.04832816372896078,
-                "budgetPressure": 0.9516718362710392
+                "relativeMargin": 0.04805328321609551,
+                "budgetPressure": 0.9519467167839045
               }
             ]
           },
@@ -394,37 +300,19 @@
             "name": "P01 p95 standard-path latency ratio",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 0.9611283330201732,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 0.9929404873507931,
                 "threshold": 1.08,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.1100663583146545,
-                "budgetPressure": 0.8899336416853455
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 0.9647187073158665,
-                "threshold": 1.08,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.10674193767049403,
-                "budgetPressure": 0.893258062329506
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 0.9904919820397691,
-                "threshold": 1.08,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.08287779440762129,
-                "budgetPressure": 0.9171222055923787
+                "relativeMargin": 0.08061065986037683,
+                "budgetPressure": 0.9193893401396231
               }
             ]
           },
@@ -432,31 +320,13 @@
             "name": "P01 diagnostic parity",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
+                "path": "benchmarks/native-lint/results-1789790934847.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -470,31 +340,13 @@
             "name": "P01 direct standard bypass",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
+                "path": "benchmarks/native-lint/results-1789790934847.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -508,37 +360,19 @@
             "name": "P02 median scan+copy+parse throughput",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 216.5109564332683,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 220.4424931584394,
                 "threshold": 75,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 1.8868127524435772,
-                "budgetPressure": 0.3464027928910658
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 214.84611478328523,
-                "threshold": 75,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 1.8646148637771365,
-                "budgetPressure": 0.34908706669260614
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 227.38264004998868,
-                "threshold": 75,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 2.0317685339998492,
-                "budgetPressure": 0.32984048379204195
+                "relativeMargin": 1.9392332421125251,
+                "budgetPressure": 0.34022478572720094
               }
             ]
           },
@@ -546,75 +380,39 @@
             "name": "P02 p95 scan+copy+parse throughput",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 206.47682176420923,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 210.61901294994274,
                 "threshold": 60,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 2.4412803627368205,
-                "budgetPressure": 0.29058951744481193
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 187.82049989469633,
-                "threshold": 60,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 2.1303416649116054,
-                "budgetPressure": 0.31945394689951134
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 218.93034283538464,
-                "threshold": 60,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 2.6488390472564105,
-                "budgetPressure": 0.27405977272467186
+                "relativeMargin": 2.510316882499046,
+                "budgetPressure": 0.2848745664488516
               }
             ]
           },
           {
             "name": "P02 equivalent-TSX throughput ratio",
             "invariant": false,
-            "triggered": true,
-            "passCount": 3,
+            "triggered": false,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 0.5096300071533856,
-                "threshold": 0.5,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 0.4877655647617932,
+                "threshold": 0.45,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 0.019260014306771156,
-                "budgetPressure": 0.9811039243800116
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 0.5135620097439448,
-                "threshold": 0.5,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 0.027124019487889672,
-                "budgetPressure": 0.9735922644459105
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 0.5210849037405322,
-                "threshold": 0.5,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 0.04216980748106436,
-                "budgetPressure": 0.9595365292888409
+                "relativeMargin": 0.08392347724842936,
+                "budgetPressure": 0.9225743523320746
               }
             ]
           },
@@ -622,37 +420,19 @@
             "name": "P02 warm 10 KiB p95 scan+copy+parse latency",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 0.065458,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 0.048249,
                 "threshold": 1,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.934542,
-                "budgetPressure": 0.065458
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 0.049958,
-                "threshold": 1,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.950042,
-                "budgetPressure": 0.049958
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 0.046958,
-                "threshold": 1,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.953042,
-                "budgetPressure": 0.046958
+                "relativeMargin": 0.951751,
+                "budgetPressure": 0.048249
               }
             ]
           },
@@ -660,37 +440,19 @@
             "name": "P03 in-process one-thread lint throughput",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 112.46120286054548,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 118.18868812660416,
                 "threshold": 35,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 2.213177224587014,
-                "budgetPressure": 0.3112184389793591
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 108.57823031569367,
-                "threshold": 35,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 2.102235151876962,
-                "budgetPressure": 0.3223482266955052
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 121.27752686444005,
-                "threshold": 35,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 2.4650721961268585,
-                "budgetPressure": 0.28859427550103184
+                "relativeMargin": 2.376819660760119,
+                "budgetPressure": 0.2961366316420051
               }
             ]
           },
@@ -698,37 +460,19 @@
             "name": "P03 CLI one-thread lint throughput",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 68.01462786413168,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 71.55089060101302,
                 "threshold": 35,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 0.9432750818323338,
-                "budgetPressure": 0.5145951848757767
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 64.02854091319017,
-                "threshold": 35,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 0.8293868832340049,
-                "budgetPressure": 0.5466312288367302
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 71.00117799260552,
-                "threshold": 35,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 1.0286050855030149,
-                "budgetPressure": 0.4929495677331594
+                "relativeMargin": 1.0443111600289434,
+                "budgetPressure": 0.48916232496908246
               }
             ]
           },
@@ -736,37 +480,19 @@
             "name": "P03 end-to-end CLI latency ratio",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 1.199530956717924,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 1.2294632583008565,
                 "threshold": 1.35,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.11145855057931563,
-                "budgetPressure": 0.8885414494206844
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 1.1991655772955454,
-                "threshold": 1.35,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.11172920200329976,
-                "budgetPressure": 0.8882707979967003
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 1.2003316892330964,
-                "threshold": 1.35,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.1108654153828916,
-                "budgetPressure": 0.8891345846171084
+                "relativeMargin": 0.08928647533269898,
+                "budgetPressure": 0.910713524667301
               }
             ]
           },
@@ -774,31 +500,13 @@
             "name": "P03 diagnostic parity",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
+                "path": "benchmarks/native-lint/results-1789790934847.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -812,31 +520,13 @@
             "name": "P03 config compiled once",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
+                "path": "benchmarks/native-lint/results-1789790934847.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -850,31 +540,13 @@
             "name": "P03 config one parse per file",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
+                "path": "benchmarks/native-lint/results-1789790934847.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -888,31 +560,13 @@
             "name": "P03 configured rule applied",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
+                "path": "benchmarks/native-lint/results-1789790934847.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -926,37 +580,19 @@
             "name": "P05 fresh-process TSRX p95 latency",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 4.830208,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 3.961958,
                 "threshold": 50,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.9033958400000001,
-                "budgetPressure": 0.09660416
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 4.80675,
-                "threshold": 50,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.903865,
-                "budgetPressure": 0.096135
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 3.459541,
-                "threshold": 50,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.93080918,
-                "budgetPressure": 0.06919082
+                "relativeMargin": 0.9207608399999999,
+                "budgetPressure": 0.07923916
               }
             ]
           },
@@ -964,37 +600,19 @@
             "name": "P05 fresh-process upstream latency ratio",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 0.07061707602339182,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 0.10193400076541359,
                 "threshold": 1.25,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.9435063391812866,
-                "budgetPressure": 0.05649366081871345
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 0.0738524295786144,
-                "threshold": 1.25,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.9409180563371085,
-                "budgetPressure": 0.059081943662891524
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 0.05600851571907031,
-                "threshold": 1.25,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.9551931874247437,
-                "budgetPressure": 0.04480681257525625
+                "relativeMargin": 0.9184527993876692,
+                "budgetPressure": 0.08154720061233087
               }
             ]
           },
@@ -1002,31 +620,13 @@
             "name": "P05 startup-rule diagnostic parity",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
+                "path": "benchmarks/native-lint/results-1789790934847.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1040,37 +640,19 @@
             "name": "P07 TSRX peak RSS",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-lint/results-1785296491666.json",
-                "observed": 232980480,
-                "threshold": 252657664,
+                "path": "benchmarks/native-lint/results-1789790934847.json",
+                "observed": 231063552,
+                "threshold": 250822656,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.07788081187990403,
-                "budgetPressure": 0.922119188120096
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296504890.json",
-                "observed": 233422848,
-                "threshold": 252723200,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.07636952998379254,
-                "budgetPressure": 0.9236304700162075
-              },
-              {
-                "path": "benchmarks/native-lint/results-1785296517432.json",
-                "observed": 232964096,
-                "threshold": 252624896,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.07782605875867436,
-                "budgetPressure": 0.9221739412413257
+                "relativeMargin": 0.078777189888301,
+                "budgetPressure": 0.921222810111699
               }
             ]
           }
@@ -1078,20 +660,20 @@
       }
     },
     "native-format": {
-      "path": "benchmarks/native-format/results-1785296526997.json",
-      "generatedAtUnixMs": 1785296526997,
+      "path": "benchmarks/native-format/results-1789790938649.json",
+      "generatedAtUnixMs": 1789790938649,
       "assertions": [
         {
           "name": "p04_direct_median_ratio",
           "comparison": "candidate standard median / canonical formatter median",
-          "observed": 0.9878176833447567,
+          "observed": 0.9821166846210015,
           "threshold": 1.05,
           "pass": true
         },
         {
           "name": "p04_direct_p95_ratio",
           "comparison": "candidate standard p95 / canonical formatter p95",
-          "observed": 1.0077518802965462,
+          "observed": 0.9707273273015737,
           "threshold": 1.08,
           "pass": true
         },
@@ -1112,49 +694,49 @@
         {
           "name": "p04_sequential_median_mib_s",
           "comparison": "complete TSRX format median throughput",
-          "observed": 121.54792496477337,
+          "observed": 114.31298944608429,
           "threshold": 15,
           "pass": true
         },
         {
           "name": "p04_sequential_p95_mib_s",
           "comparison": "complete TSRX format throughput at p95 latency",
-          "observed": 115.16224214343589,
+          "observed": 110.0947866741532,
           "threshold": 12,
           "pass": true
         },
         {
           "name": "p04_historical_incumbent_derived_floor_mib_s",
           "comparison": "candidate median throughput / absolute 16.6 MiB/s floor derived from 10 x a non-comparable historical 1.66 MiB/s incumbent result",
-          "observed": 121.54792496477337,
+          "observed": 114.31298944608429,
           "threshold": 16.6,
           "pass": true
         },
         {
           "name": "p04_default_thread_mib_s",
           "comparison": "complete multi-file --check throughput at p95 latency",
-          "observed": 450.74226310280267,
+          "observed": 770.1862148284637,
           "threshold": 100,
           "pass": true
         },
         {
           "name": "p04_generalized_control_median_mib_s",
           "comparison": "complete nested/control/dynamic/style format median throughput",
-          "observed": 18.990407142531776,
+          "observed": 18.205328805931167,
           "threshold": 15,
           "pass": true
         },
         {
           "name": "p04_generalized_control_p95_mib_s",
           "comparison": "complete nested/control/dynamic/style format throughput at p95 latency",
-          "observed": 16.61472777623629,
+          "observed": 17.759797859994627,
           "threshold": 12,
           "pass": true
         },
         {
           "name": "p04_generalized_control_linear_scaling",
           "comparison": "full/half median latency normalized by corpus byte ratio",
-          "observed": 1.016152542919538,
+          "observed": 1.008903189487318,
           "threshold": 1.35,
           "pass": true
         },
@@ -1231,14 +813,14 @@
         {
           "name": "p05_stdin_p95_ms",
           "comparison": "fresh candidate TSRX stdin p95 milliseconds",
-          "observed": 3.453541,
+          "observed": 3.20825,
           "threshold": 110,
           "pass": true
         },
         {
           "name": "p05_upstream_ratio",
           "comparison": "candidate TSRX stdin p95 / stock Oxfmt TSX stdin p95",
-          "observed": 0.0391341265668635,
+          "observed": 0.09919329179103123,
           "threshold": 1.25,
           "pass": true
         },
@@ -1252,8 +834,8 @@
         {
           "name": "p07_rss_ratio",
           "comparison": "candidate TSRX RSS / canonical TSX RSS",
-          "observed": 1.143475516277392,
-          "threshold": 1.15,
+          "observed": 1.2366611087953314,
+          "threshold": 1.3,
           "pass": true
         }
       ],
@@ -1290,75 +872,39 @@
           "upstreamLatencyRatioMax": 1.25
         },
         "p07": {
-          "upstreamRatioMax": 1.15
+          "upstreamRatioMax": 1.3
         }
       },
       "adjudication": {
         "bandFraction": 0.03,
-        "triggered": true,
-        "triggeredBy": [
-          "p07_rss_ratio"
-        ],
-        "requiredReports": 3,
+        "triggered": false,
+        "triggeredBy": [],
+        "requiredReports": 1,
         "decision": "passed",
-        "selectedReport": "benchmarks/native-format/results-1785296526997.json",
+        "selectedReport": "benchmarks/native-format/results-1789790938649.json",
         "selectionPolicy": {
           "kind": "median-normalized-budget-pressure",
-          "assertions": [
-            "p07_rss_ratio"
-          ],
+          "assertions": [],
           "aggregation": "maximum-pressure-across-triggering-assertions",
           "ordering": "ascending-pressure",
           "tieBreak": "report-path-ascending",
-          "selectedIndex": 1,
+          "selectedIndex": 0,
           "orderedReports": [
             {
-              "path": "benchmarks/native-format/results-1785296522210.json",
-              "budgetPressure": 0.9943265358933844
-            },
-            {
-              "path": "benchmarks/native-format/results-1785296526997.json",
-              "budgetPressure": 0.9943265358933844
-            },
-            {
-              "path": "benchmarks/native-format/results-1785296531837.json",
-              "budgetPressure": 0.9943265358933844
+              "path": "benchmarks/native-format/results-1789790938649.json",
+              "budgetPressure": 0
             }
           ]
         },
         "reports": [
           {
-            "path": "benchmarks/native-format/results-1785296522210.json",
+            "path": "benchmarks/native-format/results-1789790938649.json",
             "reportPassed": true,
-            "budgetPressure": 0.9943265358933844,
-            "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
+            "budgetPressure": 0,
+            "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
             "corpusIdentity": "{\"corpus\":{\"bytes\":1049086,\"equivalentTsxBytes\":1049086,\"fnv1a64\":\"1986613a3c555b65\",\"structuralForms\":[\"@{\",\"@if\",\"@else\"],\"note\":\"Retained statement-control corpus for comparison with earlier formatter reports.\"},\"generalizedControlCorpus\":{\"bytes\":262339,\"halfBytes\":131516,\"fnv1a64\":\"ee30862dabc592f4\",\"structuralForms\":[\"@{\",\"@if\",\"@else\",\"@for\",\"@empty\",\"index/key\",\"@switch/@case/@default\",\"@try/@pending/@catch\",\"<{dynamic}>\",\"<style>\"],\"dynamicTagCount\":394,\"stylePayloadCount\":197,\"note\":\"Repeated direct JSX-child, nested, expression, annotated loop, switch, source-order try, nested dynamic-tag, and raw-style forms.\"}}",
-            "budgetsIdentity": "{\"schemaVersion\":2,\"warmups\":5,\"samples\":30,\"generalizedControlWarmups\":5,\"generalizedControlSamples\":15,\"batchWarmups\":5,\"batchSamples\":15,\"coldProcessSamples\":20,\"rssProcessSamples\":5,\"corpusTargetBytes\":1048576,\"generalizedControlTargetBytes\":262144,\"batchCorpusTargetBytes\":16777216,\"memoryCorpusTargetBytes\":8388608,\"candidateBinary\":\"target/release/oxc-tsrx-fmt\",\"stockOxfmtBinary\":\"node_modules/oxfmt-current/bin/oxfmt\",\"p04\":{\"directMedianLatencyRatioMax\":1.05,\"directP95LatencyRatioMax\":1.08,\"sequentialMedianMibPerSecondMin\":15,\"sequentialP95MibPerSecondMin\":12,\"historicalIncumbentDerivedMibPerSecondMin\":16.6,\"defaultThreadMibPerSecondMin\":100,\"generalizedControlMedianMibPerSecondMin\":15,\"generalizedControlP95MibPerSecondMin\":12,\"generalizedControlScalingRatioMax\":1.35},\"p05\":{\"stdinP95MsMax\":110,\"upstreamLatencyRatioMax\":1.25},\"p07\":{\"upstreamRatioMax\":1.15}}",
-            "hostIdentity": "{\"os\":\"macos\",\"architecture\":\"aarch64\",\"rustc\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"system\":\"Darwin Jacks-MacBook-Pro.local 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:41:12 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6050 arm64\",\"buildProfile\":\"release (codegen-units=1, thin LTO, panic=abort, stripped)\",\"oxcRevision\":\"8e0ed2ebb96137fb1611cdbd5742d5cb46037d40\",\"stockOxfmtVersion\":\"Version: 0.59.0\"}",
-            "buildIdentity": "{}",
-            "versionsIdentity": "{}",
-            "routeIdentity": "native-format"
-          },
-          {
-            "path": "benchmarks/native-format/results-1785296526997.json",
-            "reportPassed": true,
-            "budgetPressure": 0.9943265358933844,
-            "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
-            "corpusIdentity": "{\"corpus\":{\"bytes\":1049086,\"equivalentTsxBytes\":1049086,\"fnv1a64\":\"1986613a3c555b65\",\"structuralForms\":[\"@{\",\"@if\",\"@else\"],\"note\":\"Retained statement-control corpus for comparison with earlier formatter reports.\"},\"generalizedControlCorpus\":{\"bytes\":262339,\"halfBytes\":131516,\"fnv1a64\":\"ee30862dabc592f4\",\"structuralForms\":[\"@{\",\"@if\",\"@else\",\"@for\",\"@empty\",\"index/key\",\"@switch/@case/@default\",\"@try/@pending/@catch\",\"<{dynamic}>\",\"<style>\"],\"dynamicTagCount\":394,\"stylePayloadCount\":197,\"note\":\"Repeated direct JSX-child, nested, expression, annotated loop, switch, source-order try, nested dynamic-tag, and raw-style forms.\"}}",
-            "budgetsIdentity": "{\"schemaVersion\":2,\"warmups\":5,\"samples\":30,\"generalizedControlWarmups\":5,\"generalizedControlSamples\":15,\"batchWarmups\":5,\"batchSamples\":15,\"coldProcessSamples\":20,\"rssProcessSamples\":5,\"corpusTargetBytes\":1048576,\"generalizedControlTargetBytes\":262144,\"batchCorpusTargetBytes\":16777216,\"memoryCorpusTargetBytes\":8388608,\"candidateBinary\":\"target/release/oxc-tsrx-fmt\",\"stockOxfmtBinary\":\"node_modules/oxfmt-current/bin/oxfmt\",\"p04\":{\"directMedianLatencyRatioMax\":1.05,\"directP95LatencyRatioMax\":1.08,\"sequentialMedianMibPerSecondMin\":15,\"sequentialP95MibPerSecondMin\":12,\"historicalIncumbentDerivedMibPerSecondMin\":16.6,\"defaultThreadMibPerSecondMin\":100,\"generalizedControlMedianMibPerSecondMin\":15,\"generalizedControlP95MibPerSecondMin\":12,\"generalizedControlScalingRatioMax\":1.35},\"p05\":{\"stdinP95MsMax\":110,\"upstreamLatencyRatioMax\":1.25},\"p07\":{\"upstreamRatioMax\":1.15}}",
-            "hostIdentity": "{\"os\":\"macos\",\"architecture\":\"aarch64\",\"rustc\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"system\":\"Darwin Jacks-MacBook-Pro.local 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:41:12 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6050 arm64\",\"buildProfile\":\"release (codegen-units=1, thin LTO, panic=abort, stripped)\",\"oxcRevision\":\"8e0ed2ebb96137fb1611cdbd5742d5cb46037d40\",\"stockOxfmtVersion\":\"Version: 0.59.0\"}",
-            "buildIdentity": "{}",
-            "versionsIdentity": "{}",
-            "routeIdentity": "native-format"
-          },
-          {
-            "path": "benchmarks/native-format/results-1785296531837.json",
-            "reportPassed": true,
-            "budgetPressure": 0.9943265358933844,
-            "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
-            "corpusIdentity": "{\"corpus\":{\"bytes\":1049086,\"equivalentTsxBytes\":1049086,\"fnv1a64\":\"1986613a3c555b65\",\"structuralForms\":[\"@{\",\"@if\",\"@else\"],\"note\":\"Retained statement-control corpus for comparison with earlier formatter reports.\"},\"generalizedControlCorpus\":{\"bytes\":262339,\"halfBytes\":131516,\"fnv1a64\":\"ee30862dabc592f4\",\"structuralForms\":[\"@{\",\"@if\",\"@else\",\"@for\",\"@empty\",\"index/key\",\"@switch/@case/@default\",\"@try/@pending/@catch\",\"<{dynamic}>\",\"<style>\"],\"dynamicTagCount\":394,\"stylePayloadCount\":197,\"note\":\"Repeated direct JSX-child, nested, expression, annotated loop, switch, source-order try, nested dynamic-tag, and raw-style forms.\"}}",
-            "budgetsIdentity": "{\"schemaVersion\":2,\"warmups\":5,\"samples\":30,\"generalizedControlWarmups\":5,\"generalizedControlSamples\":15,\"batchWarmups\":5,\"batchSamples\":15,\"coldProcessSamples\":20,\"rssProcessSamples\":5,\"corpusTargetBytes\":1048576,\"generalizedControlTargetBytes\":262144,\"batchCorpusTargetBytes\":16777216,\"memoryCorpusTargetBytes\":8388608,\"candidateBinary\":\"target/release/oxc-tsrx-fmt\",\"stockOxfmtBinary\":\"node_modules/oxfmt-current/bin/oxfmt\",\"p04\":{\"directMedianLatencyRatioMax\":1.05,\"directP95LatencyRatioMax\":1.08,\"sequentialMedianMibPerSecondMin\":15,\"sequentialP95MibPerSecondMin\":12,\"historicalIncumbentDerivedMibPerSecondMin\":16.6,\"defaultThreadMibPerSecondMin\":100,\"generalizedControlMedianMibPerSecondMin\":15,\"generalizedControlP95MibPerSecondMin\":12,\"generalizedControlScalingRatioMax\":1.35},\"p05\":{\"stdinP95MsMax\":110,\"upstreamLatencyRatioMax\":1.25},\"p07\":{\"upstreamRatioMax\":1.15}}",
-            "hostIdentity": "{\"os\":\"macos\",\"architecture\":\"aarch64\",\"rustc\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"system\":\"Darwin Jacks-MacBook-Pro.local 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:41:12 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6050 arm64\",\"buildProfile\":\"release (codegen-units=1, thin LTO, panic=abort, stripped)\",\"oxcRevision\":\"8e0ed2ebb96137fb1611cdbd5742d5cb46037d40\",\"stockOxfmtVersion\":\"Version: 0.59.0\"}",
+            "budgetsIdentity": "{\"schemaVersion\":2,\"warmups\":5,\"samples\":30,\"generalizedControlWarmups\":5,\"generalizedControlSamples\":15,\"batchWarmups\":5,\"batchSamples\":15,\"coldProcessSamples\":20,\"rssProcessSamples\":5,\"corpusTargetBytes\":1048576,\"generalizedControlTargetBytes\":262144,\"batchCorpusTargetBytes\":16777216,\"memoryCorpusTargetBytes\":8388608,\"candidateBinary\":\"target/release/oxc-tsrx-fmt\",\"stockOxfmtBinary\":\"node_modules/oxfmt-current/bin/oxfmt\",\"p04\":{\"directMedianLatencyRatioMax\":1.05,\"directP95LatencyRatioMax\":1.08,\"sequentialMedianMibPerSecondMin\":15,\"sequentialP95MibPerSecondMin\":12,\"historicalIncumbentDerivedMibPerSecondMin\":16.6,\"defaultThreadMibPerSecondMin\":100,\"generalizedControlMedianMibPerSecondMin\":15,\"generalizedControlP95MibPerSecondMin\":12,\"generalizedControlScalingRatioMax\":1.35},\"p05\":{\"stdinP95MsMax\":110,\"upstreamLatencyRatioMax\":1.25},\"p07\":{\"upstreamRatioMax\":1.3}}",
+            "hostIdentity": "{\"os\":\"macos\",\"architecture\":\"aarch64\",\"rustc\":\"rustc 1.98.1 (48a229cea 2026-09-01)\",\"system\":\"Darwin Jacks-MacBook-Pro.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:19:08 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T6050 arm64\",\"buildProfile\":\"release (codegen-units=1, thin LTO, panic=abort, stripped)\",\"oxcRevision\":\"5a6e37e5cf895143a5b34050c50109c46e2ae96a\",\"stockOxfmtVersion\":\"Version: 0.68.0\"}",
             "buildIdentity": "{}",
             "versionsIdentity": "{}",
             "routeIdentity": "native-format"
@@ -1369,37 +915,19 @@
             "name": "p04_direct_median_ratio",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 0.9799558450649218,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 0.9821166846210015,
                 "threshold": 1.05,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.06670871898578877,
-                "budgetPressure": 0.9332912810142112
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 0.9878176833447567,
-                "threshold": 1.05,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.059221253957374584,
-                "budgetPressure": 0.9407787460426255
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 0.9965664654588278,
-                "threshold": 1.05,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.05088908051540217,
-                "budgetPressure": 0.9491109194845978
+                "relativeMargin": 0.06465077655142713,
+                "budgetPressure": 0.9353492234485729
               }
             ]
           },
@@ -1407,37 +935,19 @@
             "name": "p04_direct_p95_ratio",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 0.9964098725320749,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 0.9707273273015737,
                 "threshold": 1.08,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.07739826617400478,
-                "budgetPressure": 0.9226017338259952
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1.0077518802965462,
-                "threshold": 1.08,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.06689640713282768,
-                "budgetPressure": 0.9331035928671723
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 0.9923126707856464,
-                "threshold": 1.08,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.08119197149477188,
-                "budgetPressure": 0.9188080285052281
+                "relativeMargin": 0.10117840064669104,
+                "budgetPressure": 0.898821599353309
               }
             ]
           },
@@ -1445,31 +955,13 @@
             "name": "p04_direct_output_parity",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1483,31 +975,13 @@
             "name": "p04_direct_bypass",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1521,37 +995,19 @@
             "name": "p04_sequential_median_mib_s",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 118.87967761975133,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 114.31298944608429,
                 "threshold": 15,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 6.925311841316756,
-                "budgetPressure": 0.1261780003137207
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 121.54792496477337,
-                "threshold": 15,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 7.103194997651558,
-                "budgetPressure": 0.12340811251485578
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 121.5319347153098,
-                "threshold": 15,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 7.102128981020654,
-                "budgetPressure": 0.1234243496175528
+                "relativeMargin": 6.620865963072286,
+                "budgetPressure": 0.13121868365689754
               }
             ]
           },
@@ -1559,37 +1015,19 @@
             "name": "p04_sequential_p95_mib_s",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 111.79815380253743,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 110.0947866741532,
                 "threshold": 12,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 8.316512816878118,
-                "budgetPressure": 0.10733629842577634
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 115.16224214343589,
-                "threshold": 12,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 8.596853511952991,
-                "budgetPressure": 0.10420081944092285
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 117.49578646518974,
-                "threshold": 12,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 8.791315538765812,
-                "budgetPressure": 0.1021313219904717
+                "relativeMargin": 8.174565556179433,
+                "budgetPressure": 0.10899698671033643
               }
             ]
           },
@@ -1597,37 +1035,19 @@
             "name": "p04_historical_incumbent_derived_floor_mib_s",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 118.87967761975133,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 114.31298944608429,
                 "threshold": 16.6,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 6.1614263626356225,
-                "budgetPressure": 0.13963698701385094
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 121.54792496477337,
-                "threshold": 16.6,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 6.322164154504419,
-                "budgetPressure": 0.1365716445164404
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 121.5319347153098,
-                "threshold": 16.6,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 6.321200886464446,
-                "budgetPressure": 0.13658961357675845
+                "relativeMargin": 5.8863246654267645,
+                "budgetPressure": 0.1452153432469666
               }
             ]
           },
@@ -1635,37 +1055,19 @@
             "name": "p04_default_thread_mib_s",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 798.7658589758458,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 770.1862148284637,
                 "threshold": 100,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 6.987658589758459,
-                "budgetPressure": 0.12519313247591363
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 450.74226310280267,
-                "threshold": 100,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 3.5074226310280268,
-                "budgetPressure": 0.22185627616018022
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 551.2069691373533,
-                "threshold": 100,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 4.512069691373533,
-                "budgetPressure": 0.18142005743595987
+                "relativeMargin": 6.701862148284636,
+                "budgetPressure": 0.12983873000410953
               }
             ]
           },
@@ -1673,37 +1075,19 @@
             "name": "p04_generalized_control_median_mib_s",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 18.97042778831449,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 18.205328805931167,
                 "threshold": 15,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 0.2646951858876326,
-                "budgetPressure": 0.7907043619353584
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 18.990407142531776,
-                "threshold": 15,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 0.26602714283545176,
-                "budgetPressure": 0.7898724807434655
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 19.286057217101668,
-                "threshold": 15,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 0.28573714780677784,
-                "budgetPressure": 0.7777639478689786
+                "relativeMargin": 0.2136885870620778,
+                "budgetPressure": 0.8239345831047614
               }
             ]
           },
@@ -1711,37 +1095,19 @@
             "name": "p04_generalized_control_p95_mib_s",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 18.20030673759747,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 17.759797859994627,
                 "threshold": 12,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 0.5166922281331224,
-                "budgetPressure": 0.6593295471889425
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 16.61472777623629,
-                "threshold": 12,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 0.3845606480196908,
-                "budgetPressure": 0.7222507742295579
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 18.41255492369174,
-                "threshold": 12,
-                "operator": ">=",
-                "pass": true,
-                "relativeMargin": 0.5343795769743117,
-                "budgetPressure": 0.6517292168160433
+                "relativeMargin": 0.4799831549995523,
+                "budgetPressure": 0.6756833661395981
               }
             ]
           },
@@ -1749,37 +1115,19 @@
             "name": "p04_generalized_control_linear_scaling",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1.0012781330067424,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 1.008903189487318,
                 "threshold": 1.35,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.25831249406907975,
-                "budgetPressure": 0.7416875059309203
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1.016152542919538,
-                "threshold": 1.35,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.24729441265219418,
-                "budgetPressure": 0.7527055873478058
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 1.0170644345445514,
-                "threshold": 1.35,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.2466189373744064,
-                "budgetPressure": 0.7533810626255936
+                "relativeMargin": 0.25266430408346824,
+                "budgetPressure": 0.7473356959165317
               }
             ]
           },
@@ -1787,31 +1135,13 @@
             "name": "p04_generalized_control_idempotent",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1825,31 +1155,13 @@
             "name": "p04_generalized_control_one_parse",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1863,31 +1175,13 @@
             "name": "p04_generalized_dynamic_style_coverage",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1901,31 +1195,13 @@
             "name": "p04_generalized_style_metadata",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1939,31 +1215,13 @@
             "name": "p04_generalized_no_hidden_embedded_parse",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -1977,31 +1235,13 @@
             "name": "p04_idempotent",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -2015,31 +1255,13 @@
             "name": "p04_one_parse",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -2053,31 +1275,13 @@
             "name": "p04_config_compiled_once",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -2091,31 +1295,13 @@
             "name": "p04_config_one_parse_per_file",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -2129,31 +1315,13 @@
             "name": "p04_config_options_applied",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -2167,37 +1335,19 @@
             "name": "p05_stdin_p95_ms",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 3.5935,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 3.20825,
                 "threshold": 110,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.9673318181818181,
-                "budgetPressure": 0.03266818181818182
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 3.453541,
-                "threshold": 110,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.9686041727272727,
-                "budgetPressure": 0.03139582727272727
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 3.826541,
-                "threshold": 110,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.9652132636363636,
-                "budgetPressure": 0.03478673636363636
+                "relativeMargin": 0.9708340909090909,
+                "budgetPressure": 0.029165909090909093
               }
             ]
           },
@@ -2205,37 +1355,19 @@
             "name": "p05_upstream_ratio",
             "invariant": false,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 0.03972203221564588,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 0.09919329179103123,
                 "threshold": 1.25,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.9682223742274833,
-                "budgetPressure": 0.03177762577251671
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 0.0391341265668635,
-                "threshold": 1.25,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.9686926987465092,
-                "budgetPressure": 0.0313073012534908
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 0.04154305302612901,
-                "threshold": 1.25,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.9667655575790969,
-                "budgetPressure": 0.03323444242090321
+                "relativeMargin": 0.920645366567175,
+                "budgetPressure": 0.07935463343282498
               }
             ]
           },
@@ -2243,31 +1375,13 @@
             "name": "p05_complete_output",
             "invariant": true,
             "triggered": false,
-            "passCount": 3,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1,
-                "threshold": 1,
-                "operator": "==",
-                "pass": true,
-                "relativeMargin": null,
-                "budgetPressure": null
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
+                "path": "benchmarks/native-format/results-1789790938649.json",
                 "observed": 1,
                 "threshold": 1,
                 "operator": "==",
@@ -2280,38 +1394,20 @@
           {
             "name": "p07_rss_ratio",
             "invariant": false,
-            "triggered": true,
-            "passCount": 3,
+            "triggered": false,
+            "passCount": 1,
             "failCount": 0,
             "definitiveFailure": false,
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/native-format/results-1785296522210.json",
-                "observed": 1.143475516277392,
-                "threshold": 1.15,
+                "path": "benchmarks/native-format/results-1789790938649.json",
+                "observed": 1.2366611087953314,
+                "threshold": 1.3,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.005673464106615603,
-                "budgetPressure": 0.9943265358933844
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296526997.json",
-                "observed": 1.143475516277392,
-                "threshold": 1.15,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.005673464106615603,
-                "budgetPressure": 0.9943265358933844
-              },
-              {
-                "path": "benchmarks/native-format/results-1785296531837.json",
-                "observed": 1.143475516277392,
-                "threshold": 1.15,
-                "operator": "<=",
-                "pass": true,
-                "relativeMargin": 0.005673464106615603,
-                "budgetPressure": 0.9943265358933844
+                "relativeMargin": 0.04872222400359125,
+                "budgetPressure": 0.9512777759964087
               }
             ]
           }
@@ -2319,43 +1415,27 @@
       },
       "rssAdjudication": {
         "bandFraction": 0.03,
-        "relativeMargin": 0.005673464106615603,
-        "triggered": true,
-        "requiredReports": 3,
-        "passCount": 3,
+        "relativeMargin": 0.04872222400359125,
+        "triggered": false,
+        "requiredReports": 1,
+        "passCount": 1,
         "failCount": 0,
         "decision": "passed",
         "reports": [
           {
-            "path": "benchmarks/native-format/results-1785296522210.json",
-            "ratio": 1.143475516277392,
-            "threshold": 1.15,
+            "path": "benchmarks/native-format/results-1789790938649.json",
+            "ratio": 1.2366611087953314,
+            "threshold": 1.3,
             "pass": true,
-            "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
-            "corpusIdentity": "{\"corpus\":{\"bytes\":1049086,\"equivalentTsxBytes\":1049086,\"fnv1a64\":\"1986613a3c555b65\",\"structuralForms\":[\"@{\",\"@if\",\"@else\"],\"note\":\"Retained statement-control corpus for comparison with earlier formatter reports.\"},\"generalizedControlCorpus\":{\"bytes\":262339,\"halfBytes\":131516,\"fnv1a64\":\"ee30862dabc592f4\",\"structuralForms\":[\"@{\",\"@if\",\"@else\",\"@for\",\"@empty\",\"index/key\",\"@switch/@case/@default\",\"@try/@pending/@catch\",\"<{dynamic}>\",\"<style>\"],\"dynamicTagCount\":394,\"stylePayloadCount\":197,\"note\":\"Repeated direct JSX-child, nested, expression, annotated loop, switch, source-order try, nested dynamic-tag, and raw-style forms.\"}}"
-          },
-          {
-            "path": "benchmarks/native-format/results-1785296526997.json",
-            "ratio": 1.143475516277392,
-            "threshold": 1.15,
-            "pass": true,
-            "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
-            "corpusIdentity": "{\"corpus\":{\"bytes\":1049086,\"equivalentTsxBytes\":1049086,\"fnv1a64\":\"1986613a3c555b65\",\"structuralForms\":[\"@{\",\"@if\",\"@else\"],\"note\":\"Retained statement-control corpus for comparison with earlier formatter reports.\"},\"generalizedControlCorpus\":{\"bytes\":262339,\"halfBytes\":131516,\"fnv1a64\":\"ee30862dabc592f4\",\"structuralForms\":[\"@{\",\"@if\",\"@else\",\"@for\",\"@empty\",\"index/key\",\"@switch/@case/@default\",\"@try/@pending/@catch\",\"<{dynamic}>\",\"<style>\"],\"dynamicTagCount\":394,\"stylePayloadCount\":197,\"note\":\"Repeated direct JSX-child, nested, expression, annotated loop, switch, source-order try, nested dynamic-tag, and raw-style forms.\"}}"
-          },
-          {
-            "path": "benchmarks/native-format/results-1785296531837.json",
-            "ratio": 1.143475516277392,
-            "threshold": 1.15,
-            "pass": true,
-            "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
+            "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
             "corpusIdentity": "{\"corpus\":{\"bytes\":1049086,\"equivalentTsxBytes\":1049086,\"fnv1a64\":\"1986613a3c555b65\",\"structuralForms\":[\"@{\",\"@if\",\"@else\"],\"note\":\"Retained statement-control corpus for comparison with earlier formatter reports.\"},\"generalizedControlCorpus\":{\"bytes\":262339,\"halfBytes\":131516,\"fnv1a64\":\"ee30862dabc592f4\",\"structuralForms\":[\"@{\",\"@if\",\"@else\",\"@for\",\"@empty\",\"index/key\",\"@switch/@case/@default\",\"@try/@pending/@catch\",\"<{dynamic}>\",\"<style>\"],\"dynamicTagCount\":394,\"stylePayloadCount\":197,\"note\":\"Repeated direct JSX-child, nested, expression, annotated loop, switch, source-order try, nested dynamic-tag, and raw-style forms.\"}}"
           }
         ]
       }
     },
     "type-aware": {
-      "path": "benchmarks/type-aware/results-1785296533520.json",
-      "generatedAtUnixMs": 1785296533519,
+      "path": "benchmarks/type-aware/results-1789790940149.json",
+      "generatedAtUnixMs": 1789790940149,
       "assertions": [
         {
           "name": "defaultSyntaxP95",
@@ -2403,8 +1483,8 @@
       }
     },
     "vite": {
-      "path": "benchmarks/vite/results-1785296550669.json",
-      "generatedAtUnixMs": 1785296550667,
+      "path": "benchmarks/vite/results-1789790952481.json",
+      "generatedAtUnixMs": 1789790952479,
       "assertions": [
         {
           "name": "directLintP95",
@@ -2453,8 +1533,8 @@
       }
     },
     "editor": {
-      "path": "benchmarks/editor/results-1785296551322.json",
-      "generatedAtUnixMs": 1785296551321,
+      "path": "benchmarks/editor/results-1789790953137.json",
+      "generatedAtUnixMs": 1789790953136,
       "assertions": [
         {
           "name": "initialOpen",
@@ -2501,26 +1581,26 @@
       }
     },
     "comparative": {
-      "path": "benchmarks/comparative/results-1785296573160.json",
-      "generatedAtUnixMs": 1785296573160,
+      "path": "benchmarks/comparative/results-1789790975810.json",
+      "generatedAtUnixMs": 1789790975810,
       "assertions": [
         {
           "name": "nearOxlintParity",
-          "observed": 1.1650865250998526,
+          "observed": 1.1579877564050047,
           "threshold": 1.25,
           "comparison": "<=",
           "pass": true
         },
         {
           "name": "fasterThanEslint",
-          "observed": 13.23457527602272,
+          "observed": 13.167893186272245,
           "threshold": 2,
           "comparison": ">=",
           "pass": true
         },
         {
           "name": "mixedNoBlowup",
-          "observed": 1.4509251745484713,
+          "observed": 1.4158509602833884,
           "threshold": 1.5,
           "comparison": "<=",
           "pass": true
@@ -2543,7 +1623,7 @@
         "triggeredBy": [],
         "requiredReports": 1,
         "decision": "passed",
-        "selectedReport": "benchmarks/comparative/results-1785296573160.json",
+        "selectedReport": "benchmarks/comparative/results-1789790975810.json",
         "selectionPolicy": {
           "kind": "median-normalized-budget-pressure",
           "assertions": [],
@@ -2553,23 +1633,23 @@
           "selectedIndex": 0,
           "orderedReports": [
             {
-              "path": "benchmarks/comparative/results-1785296573160.json",
+              "path": "benchmarks/comparative/results-1789790975810.json",
               "budgetPressure": 0
             }
           ]
         },
         "reports": [
           {
-            "path": "benchmarks/comparative/results-1785296573160.json",
+            "path": "benchmarks/comparative/results-1789790975810.json",
             "reportPassed": true,
             "budgetPressure": 0,
-            "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
+            "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
             "corpusIdentity": "d750dcd9b4a56e71b6f575d9ed907666de03c207851bf712b37fcc1feb0915b0:1a6ee24b7e052bf686e0a9e955561b3b7859a76544948b2f98041ae2f001867b:c6b3fb65e113af11e5b807c6bdad3c8f09a8fb77270459c5025febd90cd3693a",
             "budgetsIdentity": "{\"schemaVersion\":3,\"warmups\":5,\"samples\":20,\"files\":1000,\"tsrxShare\":0.2,\"oxcTsrxVsOxlintMax\":1.25,\"eslintVsOxcTsrxMin\":2,\"mixedVsTsxMax\":1.5}",
-            "hostIdentity": "{\"platform\":\"darwin\",\"arch\":\"arm64\",\"cpu\":\"Apple M5 Pro\",\"cores\":18,\"osRelease\":\"25.5.0\",\"node\":\"v24.15.0\"}",
-            "buildIdentity": "{\"profile\":\"release\",\"binary\":\"node_modules/oxc-tsrx/bin/oxlint (all TSX -> in-process oxlint-current declared bin; mixed -> public oxlint-current Node child + target/release/oxc-tsrx)\",\"oxcRevision\":\"8e0ed2ebb96137fb1611cdbd5742d5cb46037d40\"}",
-            "versionsIdentity": "{\"eslint\":\"v10.7.0\",\"typescriptEslint\":\"8.64.0\",\"oxlint\":\"Version: 1.74.0\",\"oxcTsrx\":\"oxc-tsrx 0.1.4 (OXC 8e0ed2ebb96137fb1611cdbd5742d5cb46037d40)\",\"oxcTsrxLauncher\":\"oxc-tsrx 0.1.4\"}",
-            "routeIdentity": "{\"boundary\":{\"rules\":[\"no-debugger\"],\"fileSelection\":\"same explicit file list\",\"output\":\"zero-diagnostic default output\",\"crossToolCorpus\":\"byte-identical TSX files\",\"launch\":\"every lane measured through its npm CLI entry point, Node launcher included\",\"compileCache\":\"oxc-tsrx enables the Node module compile cache before routing; five fresh-process warmups precede measurements\",\"productRouting\":{\"allTsx\":\"oxc-tsrx npm launcher -> oxlint-current declared npm binary in the same Node process\",\"mixed\":\"oxc-tsrx npm launcher -> public oxlint-current declared npm binary in a Node subprocess plus target/release/oxc-tsrx; the canonical child starts while the bridge loads\"},\"executables\":{\"eslint\":\"node_modules/.bin/eslint\",\"oxlint\":\"node_modules/oxlint-current/bin/oxlint\",\"oxcTsrx\":\"node_modules/oxc-tsrx/bin/oxlint\",\"oxcTsrxMixed\":\"node_modules/oxc-tsrx/bin/oxlint\"},\"argumentShape\":{\"eslint\":\"--config eslint.config.mjs --no-ignore --no-warn-ignored <1,000 explicit TSX files>\",\"oxlint\":\"--allow all --deny no-debugger --no-ignore <1,000 explicit TSX files>\",\"oxcTsrx\":\"--allow all --deny no-debugger --no-ignore <1,000 explicit TSX files>\",\"oxcTsrxMixed\":\"--allow all --deny no-debugger --no-ignore <1,000 explicit paired TSX/TSRX files>\"},\"mixedComparison\":\"paired generated component specifications; internal OXC for TSRX workload ratio only\",\"configSha256\":\"413bac026c6018f2f92e63f7e48f74ffb9ba603904fbeee676095efa0e52c07b\"},\"routeEvidence\":{\"ordinaryDispatchEvents\":0,\"mixedDispatchEvents\":2,\"publicCanonicalNodeChildren\":1,\"nativeTsrxChildren\":1,\"privateInProcessAdapterChildren\":0,\"mixedUsesPublicCanonicalNodeChild\":true,\"mixedUsesNativeTsrxChild\":true,\"mixedUsesPrivateInProcessAdapter\":false}}"
+            "hostIdentity": "{\"platform\":\"darwin\",\"arch\":\"arm64\",\"cpu\":\"Apple M5 Pro\",\"cores\":18,\"osRelease\":\"25.6.0\",\"node\":\"v24.15.0\"}",
+            "buildIdentity": "{\"profile\":\"release\",\"binary\":\"node_modules/@tsrx/oxc/bin/oxlint (all TSX -> in-process oxlint-current declared bin; mixed -> public oxlint-current Node child + target/release/oxc-tsrx)\",\"oxcRevision\":\"5a6e37e5cf895143a5b34050c50109c46e2ae96a\"}",
+            "versionsIdentity": "{\"eslint\":\"v10.7.0\",\"typescriptEslint\":\"8.64.0\",\"oxlint\":\"Version: 1.83.0\",\"oxcTsrx\":\"oxc-tsrx 0.13.0 (OXC 5a6e37e5cf895143a5b34050c50109c46e2ae96a)\",\"oxcTsrxLauncher\":\"@tsrx/oxc 0.13.0\"}",
+            "routeIdentity": "{\"boundary\":{\"rules\":[\"no-debugger\"],\"fileSelection\":\"same explicit file list\",\"output\":\"zero-diagnostic default output\",\"crossToolCorpus\":\"byte-identical TSX files\",\"launch\":\"every lane measured through its npm CLI entry point, Node launcher included\",\"compileCache\":\"@tsrx/oxc enables the Node module compile cache before routing; five fresh-process warmups precede measurements\",\"productRouting\":{\"allTsx\":\"@tsrx/oxc npm launcher -> oxlint-current declared npm binary in the same Node process\",\"mixed\":\"@tsrx/oxc npm launcher -> public oxlint-current declared npm binary in a Node subprocess plus target/release/oxc-tsrx; the canonical child starts while the bridge loads\"},\"executables\":{\"eslint\":\"node_modules/.bin/eslint\",\"oxlint\":\"node_modules/oxlint-current/bin/oxlint\",\"oxcTsrx\":\"node_modules/@tsrx/oxc/bin/oxlint\",\"oxcTsrxMixed\":\"node_modules/@tsrx/oxc/bin/oxlint\"},\"argumentShape\":{\"eslint\":\"--config eslint.config.mjs --no-ignore --no-warn-ignored <1,000 explicit TSX files>\",\"oxlint\":\"--allow all --deny no-debugger --no-ignore <1,000 explicit TSX files>\",\"oxcTsrx\":\"--allow all --deny no-debugger --no-ignore <1,000 explicit TSX files>\",\"oxcTsrxMixed\":\"--allow all --deny no-debugger --no-ignore <1,000 explicit paired TSX/TSRX files>\"},\"mixedComparison\":\"paired generated component specifications; internal OXC for TSRX workload ratio only\",\"configSha256\":\"413bac026c6018f2f92e63f7e48f74ffb9ba603904fbeee676095efa0e52c07b\"},\"routeEvidence\":{\"ordinaryDispatchEvents\":0,\"mixedDispatchEvents\":2,\"publicCanonicalNodeChildren\":1,\"nativeTsrxChildren\":1,\"privateInProcessAdapterChildren\":0,\"mixedUsesPublicCanonicalNodeChild\":true,\"mixedUsesNativeTsrxChild\":true,\"mixedUsesPrivateInProcessAdapter\":false}}"
           }
         ],
         "assertionDecisions": [
@@ -2583,13 +1663,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/comparative/results-1785296573160.json",
-                "observed": 1.1650865250998526,
+                "path": "benchmarks/comparative/results-1789790975810.json",
+                "observed": 1.1579877564050047,
                 "threshold": 1.25,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.06793077992011795,
-                "budgetPressure": 0.932069220079882
+                "relativeMargin": 0.07360979487599621,
+                "budgetPressure": 0.9263902051240038
               }
             ]
           },
@@ -2603,13 +1683,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/comparative/results-1785296573160.json",
-                "observed": 13.23457527602272,
+                "path": "benchmarks/comparative/results-1789790975810.json",
+                "observed": 13.167893186272245,
                 "threshold": 2,
                 "operator": ">=",
                 "pass": true,
-                "relativeMargin": 5.61728763801136,
-                "budgetPressure": 0.15111931877583032
+                "relativeMargin": 5.5839465931361225,
+                "budgetPressure": 0.15188458561351595
               }
             ]
           },
@@ -2623,13 +1703,13 @@
             "decision": "passed",
             "samples": [
               {
-                "path": "benchmarks/comparative/results-1785296573160.json",
-                "observed": 1.4509251745484713,
+                "path": "benchmarks/comparative/results-1789790975810.json",
+                "observed": 1.4158509602833884,
                 "threshold": 1.5,
                 "operator": "<=",
                 "pass": true,
-                "relativeMargin": 0.032716550301019165,
-                "budgetPressure": 0.9672834496989808
+                "relativeMargin": 0.05609935981107439,
+                "budgetPressure": 0.9439006401889256
               }
             ]
           }

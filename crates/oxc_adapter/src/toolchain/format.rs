@@ -5,9 +5,9 @@ use std::{collections::HashSet, error::Error, fmt, str::FromStr, time::Instant};
 use oxc_allocator::Allocator;
 use oxc_formatter::{
     ArrowParentheses, AttributePosition, BracketSameLine, BracketSpacing, CommentLineStrategy,
-    CustomGroupDefinition, EmbeddedLanguageFormatting, Expand, GroupEntry, ImportModifier,
-    ImportSelector, JsFormatOptions, JsdocOptions, LineWrappingStyle, QuoteProperties, QuoteStyle,
-    Semicolons, SortImportsOptions, SortOrder, TrailingCommas, format_program, parse_for_format,
+    CustomGroupDefinition, Expand, GroupEntry, ImportModifier, ImportSelector, JsFormatOptions,
+    JsdocOptions, LineWrappingStyle, QuoteProperties, QuoteStyle, Semicolons, SortImportsOptions,
+    SortOrder, TrailingCommas, format_program, parse_for_format,
 };
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineEnding, LineWidth};
 use serde::Deserialize;
@@ -368,7 +368,7 @@ pub fn format(request: &FormatRequest<'_>) -> Result<EngineFormatResult, FormatE
     let started = Instant::now();
     let options =
         request.options.map_or_else(|| Ok(JsFormatOptions::default()), js_format_options)?;
-    let code = format_program(&allocator, &parsed.program, options, None)
+    let code = format_program(&allocator, &parsed.program, options)
         .print()
         .map_err(|error| FormatError::Print { detail: error.to_string() })?
         .into_code();
@@ -445,12 +445,9 @@ fn js_format_options(options: &FormatOptions) -> Result<JsFormatOptions, FormatO
         resolved.attribute_position =
             if single_attribute { AttributePosition::Multiline } else { AttributePosition::Auto };
     }
-    if let Some(value) = &options.embedded_language_formatting {
-        resolved.embedded_language_formatting = EmbeddedLanguageFormatting::from_str(value)
-            .map_err(|error| {
-                FormatOptionError::named("embeddedLanguageFormatting", value, error)
-            })?;
-    }
+    // `embeddedLanguageFormatting` is no longer a formatter-crate option: canonical Oxfmt
+    // implements it with an application-level embedded-language dispatcher this adapter does
+    // not carry, and the TSRX formatter rejects the option before reaching this point.
     if let Some(value) = &options.html_whitespace_sensitivity {
         resolved.html_whitespace_sensitivity_ignore = match value.as_str() {
             "ignore" => true,

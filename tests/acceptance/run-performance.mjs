@@ -285,7 +285,9 @@ function requireContract(family, report) {
     if (!report.build?.binary?.startsWith('node_modules/@tsrx/oxc/bin/oxlint')) {
       fail('build identity does not name the npm launcher')
     }
-    if (!/^oxc-tsrx\s+\S+/u.test(report.versions?.oxcTsrxLauncher ?? '')) {
+    // The npm launcher has reported itself as `@tsrx/oxc <version>` since the
+    // package rename; the native binary still says `oxc-tsrx <version>`.
+    if (!/^(?:oxc-tsrx|@tsrx\/oxc)\s+\S+/u.test(report.versions?.oxcTsrxLauncher ?? '')) {
       fail('missing oxc-tsrx launcher version')
     }
     if (JSON.stringify(report.boundary?.rules) !== JSON.stringify(['no-debugger'])) {

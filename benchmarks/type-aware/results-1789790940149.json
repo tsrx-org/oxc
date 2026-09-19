@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "timestamp": "2026-09-19T04:09:00.149Z",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v24.15.0",
+    "cpu": "Apple M5 Pro",
+    "osRelease": "25.6.0"
+  },
+  "build": {
+    "profile": "release",
+    "binary": "target/release/oxc-tsrx",
+    "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a"
+  },
+  "corpus": {
+    "kind": "authored syntax-only, single-file type-aware, and explicit two-file TSRX project fixtures",
+    "files": [
+      "tests/fixtures/lint/native-lint.tsrx",
+      "tests/fixtures/type-aware/single/View.tsrx",
+      "tests/fixtures/type-aware/project/View.tsrx",
+      "tests/fixtures/type-aware/project/service.tsrx"
+    ],
+    "bytes": 576,
+    "sha256": "d9ca737d7481a8de368bdd23e3fced64756bd3bf3722d039aad5c0de52286b82"
+  },
+  "versions": {
+    "tsgolint": "7.0.2002"
+  },
+  "samplePolicy": {
+    "coldSamples": 1,
+    "warmupsAfterCold": 5,
+    "measured": 20,
+    "freshProcessesPerLane": 26,
+    "statistic": "median and nearest-rank p95 over measured fresh native CLI processes; first process retained separately"
+  },
+  "defaultSyntax": {
+    "coldMs": 4.177625000000001,
+    "rawMs": [
+      2.6995000000000005,
+      2.8936670000000007,
+      2.656041000000002,
+      2.8480419999999995,
+      2.7817079999999947,
+      2.663250000000005,
+      2.581000000000003,
+      2.5647909999999996,
+      2.770417000000002,
+      2.7579999999999956,
+      2.570666000000003,
+      2.672292000000006,
+      2.7914169999999956,
+      2.633749999999992,
+      2.5649999999999977,
+      2.613375000000005,
+      2.4764590000000055,
+      2.7710420000000084,
+      2.7274170000000026,
+      2.6782089999999954
+    ],
+    "medianMs": 2.672292000000006,
+    "p95Ms": 2.8480419999999995
+  },
+  "singleTypeAware": {
+    "coldMs": 58.20670799999999,
+    "rawMs": [
+      23.804292000000032,
+      23.94358299999999,
+      24.57579199999998,
+      23.617166999999995,
+      23.061083999999994,
+      23.184792000000016,
+      22.868875000000003,
+      24.015166000000022,
+      24.57774999999998,
+      23.445416000000023,
+      24.038584000000014,
+      23.907750000000078,
+      23.79545799999994,
+      23.2225830000001,
+      23.81437500000004,
+      23.52154100000007,
+      23.50129199999992,
+      23.089457999999922,
+      23.387292000000002,
+      23.406582999999955
+    ],
+    "medianMs": 23.52154100000007,
+    "p95Ms": 24.57579199999998
+  },
+  "projectTypeAware": {
+    "coldMs": 24.627624999999966,
+    "rawMs": [
+      25.33387499999992,
+      24.419542000000092,
+      23.697667000000024,
+      23.063000000000102,
+      23.578290999999922,
+      23.44408300000009,
+      23.870290999999952,
+      23.671792000000096,
+      24.14020800000003,
+      23.353207999999995,
+      23.487791000000016,
+      24.500957999999855,
+      24.648208000000068,
+      23.523124999999936,
+      23.603207999999995,
+      24.576000000000022,
+      24.994875000000093,
+      25.677417000000105,
+      24.667582999999922,
+      24.564707999999882
+    ],
+    "medianMs": 23.870290999999952,
+    "p95Ms": 25.33387499999992
+  },
+  "ratios": {
+    "singleTypeAwareVsDefaultP95": 8.62901319573236
+  },
+  "invariants": {
+    "defaultParseCount": 1,
+    "defaultTypeAwareProcesses": 0,
+    "singleTypeAwareProcesses": 1,
+    "projectTypeAwareProcesses": 1,
+    "projectParseCount": 2
+  },
+  "budgets": {
+    "defaultSyntaxP95MsMax": 10,
+    "singleTypeAwareP95MsMax": 60,
+    "projectTypeAwareP95MsMax": 70,
+    "singleTypeAwareColdMsMax": 100,
+    "projectTypeAwareColdMsMax": 120,
+    "singleTypeAwareVsDefaultP95RatioMax": 12,
+    "typeAwareProcessesPerBatch": 1,
+    "defaultParseCountPerFile": 1
+  },
+  "assertions": {
+    "defaultSyntaxP95": true,
+    "singleTypeAwareP95": true,
+    "projectTypeAwareP95": true,
+    "singleTypeAwareCold": true,
+    "projectTypeAwareCold": true,
+    "singleTypeAwareRatio": true,
+    "defaultPathUnchanged": true,
+    "oneTypeProcessPerBatch": true
+  }
+}

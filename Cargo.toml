@@ -18,7 +18,7 @@ version = "0.13.0"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/tsrx-org/oxc"
-rust-version = "1.95"
+rust-version = "1.96"
 
 # Lint posture: this workspace's existing rules unioned with upstream oxc's.
 # Stricter than oxc in two places, deliberately:

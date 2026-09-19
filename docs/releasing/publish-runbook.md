@@ -699,7 +699,7 @@ against the registry.
   attestation. A mixed release where some have it and some do not is worse than
   none having it.
 - **Two dependencies are npm alias specs.** `@tsrx/oxc` depends on
-  `"oxlint-current": "npm:oxlint@1.74.0"` and `"oxfmt-current": "npm:oxfmt@0.59.0"`.
+  `"oxlint-current": "npm:oxlint@1.83.0"` and `"oxfmt-current": "npm:oxfmt@0.68.0"`.
   The names `oxlint-current` and `oxfmt-current` do not exist on npm and do not
   need to; the alias points at the real package. npm supports alias specs in
   published manifests, and the local clean-install and compat lanes exercise

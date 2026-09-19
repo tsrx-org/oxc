@@ -6,7 +6,7 @@ use oxc_adapter::parser::{
     render_diagnostic_codeframes,
 };
 use oxc_allocator::Allocator;
-use oxc_diagnostics::NamedSource;
+use oxc_diagnostics::{GraphicalReportHandler, GraphicalTheme, NamedSource};
 use oxc_parser::Parser;
 use oxc_span::SourceType;
 use tsrx_tape_schema::{
@@ -224,12 +224,15 @@ fn rebuilt_codeframe_is_byte_exact_with_the_pinned_oxc_diagnostic() {
     let source = "export const broken = ;";
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, source, SourceType::tsx()).parse();
-    let expected = format!(
-        "{:?}",
-        parsed.diagnostics[0]
-            .clone()
-            .with_source_code(Arc::new(NamedSource::new(filename, source.to_owned())))
-    );
+    // Render the pinned OXC diagnostic exactly the way the adapter does: the same handler,
+    // the same pinned theme, so the comparison is byte-exact rather than environment-dependent.
+    let sourced = parsed.diagnostics[0]
+        .clone()
+        .with_source_code(Arc::new(NamedSource::new(filename, source.to_owned())));
+    let mut expected = String::new();
+    GraphicalReportHandler::new_themed(GraphicalTheme::none())
+        .render_report(&mut expected, sourced.as_ref())
+        .expect("pinned OXC codeframe");
 
     let mut result =
         parse_to_projected_tape(ProjectedParseRequest { filename, ..request(source, false) })

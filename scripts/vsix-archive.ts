@@ -18,7 +18,7 @@ const NATIVE_MANIFEST_PATH = "extension/dist/native/manifest.json";
 const HASH = /^[a-f0-9]{64}$/u;
 const GIT_REVISION = /^[a-f0-9]{40}$/u;
 const SAFE_NAME = /^[a-z0-9][a-z0-9._-]*$/u;
-const OXC_REVISION = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+const OXC_REVISION = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 
 export const DEFAULT_VSIX_LIMITS = Object.freeze({
   maxEntries: 4096,

@@ -228,7 +228,7 @@ test("untouched packed parser and host-native tarballs load, parse, and preserve
     target: hostTarget().target,
     nodeApi: 8,
     nodeEngine: "^20.19.0 || >=22.12.0",
-    oxcRevision: "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
+    oxcRevision: "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
     lazy: true,
     async: true,
     editorRecovery: true,

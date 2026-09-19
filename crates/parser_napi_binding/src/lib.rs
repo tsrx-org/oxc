@@ -785,7 +785,7 @@ mod tests {
     #[test]
     fn native_identity_is_frozen() {
         assert_eq!(NODE_API, 8);
-        assert_eq!(oxc_adapter::OXC_REVISION, "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40");
+        assert_eq!(oxc_adapter::OXC_REVISION, "5a6e37e5cf895143a5b34050c50109c46e2ae96a");
     }
 
     #[cfg(feature = "stage4-observer")]

@@ -15,12 +15,13 @@ use std::{
 };
 
 use oxc_language_server::{
-    Capabilities, DiagnosticMode, DiagnosticResult, TextDocument, Tool, ToolBuilder,
-    ToolRestartChanges, WorkerManager, offset_to_position, run_server,
+    Capabilities, CodeActionParams, DiagnosticMode, DiagnosticResult, TextDocument, Tool,
+    ToolBuildResult, ToolBuilder, ToolRestartChanges, WorkerManager, offset_to_position,
+    run_server,
 };
 use serde_json::Value;
 use tower_lsp_server::ls_types::{
-    CodeAction, CodeActionContext, CodeActionKind, CodeActionOptions, CodeActionOrCommand,
+    CodeAction, CodeActionKind, CodeActionOptions, CodeActionOrCommand,
     CodeActionProviderCapability, CodeActionTriggerKind, Diagnostic as LspDiagnostic,
     DiagnosticRelatedInformation, DiagnosticSeverity, Location, NumberOrString, OneOf, Pattern,
     Range, ServerCapabilities, TextEdit, Uri, WorkDoneProgressOptions, WorkspaceEdit,
@@ -329,7 +330,11 @@ impl Tool for AdapterTool {
         new_options_json: Value,
     ) -> ToolRestartChanges {
         if old_options_json == &new_options_json {
-            return ToolRestartChanges { tool: None, watch_patterns: None };
+            return ToolRestartChanges {
+                tool: None,
+                watch_patterns: None,
+                client_messages: Vec::new(),
+            };
         }
         rebuilt_tool(builder, root_uri, new_options_json)
     }
@@ -348,12 +353,9 @@ impl Tool for AdapterTool {
         rebuilt_tool(builder, root_uri, options)
     }
 
-    fn get_code_actions_or_commands(
-        &self,
-        uri: &Uri,
-        range: &Range,
-        context: &CodeActionContext,
-    ) -> Vec<CodeActionOrCommand> {
+    fn get_code_actions_or_commands(&self, params: CodeActionParams) -> Vec<CodeActionOrCommand> {
+        let CodeActionParams { uri, range, context, .. } = params;
+        let (uri, range, context) = (&uri, &range, &context);
         let Some(cached) =
             self.sources.read().expect("editor source cache poisoned").get(uri.as_str()).cloned()
         else {
@@ -395,7 +397,8 @@ impl Tool for AdapterTool {
             .collect()
     }
 
-    fn run_format(&self, document: &TextDocument<'_>) -> Result<Vec<TextEdit>, String> {
+    fn run_format(&self, document: TextDocument<'_>) -> Result<Vec<TextEdit>, String> {
+        let document = &document;
         self.cache_document(document);
         let path = document.uri.to_file_path();
         let native_document = EditorDocument {
@@ -412,16 +415,16 @@ impl Tool for AdapterTool {
             .collect()
     }
 
-    fn run_diagnostic(&self, document: &TextDocument<'_>) -> DiagnosticResult {
-        self.run_diagnostics(document, |tool, document| tool.diagnostics(document))
+    fn run_diagnostic(&self, document: TextDocument<'_>) -> DiagnosticResult {
+        self.run_diagnostics(&document, |tool, document| tool.diagnostics(document))
     }
 
-    fn run_diagnostic_on_change(&self, document: &TextDocument<'_>) -> DiagnosticResult {
-        self.run_diagnostics(document, |tool, document| tool.diagnostics_on_change(document))
+    fn run_diagnostic_on_change(&self, document: TextDocument<'_>) -> DiagnosticResult {
+        self.run_diagnostics(&document, |tool, document| tool.diagnostics_on_change(document))
     }
 
-    fn run_diagnostic_on_save(&self, document: &TextDocument<'_>) -> DiagnosticResult {
-        self.run_diagnostics(document, |tool, document| tool.diagnostics_on_save(document))
+    fn run_diagnostic_on_save(&self, document: TextDocument<'_>) -> DiagnosticResult {
+        self.run_diagnostics(&document, |tool, document| tool.diagnostics_on_save(document))
     }
 
     fn remove_uri_cache(&self, uri: &Uri) {
@@ -461,10 +464,13 @@ impl ToolBuilder for AdapterToolBuilder {
         backend_capabilities.diagnostic_mode = DiagnosticMode::Push;
     }
 
-    fn build_boxed(&self, root_uri: &Uri, options: Value) -> Box<dyn Tool> {
+    fn build(&self, root_uri: &Uri, options: Value) -> ToolBuildResult {
         let workspace = Self::workspace(root_uri);
         let patterns = self.factory.watcher_patterns(&workspace, &options);
-        Box::new(AdapterTool::new(self.factory.create(&workspace, &options), patterns))
+        ToolBuildResult {
+            tool: Box::new(AdapterTool::new(self.factory.create(&workspace, &options), patterns)),
+            client_messages: Vec::new(),
+        }
     }
 
     fn shutdown(&self, root_uri: &Uri) {
@@ -516,9 +522,9 @@ impl Error for EditorServerError {
 }
 
 fn rebuilt_tool(builder: &dyn ToolBuilder, root_uri: &Uri, options: Value) -> ToolRestartChanges {
-    let tool = builder.build_boxed(root_uri, options.clone());
+    let ToolBuildResult { tool, client_messages } = builder.build(root_uri, options.clone());
     let watch_patterns = tool.get_watcher_patterns(options);
-    ToolRestartChanges { tool: Some(tool), watch_patterns: Some(watch_patterns) }
+    ToolRestartChanges { tool: Some(tool), watch_patterns: Some(watch_patterns), client_messages }
 }
 
 fn diagnostic_to_lsp(

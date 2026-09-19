@@ -35,7 +35,7 @@ pub use toolchain::{
     lint_config_without_js_plugins,
 };
 
-pub const OXC_REVISION: &str = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+pub const OXC_REVISION: &str = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SourceKind {

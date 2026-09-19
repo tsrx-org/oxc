@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use super::TsgolintError;
 
-pub const SUPPORTED_TSGOLINT_VERSION: &str = "0.24.0";
+pub const SUPPORTED_TSGOLINT_VERSION: &str = "7.0.2002";
 
 pub(crate) fn find_tsgolint_executable(cwd: &Path) -> Result<PathBuf, TsgolintError> {
     #[cfg(windows)]

@@ -311,7 +311,7 @@ impl LintEngine {
         }
         let paths: Vec<Arc<OsStr>> = vec![Arc::from(request.virtual_path.as_os_str())];
         let messages = state
-            .lint_source(&paths, &file_system, Arc::new(Mutex::new(directives)))
+            .lint_source(&paths, &file_system, &Arc::new(Mutex::new(directives)))
             .map_err(|detail| TypeLintError::Upstream { detail })?;
         Ok(TypeLintResult {
             diagnostics: messages.iter().map(map_message).collect(),

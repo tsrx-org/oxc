@@ -138,11 +138,11 @@ jobs:
           node-version: 24.15.0
           cache: pnpm
 
-      - name: Install Rust 1.95.0
+      - name: Install Rust 1.96.0
         shell: bash
         run: |
-          rustup toolchain install 1.95.0 --profile minimal
-          rustup default 1.95.0
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
 
       - name: Install the locked graph and build release binaries
         shell: bash

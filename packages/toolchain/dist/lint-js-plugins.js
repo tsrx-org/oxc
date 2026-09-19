@@ -479,8 +479,9 @@ function diagnosticNamespace(diagnostic) {
 * The failures Oxlint's plugin host itself reported, in the user's own terms.
 *
 * A rule that throws does not come back as a diagnostic on a file: Oxlint reports
-* it with an empty `filename`, no `code`, and no labels, which is exactly the
-* shape every other filter in this file drops. Dropping it too would mean a
+* it with no `code` and no labels, which is exactly the shape every other filter
+* in this file drops. Oxlint 1.74 left `filename` empty as well; 1.83 fills it
+* in and opens the message with "Error running JS plugin.", so both shapes count. Dropping it too would mean a
 * broken rule looks like a rule that found nothing, which is the failure this
 * whole lane exists to remove. `paths` rewrites the mirror path Oxlint saw back
 * to the file the developer opened.
@@ -505,9 +506,9 @@ function pluginHostFailures(report, paths = /* @__PURE__ */ new Map()) {
 	const failures = [];
 	for (const diagnostic of report?.diagnostics ?? []) {
 		if (typeof diagnostic?.message !== "string" || diagnostic.message === "") continue;
-		if (diagnostic.filename !== void 0 && diagnostic.filename !== "") continue;
 		if ((diagnostic.labels ?? []).length > 0) continue;
 		if (typeof diagnostic.code === "string" && diagnostic.code !== "") continue;
+		if (!(diagnostic.filename === void 0 || diagnostic.filename === "") && !/^Error running JS plugin\b/u.test(diagnostic.message)) continue;
 		let message = diagnostic.message.split(/\n\s+at /u, 1)[0].trim();
 		const rewrites = [...paths].sort(([left], [right]) => right.length - left.length);
 		for (const [from, to] of rewrites) message = message.split(from).join(to);

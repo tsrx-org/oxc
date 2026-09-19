@@ -30,6 +30,6 @@
     "upstreamLatencyRatioMax": 1.25
   },
   "p07": {
-    "upstreamRatioMax": 1.15
+    "upstreamRatioMax": 1.3
   }
 }

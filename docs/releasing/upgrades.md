@@ -11,15 +11,15 @@ release that may require adapter changes and always requires full qualification.
 
 ## Current frozen set
 
-As of 2026-07-16, the release candidate is qualified against:
+As of 2026-09-18, the release candidate is qualified against:
 
 - official OXC commit
-  `8e0ed2ebb96137fb1611cdbd5742d5cb46037d40` across twelve direct adapter Git
+  `5a6e37e5cf895143a5b34050c50109c46e2ae96a` (crates v0.150.0) across twelve direct adapter Git
   dependencies, with their canonical workspace closure resolved from the same
   source and commit;
-- official Oxlint 1.74.0;
-- official Oxfmt 0.59.0;
-- `oxlint-tsgolint` 0.24.0;
+- official Oxlint 1.83.0;
+- official Oxfmt 0.68.0;
+- `oxlint-tsgolint` 7.0.2002;
 - Vite+ 0.1.24 as the tested minimum supported release; and
 - Vite+ 0.2.4 as the pinned current release (as of the date above).
 

@@ -385,9 +385,10 @@ test("native LSP keeps type-aware lint opt-in and authored TSRX diagnostics", as
     );
     assert.ok(diagnostic, JSON.stringify(published));
     assert.equal(diagnostic.source, "oxlint-tsrx");
+    // tsgolint 7.x labels `save()` rather than the whole `save();` statement.
     assert.deepEqual(diagnostic.range, {
       start: { line: 3, character: 2 },
-      end: { line: 3, character: 9 },
+      end: { line: 3, character: 8 },
     });
     await client.close();
   } finally {

@@ -7,7 +7,7 @@ snapshot, no Cargo patch. The JavaScript side is only thin launchers for npm,
 Vite+, configuration, and the editor.
 
 `crates/oxc_adapter` is the only crate that imports OXC, pinned to commit
-`8e0ed2ebb96137fb1611cdbd5742d5cb46037d40`. Every adapter dependency comes
+`5a6e37e5cf895143a5b34050c50109c46e2ae96a`. Every adapter dependency comes
 from that one Git source so Cargo never mixes two incompatible copies of the
 same crate. Upgrading OXC means bumping this adapter and the lockfile, then
 passing the full behavior and performance suites.
@@ -79,7 +79,7 @@ official OXC parse and no TypeScript-Go process starts. `--type-aware` and
 - Rules resolve against your file name, and the whole mixed project
   goes to the type checker over stdin in one request. Nothing is written
   into your project.
-- The adapter verifies the official binary from `oxlint-tsgolint` 0.24.0. A
+- The adapter verifies the official binary from `oxlint-tsgolint` 7.0.2002. A
   missing or mismatched binary fails with an actionable error instead of
   silently downgrading.
 - Fixes obey the same safety rule as the native path. Everything else stays
@@ -106,7 +106,7 @@ Formatting a `.tsrx` file is a three-step round trip:
 Dynamic closing tag names are rebuilt from the formatted opening expression, and
 each raw `<style>` payload is copied from the original source rather than
 reformatted, until OXC exposes its CSS formatter publicly. The indexed lift
-renderer holds 18.99 MiB/s on the stress corpus and 121.55 MiB/s on the fast
+renderer holds 18.21 MiB/s on the stress corpus and 114.31 MiB/s on the fast
 path for pure statement controls.
 
 `oxc-tsrx-fmt` supports stdin, check mode, transactional writes, explicit
@@ -147,10 +147,10 @@ results:
 - Linting and formatting ordinary JS/TS/TSX files adds no measurable
   overhead over plain OXC. TSRX scanning and TSX copy run in the hundreds
   of MiB/s.
-- On a matched 1,000-file corpus the CLI finishes in about 49 ms, where
-  official Oxlint takes about 42 ms and ESLint takes about 648 ms.
-- Type-aware lint costs roughly 26 ms per file, and editor responses stay
-  well under a millisecond after a fresh open of about 2.5 ms.
+- On a matched 1,000-file corpus the CLI finishes in about 51 ms, where
+  official Oxlint takes about 44 ms and ESLint takes about 675 ms.
+- Type-aware lint costs roughly 24 ms per file, and editor responses stay
+  well under a millisecond after a fresh open of about 2.6 ms.
 
 All the tables, budgets, methodology, and report files live on the
 [Benchmarks](/reference/benchmarks) page; this page does not duplicate them.

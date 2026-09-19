@@ -533,10 +533,10 @@ test(
     // published package has no first-party dependency left to stub.
     const stubs = await Promise.all(
       [
-        ["oxlint-current", "oxlint", "1.74.0"],
-        ["oxfmt-current", "oxfmt", "0.59.0"],
-        ["types", "@oxc-project/types", "0.140.0"],
-        ["tsgolint", "oxlint-tsgolint", "0.24.0"],
+        ["oxlint-current", "oxlint", "1.83.0"],
+        ["oxfmt-current", "oxfmt", "0.68.0"],
+        ["types", "@oxc-project/types", "0.150.0"],
+        ["tsgolint", "oxlint-tsgolint", "7.0.2002"],
         ["pathe", "pathe", "2.0.3"],
         ["tinyglobby", "tinyglobby", "0.2.17"],
         // The eight-platform split is declared by `@tsrx/oxc` itself. Yarn
@@ -940,10 +940,10 @@ test(
 
     const stubs = await Promise.all(
       [
-        ["oxlint-current", "oxlint", "1.74.0"],
-        ["oxfmt-current", "oxfmt", "0.59.0"],
-        ["types", "@oxc-project/types", "0.140.0"],
-        ["tsgolint", "oxlint-tsgolint", "0.24.0"],
+        ["oxlint-current", "oxlint", "1.83.0"],
+        ["oxfmt-current", "oxfmt", "0.68.0"],
+        ["types", "@oxc-project/types", "0.150.0"],
+        ["tsgolint", "oxlint-tsgolint", "7.0.2002"],
         ["pathe", "pathe", "2.0.3"],
         ["tinyglobby", "tinyglobby", "0.2.17"],
         // The eight-platform split is declared by `@tsrx/oxc` itself. Yarn

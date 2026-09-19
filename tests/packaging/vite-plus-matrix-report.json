@@ -11,7 +11,7 @@
     "packageName": "@tsrx/oxc-darwin-arm64",
     "version": "0.1.0",
     "target": "aarch64-apple-darwin",
-    "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
+    "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
     "integrity": "sha512-yyOJmoHZzLTYU/1ifbpEcOqVtPC+RmBf8R1OsCweRGJkBPE9N0Stqwoegul7+KKOoFJTfLVALJ93yQiLm1vxvA==",
     "shasum": "6819e734b8344083c787327771582b5b53a78b49"
   },

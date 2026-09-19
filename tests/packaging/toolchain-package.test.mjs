@@ -307,7 +307,7 @@ test("an isolated consumer resolves every public export and bin from the package
       join(nested, "oxlint-current"),
       {
         name: "oxlint",
-        version: "1.74.0",
+        version: "1.83.0",
         type: "module",
         bin: { oxlint: "./bin/oxlint" },
         exports: {
@@ -328,7 +328,7 @@ test("an isolated consumer resolves every public export and bin from the package
       join(nested, "oxfmt-current"),
       {
         name: "oxfmt",
-        version: "0.59.0",
+        version: "0.68.0",
         type: "module",
         bin: { oxfmt: "./bin/oxfmt" },
         exports: { ".": "./index.js", "./package.json": "./package.json" },

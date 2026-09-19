@@ -117,7 +117,7 @@ jobs:
       # Rust is here for three jobs: `cargo update -w` and `cargo metadata
       # --locked`, which is what the lockfile and the Rust licence inventory
       # need, and a real release build of the CLI and the parser addon, which is
-      # what the consistency gate further down executes. 1.95.0 is the version
+      # what the consistency gate further down executes. 1.96.0 is the version
       # declared by `rust-version` in Cargo.toml, the version the floor CI lanes
       # run `cargo metadata --locked` on, and the version release-candidate.yml
       # compiles the shipped binaries with. So generating the lockfile with
@@ -127,8 +127,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rustup toolchain install 1.95.0 --profile minimal
-          rustup default 1.95.0
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
           cargo -V
 
       - name: Cache the Rust build

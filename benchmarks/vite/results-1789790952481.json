@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 2,
+  "timestamp": "2026-09-19T04:09:12.479Z",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v24.15.0",
+    "cpu": "Apple M5 Pro",
+    "osRelease": "25.6.0"
+  },
+  "build": {
+    "profile": "release",
+    "lintBinary": "target/release/oxc-tsrx",
+    "formatBinary": "target/release/oxc-tsrx",
+    "lintLauncher": "node_modules/@tsrx/oxc/bin/oxlint",
+    "formatLauncher": "node_modules/@tsrx/oxc/bin/oxfmt",
+    "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a"
+  },
+  "corpus": {
+    "kind": "mixed authored TSX/TSRX command-boundary fixture with equivalent TSX control",
+    "files": [
+      "tests/fixtures/vite/toolchain/diagnostics/.oxfmtrc.json",
+      "tests/fixtures/vite/toolchain/diagnostics/.oxlintrc.json",
+      "tests/fixtures/vite/toolchain/diagnostics/package.json",
+      "tests/fixtures/vite/toolchain/diagnostics/vite.config.mjs",
+      "tests/fixtures/vite/toolchain/diagnostics/src/ordinary.tsx",
+      "tests/fixtures/vite/toolchain/diagnostics/src/view-equivalent.tsx",
+      "tests/fixtures/vite/toolchain/diagnostics/src/view.tsrx"
+    ],
+    "bytes": 587,
+    "sha256": "2fa1790e83647c4b5bbe878a69d90283ebf2e8abe38bc3bdb025684e3f30a4c1"
+  },
+  "versions": {
+    "vite": "8.1.5",
+    "vitePlusCurrent": "0.2.4",
+    "oxlint": "1.83.0",
+    "oxfmt": "0.68.0"
+  },
+  "samplePolicy": {
+    "warmups": 5,
+    "measured": 20,
+    "statistic": "median and nearest-rank p95 over fresh companion processes"
+  },
+  "canonicalLint": {
+    "rawMs": [
+      31.48237499999999,
+      30.829958000000005,
+      32.15629099999998,
+      30.294125000000008,
+      30.990916000000027,
+      31.13575000000003,
+      30.28966600000001,
+      31.291958000000022,
+      33.545083000000034,
+      29.561707999999953,
+      30.244166999999948,
+      30.828624999999988,
+      35.23395800000003,
+      31.236291999999935,
+      31.590208000000075,
+      31.628917,
+      32.51029200000005,
+      32.50049999999999,
+      30.521417000000042,
+      33.855125000000044
+    ],
+    "medianMs": 31.236291999999935,
+    "p95Ms": 33.855125000000044
+  },
+  "directMixedLint": {
+    "rawMs": [
+      63.90758400000004,
+      57.57445800000005,
+      60.34249999999997,
+      57.95875000000001,
+      57.97295800000006,
+      58.439375000000155,
+      57.50025000000005,
+      57.590165999999954,
+      59.87175000000002,
+      61.75320799999986,
+      57.209125000000085,
+      59.40370800000005,
+      59.158750000000055,
+      57.87279200000012,
+      60.40079100000003,
+      60.16787499999987,
+      59.22824999999966,
+      56.90220799999997,
+      68.28491699999995,
+      58.89666699999998
+    ],
+    "medianMs": 58.89666699999998,
+    "p95Ms": 63.90758400000004
+  },
+  "canonicalFormat": {
+    "rawMs": [
+      31.422833000000082,
+      30.201000000000022,
+      31.063750000000255,
+      29.781833000000006,
+      30.971250000000055,
+      35.443416999999954,
+      39.810333000000355,
+      40.351750000000266,
+      34.678084000000126,
+      35.38550000000032,
+      39.08008299999983,
+      35.4699999999998,
+      40.31766599999992,
+      39.24845800000003,
+      38.176542000000154,
+      31.22237499999983,
+      31.716333999999733,
+      30.893874999999753,
+      33.51083299999982,
+      35.40095799999972
+    ],
+    "medianMs": 34.678084000000126,
+    "p95Ms": 40.31766599999992
+  },
+  "directOrdinaryFormat": {
+    "rawMs": [
+      40.05795799999987,
+      38.41650000000027,
+      36.94162499999993,
+      38.00712500000009,
+      36.59358400000019,
+      34.29879200000005,
+      32.64212499999985,
+      34.80445899999995,
+      33.76033299999972,
+      34.29670899999974,
+      36.100332999999864,
+      33.82837500000005,
+      34.91624999999976,
+      34.023416,
+      33.94454199999973,
+      35.21895900000027,
+      34.652333,
+      32.61883399999988,
+      34.2534169999999,
+      33.97350000000006
+    ],
+    "medianMs": 34.29879200000005,
+    "p95Ms": 38.41650000000027
+  },
+  "directMixedFormat": {
+    "rawMs": [
+      57.7768329999999,
+      56.114958000000115,
+      58.22954200000004,
+      58.11787499999991,
+      63.14537500000006,
+      59.21541700000034,
+      60.91395800000009,
+      56.55462499999976,
+      58.90229200000067,
+      56.819249999999556,
+      57.667333999999755,
+      58.84299999999985,
+      59.08262500000001,
+      59.34300000000076,
+      55.763334000000214,
+      58.630166999999346,
+      56.963833000000704,
+      57.39533299999948,
+      61.5018340000006,
+      58.09862500000054
+    ],
+    "medianMs": 58.11787499999991,
+    "p95Ms": 61.5018340000006
+  },
+  "vitePlusCurrentMixedLint": {
+    "rawMs": [
+      256.09120900000016,
+      256.9087499999996,
+      263.62854199999947,
+      272.1597499999998,
+      256.1523329999991,
+      267.1568750000006,
+      279.9904580000002,
+      263.53754200000003,
+      254.74816699999974,
+      257.2513749999998,
+      256.9925829999993,
+      252.75612499999988,
+      258.9699580000015,
+      267.7787909999988,
+      254.7540829999998,
+      258.0423329999994,
+      254.30041700000038,
+      255.57283300000017,
+      267.22708299999977,
+      253.4051670000008
+    ],
+    "medianMs": 256.9925829999993,
+    "p95Ms": 272.1597499999998
+  },
+  "ratios": {
+    "directLintVsCanonicalP95": 1.8876782761841806,
+    "directFormatVsCanonicalP95": 1.5254314076613642,
+    "directOrdinaryFormatVsCanonicalP95": 0.9528453358386457
+  },
+  "invariants": {
+    "nativeTsrxParseCount": 1,
+    "nativeTsrxFiles": 1,
+    "ordinaryFilesInNativeLane": 0,
+    "ordinaryFormatProcessParity": true,
+    "ordinaryFormatDispatchEvents": 0
+  },
+  "budgets": {
+    "schemaVersion": 2,
+    "directLintP95MsMax": 150,
+    "directLintVsCanonicalP95RatioMax": 2.5,
+    "directFormatP95MsMax": 220,
+    "directFormatVsCanonicalP95RatioMax": 2,
+    "directOrdinaryFormatP95MsMax": 150,
+    "directOrdinaryFormatVsCanonicalP95RatioMax": 1.25,
+    "vitePlusCurrentLintP95MsMax": 750,
+    "nativeTsrxParseCountPerFile": 1
+  },
+  "assertions": {
+    "directLintP95": true,
+    "directLintRatio": true,
+    "directFormatP95": true,
+    "directFormatRatio": true,
+    "directOrdinaryFormatP95": true,
+    "directOrdinaryFormatRatio": true,
+    "vitePlusLintP95": true,
+    "oneNativeParse": true
+  }
+}
