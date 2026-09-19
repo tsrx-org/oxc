@@ -199,4 +199,4 @@ rule inside Oxlint waits on OXC PR
 
 The runnable version of this page is in
 [`examples/custom-js-plugins`](https://github.com/tsrx-org/oxc/tree/main/examples/custom-js-plugins).
-Oxlint is pinned and tested at 1.74.0. Last audited: 2026-07-27.
+Oxlint is pinned and tested at 1.83.0. Last audited: 2026-09-18.

@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 
 const root = resolve(import.meta.dirname, "../..");
-const revision = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+const revision = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 
 function run(executable, args, input = null) {
   return new Promise((resolveRun, rejectRun) => {
@@ -47,9 +47,9 @@ test("KEEP RAW is a pinned, fail-closed CSS shipping decision", async () => {
     subprocess: false,
     cargoPatch: false,
   });
-  assert.equal(decision.upstreamBlocker.formatterCrate, "oxc_formatter_css@0.59.0");
+  assert.equal(decision.upstreamBlocker.formatterCrate, "oxc_formatter_css@0.67.0");
   assert.equal(decision.upstreamBlocker.formatterCratePublished, false);
-  assert.equal(decision.upstreamBlocker.parserDependency, "oxc-css-parser@0.0.7");
+  assert.equal(decision.upstreamBlocker.parserDependency, "oxc-css-parser@0.0.15");
   assert.match(decision.upstreamBlocker.allocatorConflict, /registry oxc_allocator/u);
   assert.match(decision.upstreamBlocker.requiredUpstreamPatch, /oxc_allocator.*path/u);
   assert.equal(decision.requalifyOnlyWhen.length, 3);

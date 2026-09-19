@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -15,13 +14,14 @@ const marklessRoot = resolve(
 const binary = resolve(process.env.OXFMT_BIN ?? resolve(projectRoot, 'target/release/oxc-tsrx'));
 const revision = '76d0e6a07fa728b9343cc0d342fbe03813c43703';
 
+// Files Markless's reference parser, `@tsrx/yuku`, rejects at that revision.
+// (`@tsrx/core` 0.1.32 also rejected the two intrinsic-contract fixtures; yuku
+// and OXC crates v0.150.0 both accept them, and Markless no longer uses core.)
 const invalidFiles = [
   'packages/typescript-plugin/test/fixtures/completion-matrix/catalog.tsrx',
   'packages/typescript-plugin/test/fixtures/completion-matrix/construct-children.tsrx',
   'packages/typescript-plugin/test/fixtures/completion-matrix/constructs.tsrx',
   'packages/typescript-plugin/test/fixtures/completion-matrix/framework.tsrx',
-  'packages/typescript-plugin/test/fixtures/completion-matrix/intrinsic-contract-errors.tsrx',
-  'packages/typescript-plugin/test/fixtures/completion-matrix/intrinsic-contract.tsrx',
   'packages/typescript-plugin/test/fixtures/completion-matrix/router-contexts.tsrx',
   'packages/typescript-plugin/test/fixtures/completion-matrix/tag-closing-protocol.tsrx',
   'packages/typescript-plugin/test/fixtures/completion-matrix/tag-completions-expression.tsrx',
@@ -59,15 +59,38 @@ function stylePayloads(source) {
   return [...source.matchAll(/<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/g)].map((match) => match[1]);
 }
 
-test('formats every parser-valid file at the committed Markless revision without touching Markless', () => {
+test('formats every parser-valid file at the committed Markless revision without touching Markless', async () => {
   const statusBefore = git(['status', '--porcelain=v1', '-z']);
   assert.equal(git(['cat-file', '-t', revision]).trim(), 'commit');
 
-  const requireFromMarkless = createRequire(resolve(marklessRoot, 'packages/compiler/package.json'));
-  const coreEntry = requireFromMarkless.resolve('@tsrx/core');
-  const corePackage = JSON.parse(readFileSync(resolve(coreEntry, '../..', 'package.json'), 'utf8'));
-  assert.equal(corePackage.version, '0.1.32');
-  const { parseModule } = requireFromMarkless('@tsrx/core');
+  // Markless's compiler decides which files are parser-valid through
+  // `@tsrx/yuku` 0.2.0, the TSRX dialect on the Yuku parser, whose
+  // `parseModule(source, filename)` throws on a file it rejects. It is ESM-only,
+  // so it is located through the compiler package's own node_modules and loaded
+  // with a dynamic import rather than `require`.
+  const reference = {
+    name: '@tsrx/yuku',
+    version: '0.2.0',
+    directory: resolve(marklessRoot, 'packages/compiler/node_modules/@tsrx/yuku'),
+  };
+  assert.ok(
+    existsSync(resolve(reference.directory, 'package.json')),
+    'Markless compiler does not resolve @tsrx/yuku',
+  );
+  const referencePackage = JSON.parse(readFileSync(resolve(reference.directory, 'package.json'), 'utf8'));
+  assert.equal(referencePackage.version, reference.version, reference.name);
+  const conditionalEntry = (target) => {
+    if (typeof target === 'string') return target;
+    if (target && typeof target === 'object') {
+      for (const condition of ['import', 'default', 'node', 'require']) {
+        const resolved = conditionalEntry(target[condition]);
+        if (resolved) return resolved;
+      }
+    }
+    return null;
+  };
+  const entry = conditionalEntry(referencePackage.exports?.['.']) ?? referencePackage.main;
+  const { parseModule } = await import(pathToFileURL(resolve(reference.directory, entry)).href);
 
   const tracked = git(['ls-tree', '-r', '-z', '--name-only', revision])
     .split('\0')
@@ -106,6 +129,7 @@ test('formats every parser-valid file at the committed Markless revision without
   }
 
   assert.deepEqual(actualInvalid, invalidFiles);
-  assert.equal(accepted.length, 179);
+  assert.equal(accepted.length, tracked.length - invalidFiles.length);
+  assert.equal(accepted.length, 181);
   assert.equal(git(['status', '--porcelain=v1', '-z']), statusBefore);
 });

@@ -87,8 +87,9 @@ test("type-aware lint maps a real tsgolint diagnostic to authored TSRX", async (
   assert.equal(
     diagnostic.labels.some(
       (label) =>
+        // tsgolint 7.x labels the awaited expression, not the statement's semicolon.
         label.span.offset === byteOffset(source, "save();") &&
-        label.span.length === Buffer.byteLength("save();"),
+        label.span.length === Buffer.byteLength("save()"),
     ),
     true,
     result.stdout,
@@ -217,7 +218,7 @@ test("missing and unsupported tsgolint binaries fail without a silent downgrade"
   );
   assert.equal(unsupported.code, 2);
   assert.equal(unsupported.stdout, "");
-  assert.match(unsupported.stderr, /unsupported.*0\.23\.0.*0\.24\.0/i);
+  assert.match(unsupported.stderr, /unsupported.*0\.23\.0.*7\.0\.2002/i);
 });
 
 test("type projection preserves loop and branch scopes without synthetic type errors", async () => {

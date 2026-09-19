@@ -113,14 +113,14 @@ and one type-checker process covers the whole run.
 
 #### Troubleshooting tsgolint discovery
 
-Type-aware runs need exactly `oxlint-tsgolint` 0.24.0, pinned through
+Type-aware runs need exactly `oxlint-tsgolint` 7.0.2002, pinned through
 `@tsrx/oxc`'s lint implementation dependency. When `--type-aware` or
 `--type-check` fails to start:
 
 - Native discovery checks the project installation and `PATH`.
 - `OXLINT_TSGOLINT_PATH` names an executable or its directory explicitly.
 - A standalone executable with no package metadata also needs
-  `OXC_TSRX_TSGOLINT_VERSION=0.24.0`.
+  `OXC_TSRX_TSGOLINT_VERSION=7.0.2002`.
 - A missing, unverifiable, or version-mismatched binary exits 2 rather than
   quietly dropping the type rules or writing source.
 

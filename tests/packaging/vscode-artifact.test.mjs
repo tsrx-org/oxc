@@ -165,7 +165,7 @@ test("platform VSIX embeds exactly the matching native language server and notic
 
   const manifest = JSON.parse(entries.get("extension/dist/native/manifest.json"));
   assert.equal(manifest.target, hostTarget());
-  assert.equal(manifest.oxcRevision, "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40");
+  assert.equal(manifest.oxcRevision, "5a6e37e5cf895143a5b34050c50109c46e2ae96a");
   assert.equal(manifest.binary, `oxc-tsrx${suffix}`);
   const sourceHash = createHash("sha256")
     .update(await readFile(executable))

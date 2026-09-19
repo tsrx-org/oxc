@@ -61,10 +61,10 @@ test("@tsrx/oxc is the complete public toolchain boundary", async () => {
   // Every dependency is third-party. Nothing first-party sits between this
   // package and its own implementation.
   assert.deepEqual(manifest.dependencies, {
-    "@oxc-project/types": "0.140.0",
-    "oxfmt-current": "npm:oxfmt@0.59.0",
-    "oxlint-current": "npm:oxlint@1.74.0",
-    "oxlint-tsgolint": "0.24.0",
+    "@oxc-project/types": "0.150.0",
+    "oxfmt-current": "npm:oxfmt@0.68.0",
+    "oxlint-current": "npm:oxlint@1.83.0",
+    "oxlint-tsgolint": "7.0.2002",
     pathe: "2.0.3",
     "tinyglobby": "0.2.17",
   });

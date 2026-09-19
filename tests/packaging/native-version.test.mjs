@@ -7,7 +7,7 @@ import test from "node:test";
 
 const root = resolve(import.meta.dirname, "../..");
 const version = "0.13.0";
-const revision = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+const revision = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 
 function run(executable, args) {
   return new Promise((resolveRun, rejectRun) => {

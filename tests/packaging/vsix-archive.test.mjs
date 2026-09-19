@@ -28,7 +28,7 @@ const nativeManifestPath = "extension/dist/native/manifest.json";
 const nativeBinaryPath = "extension/dist/native/oxc-tsrx";
 const target = "aarch64-apple-darwin";
 const vscodeTarget = "darwin-arm64";
-const oxcRevision = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+const oxcRevision = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 
 const sha256 = (contents) => createHash("sha256").update(contents).digest("hex");
 

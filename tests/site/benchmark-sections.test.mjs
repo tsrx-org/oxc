@@ -129,7 +129,12 @@ test("public methodology explains fail-closed near-threshold adjudication", asyn
   assert.match(source, /median normalized budget pressure/u);
   assert.match(source, /report-path tie-break/u);
   assert.match(source, /selected representative is red/u);
-  assert.equal((html.match(/Near-threshold adjudication\./gu) ?? []).length, 2);
+  // One adjudication paragraph per family whose selected report landed inside
+  // the near-threshold band; a run that cleared every band renders none.
+  const triggered = Object.values(aggregate.results).filter(
+    (family) => family.adjudication?.triggered === true,
+  ).length;
+  assert.equal((html.match(/Near-threshold adjudication\./gu) ?? []).length, triggered);
   for (const family of ["native-format", "comparative"]) {
     for (const report of aggregate.results[family].adjudication.reports) {
       assert.match(html, new RegExp(report.path.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-16T21:42:08.585Z",
+  "generatedAt": "2026-09-19T04:54:20.452Z",
   "host": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -9,11 +9,11 @@
   },
   "native": {
     "packageName": "@tsrx/oxc-darwin-arm64",
-    "version": "0.1.0",
+    "version": "0.13.0",
     "target": "aarch64-apple-darwin",
-    "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
-    "integrity": "sha512-yyOJmoHZzLTYU/1ifbpEcOqVtPC+RmBf8R1OsCweRGJkBPE9N0Stqwoegul7+KKOoFJTfLVALJ93yQiLm1vxvA==",
-    "shasum": "6819e734b8344083c787327771582b5b53a78b49"
+    "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
+    "integrity": "sha512-tdxHiEJ5BZQXGiktBW4V7AO9iArVPrDjrYczELQCw7vS7KQDiIbG6+LYqffxb4QEUnoQPw1ppJQb0ypfWsBcbw==",
+    "shasum": "b7d7d11ca907aeeade4dbeed9994e52744b231bd"
   },
   "policy": {
     "legacy": "0.1.20 isolated opt-in control; not supported for new installs",
@@ -32,10 +32,10 @@
         "bundledTsgolint": "=0.23.0"
       },
       "companions": {
-        "oxlintTsrx": "0.1.0",
-        "oxfmtTsrx": "0.1.0",
-        "delegatedOxlint": "1.74.0",
-        "delegatedOxfmt": "0.59.0"
+        "provider": "oxc-tsrx",
+        "providerVersion": "0.13.0",
+        "delegatedOxlint": "1.83.0",
+        "delegatedOxfmt": "0.68.0"
       },
       "proof": {
         "supported": true,
@@ -67,10 +67,10 @@
         "bundledTsgolint": "=0.24.0"
       },
       "companions": {
-        "oxlintTsrx": "0.1.0",
-        "oxfmtTsrx": "0.1.0",
-        "delegatedOxlint": "1.74.0",
-        "delegatedOxfmt": "0.59.0"
+        "provider": "oxc-tsrx",
+        "providerVersion": "0.13.0",
+        "delegatedOxlint": "1.83.0",
+        "delegatedOxfmt": "0.68.0"
       },
       "proof": {
         "supported": true,
@@ -84,10 +84,10 @@
         "audit": {
           "info": 0,
           "low": 0,
-          "moderate": 0,
+          "moderate": 5,
           "high": 0,
           "critical": 0,
-          "total": 0
+          "total": 5
         },
         "environmentOverrides": false
       }

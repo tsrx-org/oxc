@@ -30,8 +30,10 @@ pub struct EngineDiagnostic {
 }
 
 pub(super) fn map_message(message: &Message) -> EngineDiagnostic {
-    let rule = message.rule.as_ref().map(|rule| rule.rule_name.to_string());
-    let plugin = message.rule.as_ref().map(|rule| rule.plugin_name.to_string());
+    // Since OXC removed `MessageRule`, the rule and plugin names live only in the
+    // diagnostic code: the scope is the plugin and the number is the rule.
+    let rule = message.error.code.number.as_ref().map(ToString::to_string);
+    let plugin = message.error.code.scope.as_ref().map(ToString::to_string);
     let labels = message
         .error
         .labels

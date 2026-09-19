@@ -293,7 +293,7 @@ test("current native release stages a complete, checksummed, npm-installable pla
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   assert.equal(manifest.version, "0.13.0");
   assert.equal(manifest.oxcTsrx.target, hostTarget());
-  assert.equal(manifest.oxcTsrx.oxcRevision, "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40");
+  assert.equal(manifest.oxcTsrx.oxcRevision, "5a6e37e5cf895143a5b34050c50109c46e2ae96a");
   assert.equal(manifest.scripts, undefined);
   assert.equal(manifest.preferUnplugged, true);
 
@@ -409,7 +409,7 @@ test("canonical parser packaging adds one verified schema-2 addon without changi
   assert.equal(record.nodeApi, 8);
   assert.equal(record.packageVersion, "0.13.0");
   assert.equal(record.target, hostTarget());
-  assert.equal(record.oxcRevision, "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40");
+  assert.equal(record.oxcRevision, "5a6e37e5cf895143a5b34050c50109c46e2ae96a");
   assert.deepEqual(record.capabilities, {
     lazy: true,
     async: true,

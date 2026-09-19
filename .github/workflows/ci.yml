@@ -99,7 +99,7 @@ jobs:
           pnpm run test:parser-api
 
   product-floor:
-    name: Product floor / Node ${{ matrix.node }} / Rust 1.95.0
+    name: Product floor / Node ${{ matrix.node }} / Rust 1.96.0
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     strategy:
@@ -130,11 +130,11 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
 
-      - name: Install Rust 1.95.0
+      - name: Install Rust 1.96.0
         shell: bash
         run: |
-          rustup toolchain install 1.95.0 --profile minimal --component clippy
-          rustup default 1.95.0
+          rustup toolchain install 1.96.0 --profile minimal --component clippy
+          rustup default 1.96.0
           rustc -Vv
           cargo -V
 
@@ -144,7 +144,7 @@ jobs:
           key: product-floor-node-${{ matrix.node }}
           cache-all-crates: true
 
-      # Both product-floor lanes pin Rust 1.95.0, so running the workspace lint
+      # Both product-floor lanes pin Rust 1.96.0, so running the workspace lint
       # and test on both is the same work twice. These lanes vary the Node floor;
       # Rust is covered once per distinct toolchain.
       - name: Lint and test the Rust workspace
@@ -238,11 +238,11 @@ jobs:
           assert.equal(process.platform, process.env.EXPECTED_PLATFORM);
           NODE
 
-      - name: Install Rust 1.95.0
+      - name: Install Rust 1.96.0
         shell: bash
         run: |
-          rustup toolchain install 1.95.0 --profile minimal
-          rustup default 1.95.0
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
           rustc -Vv
 
       - name: Cache the Rust build
@@ -339,11 +339,11 @@ jobs:
           node-version: 24.15.0
           cache: pnpm
 
-      - name: Install Rust 1.95.0
+      - name: Install Rust 1.96.0
         shell: bash
         run: |
-          rustup toolchain install 1.95.0 --profile minimal
-          rustup default 1.95.0
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
 
       - name: Cache the Rust build
         uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1

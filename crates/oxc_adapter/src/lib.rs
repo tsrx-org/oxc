@@ -32,10 +32,10 @@ pub use toolchain::{
     JsPluginFreeLintConfig, LintEngine, LintEngineOptions, LintError, LintRequest, LintResult,
     RuleFilter, RuleSeverity, SUPPORTED_TSGOLINT_VERSION, TsgolintError, TypeBatchDiagnostic,
     TypeBatchFile, TypeBatchResult, TypeLintError, TypeLintRequest, TypeLintResult, format, lint,
-    lint_config_without_js_plugins,
+    lint_config_without_js_plugins, write_check_report_path,
 };
 
-pub const OXC_REVISION: &str = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+pub const OXC_REVISION: &str = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SourceKind {

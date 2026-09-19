@@ -2,7 +2,9 @@
 
 use std::{
     collections::HashSet,
-    env, fs,
+    env,
+    fmt::Write as _,
+    fs,
     io::{self, Read, Write},
     path::{Path, PathBuf},
     process::ExitCode,
@@ -111,7 +113,14 @@ impl FormatBatch {
     /// `path (Nms)` per differing file, in the order the paths were given.
     fn changed_report_lines(&self) -> Vec<String> {
         self.changed()
-            .map(|file| format!("{} ({}ms)", file.path.display(), file.duration_ms))
+            .map(|file| {
+                let mut line = String::new();
+                // Styled like canonical Oxfmt's check report so the merged wrapper report
+                // shows both halves the same way under the same environment.
+                oxc_adapter::write_check_report_path(&mut line, &file.path.display().to_string());
+                let _ = write!(line, " ({}ms)", file.duration_ms);
+                line
+            })
             .collect()
     }
 

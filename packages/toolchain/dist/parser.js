@@ -7,14 +7,14 @@ const PACKAGE_VERSION = "0.13.0";
 const parserManifest = Object.freeze({
 	name: "@tsrx/oxc",
 	version: PACKAGE_VERSION,
-	dependencies: Object.freeze({ "@oxc-project/types": "0.140.0" }),
+	dependencies: Object.freeze({ "@oxc-project/types": "0.150.0" }),
 	optionalDependencies: Object.freeze(Object.fromEntries(NATIVE_TARGETS.map((target) => [nativePackageName(target), PACKAGE_VERSION])))
 });
 const API_VERSION = 1;
 const TRANSPORT_ABI = 1;
 const NODE_API = 8;
 const NATIVE_PROTOCOL_VERSION = 2;
-const OXC_REVISION = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+const OXC_REVISION = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 const NODE_ENGINE = "^20.19.0 || >=22.12.0";
 const ADDON_FILE = "parser.node";
 const ADDON_ROLE = "canonical-parser";

@@ -41,7 +41,7 @@
   ],
   "sideEffects": false,
   "dependencies": {
-    "@oxc-project/types": "0.140.0",
+    "@oxc-project/types": "0.150.0",
     "@tsrx/oxc": "0.13.0"
   },
   "engines": {

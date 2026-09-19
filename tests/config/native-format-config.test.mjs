@@ -107,13 +107,22 @@ function normalizeSummary(line) {
     .replace(/\busing \d+ threads\b/u, "using <threads> threads");
 }
 
+// Since Oxfmt 0.60 a `--check` report styles each differing path when colour is
+// on (`CI` or `FORCE_COLOR` force it), and the TSRX half styles its paths the same
+// way. The file list is compared without the styling, and `styled` records whether
+// the report carried any, so both halves are still held to the same decision.
+const ANSI_SEQUENCE = /\x1B\[[0-9;]*m/gu;
+
 function normalizeReportPath(line) {
-  return basename(line.replace(/ \(\d+ms\)$/u, "")).replace(/\.(?:tsrx|ts)$/u, "");
+  const plain = line.replace(ANSI_SEQUENCE, "").replace(/ \(\d+ms\)$/u, "");
+  return basename(plain).replace(/\.(?:tsrx|ts)$/u, "");
 }
 
 /// Split an Oxfmt report into its parts. A report truncated by a failing file
 /// carries the paths that differ and nothing else: no verdict, no file count.
 function parseReport(stdout) {
+  const styled = ANSI_SEQUENCE.test(stdout);
+  ANSI_SEQUENCE.lastIndex = 0;
   const separator = stdout.indexOf("\n\n");
   if (separator <= 0 || stdout.slice(0, separator).includes("\n")) return null;
   const preamble = stdout.slice(0, separator);
@@ -130,7 +139,7 @@ function parseReport(stdout) {
   } else {
     files = body === "" ? [] : body.split("\n");
   }
-  return { preamble, verdict, summary, files: files.map(normalizeReportPath).sort() };
+  return { preamble, verdict, summary, styled, files: files.map(normalizeReportPath).sort() };
 }
 
 function lastLine(text) {
@@ -751,7 +760,12 @@ test("the drop-in oxfmt checks a file list past the argument limit and skips git
   );
   const result = await runCompanion(directory, ["--check", "."]);
   assert.equal(result.code, 1, result.stderr || result.stdout);
-  assert.equal((result.stdout.match(/^many\/component-number-\d+\.tsrx/gmu) ?? []).length, count, result.stdout.slice(0, 400));
+  // Each differing path may carry the check report's colour prefix under `CI`.
+  assert.equal(
+    (result.stdout.match(/^(?:\x1B\[[0-9;]*m)?many\/component-number-\d+\.tsrx/gmu) ?? []).length,
+    count,
+    result.stdout.slice(0, 400),
+  );
   assert.doesNotMatch(result.stdout, /ignored\//u);
   // Every .tsrx file, plus src/a.ts and .oxfmtrc.json, which canonical Oxfmt formats too.
   assert.match(result.stdout, new RegExp(`on ${count + 2} files`, "u"));

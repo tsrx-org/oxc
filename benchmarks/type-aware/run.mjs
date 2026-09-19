@@ -138,7 +138,7 @@ const summary = {
   },
   corpus,
   versions: {
-    tsgolint: "0.24.0",
+    tsgolint: "7.0.2002",
   },
   samplePolicy: {
     coldSamples: 1,

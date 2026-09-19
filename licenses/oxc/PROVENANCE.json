@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "project": "OXC",
   "repository": "https://github.com/oxc-project/oxc",
-  "revision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
+  "revision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
   "files": {
     "LICENSE": {
-      "source": "https://raw.githubusercontent.com/oxc-project/oxc/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40/LICENSE",
+      "source": "https://raw.githubusercontent.com/oxc-project/oxc/5a6e37e5cf895143a5b34050c50109c46e2ae96a/LICENSE",
       "sha256": "95ced5ecf1133fbf41d409b5555c86c344f83f3b019926057ddbc07cfdcc27b3"
     },
     "THIRD-PARTY-LICENSE": {
-      "source": "https://raw.githubusercontent.com/oxc-project/oxc/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40/THIRD-PARTY-LICENSE",
+      "source": "https://raw.githubusercontent.com/oxc-project/oxc/5a6e37e5cf895143a5b34050c50109c46e2ae96a/THIRD-PARTY-LICENSE",
       "sha256": "77643247a04db72198cea3c8b73751091821b4d51b5448fd65501127a9db5111"
     }
   }

@@ -25809,7 +25809,7 @@ var init_runtime = __esmMin((() => {
 	require$1 = (0, node_module.createRequire)(require("url").pathToFileURL(__filename).href);
 	runtimeManifest = require$1("../package.json");
 	NATIVE_PROTOCOL_VERSION = 2;
-	OXC_REVISION = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+	OXC_REVISION = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 	ENVIRONMENTS = {
 		lint: "OXC_TSRX_LINT_BIN",
 		format: "OXC_TSRX_FORMAT_BIN",

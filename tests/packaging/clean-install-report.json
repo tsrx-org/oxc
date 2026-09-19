@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "startedAt": "2026-08-01T21:05:35.264Z",
-  "completedAt": "2026-08-01T21:05:51.875Z",
+  "startedAt": "2026-09-19T04:54:31.695Z",
+  "completedAt": "2026-09-19T04:54:47.326Z",
   "host": {
     "platform": "darwin",
     "arch": "arm64",
@@ -17,14 +17,14 @@
   "packages": {
     "toolchain": {
       "name": "@tsrx/oxc",
-      "version": "0.1.5",
-      "integrity": "sha512-l0KSDCQkrnX9vaqA3fGMjbtvzgrmpKKEoppQCMO9VDpbz2Uvxk7NHX+K2RJwMVrJCUy3Oni/e+fgrMM65VYvpA=="
+      "version": "0.13.0",
+      "integrity": "sha512-mkj3iy85YEuWSWn8cegShYyHRI478u0nhsjJG3HD1IVMSBgv1GZ6Cdwxt9CWqlENrOlQuwpAOeM+fBEZQSiCWw=="
     },
     "native": {
       "name": "@tsrx/oxc-darwin-arm64",
-      "version": "0.1.5",
+      "version": "0.13.0",
       "target": "aarch64-apple-darwin",
-      "integrity": "sha512-LepSreXv8Q4zLhUgtmzT4rsTLO7FlrFa+WSkR9KaxK8hnKtedI5jKrOqFyS5NA0BfWNl1NS5HhcuOpZcbcEEhg=="
+      "integrity": "sha512-tdxHiEJ5BZQXGiktBW4V7AO9iArVPrDjrYczELQCw7vS7KQDiIbG6+LYqffxb4QEUnoQPw1ppJQb0ypfWsBcbw=="
     },
     "vitePlus": "0.2.4"
   },
@@ -36,10 +36,10 @@
   "audit": {
     "info": 0,
     "low": 0,
-    "moderate": 0,
+    "moderate": 5,
     "high": 0,
     "critical": 0,
-    "total": 0
+    "total": 5
   },
   "assertions": {
     "mixedLintAuthoredDiagnostics": true,

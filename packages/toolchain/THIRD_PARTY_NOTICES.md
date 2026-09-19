@@ -2,7 +2,7 @@
 
 `oxc-tsrx` is the complete OXC-shaped TSRX parser, linter, formatter, and
 language-server host. It uses canonical OXC Rust crates from commit
-`8e0ed2ebb96137fb1611cdbd5742d5cb46037d40` of
+`5a6e37e5cf895143a5b34050c50109c46e2ae96a` of
 <https://github.com/oxc-project/oxc>. OXC is licensed under the MIT License.
 
 OXC is consumed as an exact-revision Cargo dependency. Its source is not

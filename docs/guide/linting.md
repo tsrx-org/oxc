@@ -75,7 +75,7 @@ Three things behave differently here:
   copy rather than the code you wrote. Read
   [Custom JavaScript plugins](/integrations/custom-js-plugins) before relying on
   them.
-- **Type-aware lint is opt-in** and needs exactly `oxlint-tsgolint` 0.24.0. A
+- **Type-aware lint is opt-in** and needs exactly `oxlint-tsgolint` 7.0.2002. A
   missing or mismatched version fails loudly instead of quietly switching
   itself off.
 

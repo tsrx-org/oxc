@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "timestamp": "2026-09-19T05:00:11.376Z",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v24.15.0",
+    "cpu": "Apple M5 Pro",
+    "osRelease": "25.6.0"
+  },
+  "build": {
+    "profile": "release",
+    "binary": "target/release/oxc-tsrx",
+    "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a"
+  },
+  "corpus": {
+    "kind": "authored syntax-only, single-file type-aware, and explicit two-file TSRX project fixtures",
+    "files": [
+      "tests/fixtures/lint/native-lint.tsrx",
+      "tests/fixtures/type-aware/single/View.tsrx",
+      "tests/fixtures/type-aware/project/View.tsrx",
+      "tests/fixtures/type-aware/project/service.tsrx"
+    ],
+    "bytes": 576,
+    "sha256": "d9ca737d7481a8de368bdd23e3fced64756bd3bf3722d039aad5c0de52286b82"
+  },
+  "versions": {
+    "tsgolint": "7.0.2002"
+  },
+  "samplePolicy": {
+    "coldSamples": 1,
+    "warmupsAfterCold": 5,
+    "measured": 20,
+    "freshProcessesPerLane": 26,
+    "statistic": "median and nearest-rank p95 over measured fresh native CLI processes; first process retained separately"
+  },
+  "defaultSyntax": {
+    "coldMs": 3.990707999999998,
+    "rawMs": [
+      2.5306250000000006,
+      2.4750409999999974,
+      2.677540999999998,
+      2.4656670000000034,
+      2.4468750000000057,
+      2.4780839999999955,
+      2.493707999999998,
+      2.5806249999999977,
+      2.5493340000000018,
+      2.962333000000001,
+      2.735292000000001,
+      2.5905839999999998,
+      2.5787500000000065,
+      2.621292000000011,
+      2.6083749999999952,
+      2.6985409999999916,
+      2.4937089999999955,
+      2.6129999999999995,
+      2.444416999999987,
+      2.458624999999998
+    ],
+    "medianMs": 2.5493340000000018,
+    "p95Ms": 2.735292000000001
+  },
+  "singleTypeAware": {
+    "coldMs": 58.638791999999995,
+    "rawMs": [
+      23.085624999999993,
+      23.160041999999976,
+      23.48833300000001,
+      23.982249999999965,
+      24.384792000000004,
+      23.483834,
+      24.67983300000003,
+      23.827125000000024,
+      23.302707999999996,
+      24.668207999999993,
+      23.926000000000045,
+      23.96879100000001,
+      24.10633400000006,
+      23.475415999999996,
+      23.350833999999963,
+      23.754583000000025,
+      23.30454199999997,
+      25.417416000000003,
+      23.20679199999995,
+      23.700000000000045
+    ],
+    "medianMs": 23.700000000000045,
+    "p95Ms": 24.67983300000003
+  },
+  "projectTypeAware": {
+    "coldMs": 24.042832999999973,
+    "rawMs": [
+      23.74675000000002,
+      23.836208000000056,
+      22.71245900000008,
+      26.29495799999995,
+      24.108583000000067,
+      23.64754199999993,
+      23.151583000000073,
+      23.883000000000038,
+      24.008291999999983,
+      24.32704200000012,
+      23.628999999999905,
+      23.393708999999944,
+      24.020333000000164,
+      26.084916999999905,
+      24.214082999999846,
+      23.45141600000011,
+      23.83375000000001,
+      24.00604199999998,
+      23.992666999999983,
+      22.863375000000133
+    ],
+    "medianMs": 23.836208000000056,
+    "p95Ms": 26.084916999999905
+  },
+  "ratios": {
+    "singleTypeAwareVsDefaultP95": 9.022741630509657
+  },
+  "invariants": {
+    "defaultParseCount": 1,
+    "defaultTypeAwareProcesses": 0,
+    "singleTypeAwareProcesses": 1,
+    "projectTypeAwareProcesses": 1,
+    "projectParseCount": 2
+  },
+  "budgets": {
+    "defaultSyntaxP95MsMax": 10,
+    "singleTypeAwareP95MsMax": 60,
+    "projectTypeAwareP95MsMax": 70,
+    "singleTypeAwareColdMsMax": 100,
+    "projectTypeAwareColdMsMax": 120,
+    "singleTypeAwareVsDefaultP95RatioMax": 12,
+    "typeAwareProcessesPerBatch": 1,
+    "defaultParseCountPerFile": 1
+  },
+  "assertions": {
+    "defaultSyntaxP95": true,
+    "singleTypeAwareP95": true,
+    "projectTypeAwareP95": true,
+    "singleTypeAwareCold": true,
+    "projectTypeAwareCold": true,
+    "singleTypeAwareRatio": true,
+    "defaultPathUnchanged": true,
+    "oneTypeProcessPerBatch": true
+  }
+}

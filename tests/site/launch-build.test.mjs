@@ -371,9 +371,15 @@ test("aggregate-selected benchmark evidence survives Markdown, LLM, and search e
     readFile(join(siteDir, "search-index.json"), "utf8"),
   ]);
 
+  const adjudicated = Object.values(aggregate.results).some(
+    (family) => family.adjudication?.triggered === true,
+  );
   for (const artifact of [markdown, llmsFull]) {
     assert.doesNotMatch(artifact, /<!-- benchmarks:auto -->/u);
-    assert.match(artifact, /Near-threshold adjudication/u);
+    // The adjudication paragraph only exists for a family that landed inside
+    // the near-threshold band, so its presence follows the aggregate report.
+    if (adjudicated) assert.match(artifact, /Near-threshold adjudication/u);
+    else assert.doesNotMatch(artifact, /Near-threshold adjudication/u);
     assert.match(artifact, /median normalized budget pressure/u);
     for (const report of selected) assert.ok(artifact.includes(report), report);
   }

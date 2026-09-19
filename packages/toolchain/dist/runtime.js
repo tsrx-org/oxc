@@ -11,7 +11,7 @@ import { existsSync, statSync } from "node:fs";
 const require = createRequire(import.meta.url);
 const runtimeManifest = require("../package.json");
 const NATIVE_PROTOCOL_VERSION = 2;
-const OXC_REVISION = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+const OXC_REVISION = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 const ENVIRONMENTS = {
 	lint: "OXC_TSRX_LINT_BIN",
 	format: "OXC_TSRX_FORMAT_BIN",

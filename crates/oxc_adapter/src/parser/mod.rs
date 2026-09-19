@@ -1,18 +1,19 @@
-mod indexed_source;
 mod ordinary;
 mod result_serializer;
 mod tape_serializer;
 
 use std::{borrow::Cow, error::Error, fmt};
 
-use indexed_source::IndexedSource;
-use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, Labels, Related, SourceCode};
 use oxc_allocator::Allocator;
 use oxc_ast::ast::Program;
-use oxc_diagnostics::{LabeledSpan, OxcDiagnostic, Severity};
+use oxc_diagnostics::{
+    Diagnostic, GraphicalReportHandler, GraphicalTheme, LabeledSpan, NamedSource, OxcDiagnostic,
+    Severity, SourceCode,
+};
 use oxc_estree::ESTree;
 use oxc_parser::{ParseOptions, Parser};
 use oxc_semantic::SemanticBuilder;
+use oxc_span::Span;
 use tsrx_tape_schema::{
     CommentTable, DiagnosticPhase, DiagnosticRecord, DiagnosticSeverity, DiagnosticTable, FlatTape,
     ModuleTable, RecordIndex, TapeBuildError,
@@ -279,8 +280,8 @@ fn parse_to_projected_tape_with_retention(
     // additionally emits a TypeScript grammar diagnostic. Keep every other diagnostic fail-closed.
     let (has_retained_diagnostics, suppressed_diagnostics) =
         append_tsrx_grammar_diagnostics(&mut errors, request.source, &parsed.diagnostics)?;
-    let syntax_failed = parsed.panicked || has_retained_diagnostics;
-    if syntax_failed && (request.recovery != ProjectedParseRecovery::Editor || parsed.panicked) {
+    let syntax_failed = parsed.fatal_error || has_retained_diagnostics;
+    if syntax_failed && (request.recovery != ProjectedParseRecovery::Editor || parsed.fatal_error) {
         let rejection_module_names = match request.rejection_metadata {
             RejectionMetadata::None => RejectionModuleNames::default(),
             RejectionMetadata::ModuleNames => {
@@ -297,7 +298,7 @@ fn parse_to_projected_tape_with_retention(
             suppressed_diagnostics,
             authored_grammar: None,
             syntax_failed: true,
-            panicked: parsed.panicked,
+            panicked: parsed.fatal_error,
         });
     }
     if let Err(error) = validate_dynamic_tags_with_synthetic_calls(
@@ -354,7 +355,7 @@ fn parse_to_projected_tape_with_retention(
         suppressed_diagnostics,
         authored_grammar: None,
         syntax_failed,
-        panicked: parsed.panicked,
+        panicked: parsed.fatal_error,
     })
 }
 
@@ -399,8 +400,13 @@ pub fn parse_failed_tsrx_metadata(
 
 /// Renders pinned-OXC codeframes after TSRX spans have been reconstructed into authored bytes.
 ///
-/// OXC types and the borrowed indexed source remain inside this revision-local adapter call. The
-/// result table retains only owned strings and revision-neutral records.
+/// OXC types and the borrowed source remain inside this revision-local adapter call. The result
+/// table retains only owned strings and revision-neutral records.
+///
+/// Every diagnostic is rendered in one batch through the pinned handler's shared-scanner entry
+/// point. Its per-report entry point builds a fresh line scanner of the whole source for each
+/// call, which would make rendering quadratic in source length once a file carries many
+/// diagnostics; the batch entry point scans the source once and reuses it for every report.
 ///
 /// # Errors
 ///
@@ -413,7 +419,7 @@ pub fn render_diagnostic_codeframes(
     if diagnostics.is_empty() {
         return Ok(());
     }
-    let indexed_source = IndexedSource::new(filename, source);
+    let named_source = NamedSource::new(filename, source);
     // Pin the theme. `GraphicalReportHandler::new()` picks its theme from runtime
     // terminal detection, and `supports-color` treats CI as colour capable, so the
     // same source produced ANSI-escaped unicode under GitHub Actions and plain
@@ -421,25 +427,60 @@ pub fn render_diagnostic_codeframes(
     // on to LSP and JSON consumers rather than to a terminal, so escape codes are
     // never wanted and the bytes must not depend on the environment.
     let handler = GraphicalReportHandler::new_themed(GraphicalTheme::none());
-    for index in 0..diagnostics.len() {
-        let record = diagnostics.records()[index];
-        let diagnostic = rebuild_diagnostic(diagnostics, &record)?;
-        let sourced = SourcedDiagnostic { diagnostic: &diagnostic, source: &indexed_source };
-        let index = u32::try_from(index)
-            .map(RecordIndex::new)
-            .map_err(|_| TapeBuildError::CapacityOverflow)?;
-        diagnostics
-            .write_codeframe(index, |writer| handler.render_report(writer, &sourced))?
-            .map_err(|_| {
-                ProjectedParseError::Invariant("failed to render diagnostic codeframe".to_string())
-            })?;
+    // Rebuild every diagnostic up front so the batch below borrows owned copies rather
+    // than the table it writes back into.
+    let rebuilt = diagnostics
+        .records()
+        .iter()
+        .map(|record| rebuild_diagnostic(diagnostics, record))
+        .collect::<Result<Vec<_>, _>>()?;
+    let sourced = rebuilt
+        .iter()
+        .map(|diagnostic| SourcedDiagnostic { diagnostic, source: &named_source })
+        .collect::<Vec<_>>();
+    let mut next_index = 0usize;
+    let mut failure: Option<ProjectedParseError> = None;
+    handler
+        .render_reports_until(
+            sourced.iter().map(|entry| entry as &dyn Diagnostic),
+            &mut |_, rendered| {
+                let stored = u32::try_from(next_index)
+                    .map(RecordIndex::new)
+                    .map_err(|_| ProjectedParseError::from(TapeBuildError::CapacityOverflow))
+                    .and_then(|index| {
+                        diagnostics
+                            .write_codeframe(index, |writer| {
+                                fmt::Write::write_str(writer, rendered)
+                            })
+                            .map_err(ProjectedParseError::from)?
+                            .map_err(|_| {
+                                ProjectedParseError::Invariant(
+                                    "failed to render diagnostic codeframe".to_string(),
+                                )
+                            })
+                    });
+                next_index += 1;
+                match stored {
+                    Ok(()) => true,
+                    Err(error) => {
+                        failure = Some(error);
+                        false
+                    }
+                }
+            },
+        )
+        .map_err(|_| {
+            ProjectedParseError::Invariant("failed to render diagnostic codeframe".to_string())
+        })?;
+    if let Some(error) = failure {
+        return Err(error);
     }
     Ok(())
 }
 
 struct SourcedDiagnostic<'a> {
     diagnostic: &'a OxcDiagnostic,
-    source: &'a IndexedSource<'a>,
+    source: &'a NamedSource<&'a str>,
 }
 
 impl fmt::Debug for SourcedDiagnostic<'_> {
@@ -461,7 +502,7 @@ impl Diagnostic for SourcedDiagnostic<'_> {
         Diagnostic::code(self.diagnostic)
     }
 
-    fn severity(&self) -> Option<miette::Severity> {
+    fn severity(&self) -> Option<Severity> {
         Diagnostic::severity(self.diagnostic)
     }
 
@@ -481,16 +522,8 @@ impl Diagnostic for SourcedDiagnostic<'_> {
         Some(self.source)
     }
 
-    fn labels(&self) -> Labels {
+    fn labels(&self) -> &[LabeledSpan] {
         Diagnostic::labels(self.diagnostic)
-    }
-
-    fn related(&self) -> Related<'_> {
-        Diagnostic::related(self.diagnostic)
-    }
-
-    fn diagnostic_source(&self) -> Option<&dyn Diagnostic> {
-        Diagnostic::diagnostic_source(self.diagnostic)
     }
 }
 
@@ -507,11 +540,13 @@ fn rebuild_diagnostic(
     let labels = labels
         .iter()
         .map(|label| {
-            let length = label.span.end.checked_sub(label.span.start).ok_or_else(|| {
-                ProjectedParseError::Invariant("reversed diagnostic label".to_string())
-            })?;
+            if label.span.end < label.span.start {
+                return Err(ProjectedParseError::Invariant(
+                    "reversed diagnostic label".to_string(),
+                ));
+            }
             let message = optional_diagnostic_string(table, label.message)?.map(str::to_owned);
-            let span = (label.span.start, length);
+            let span = Span::new(label.span.start, label.span.end);
             Ok(if label.primary {
                 LabeledSpan::new_primary_with_span(message, span)
             } else {

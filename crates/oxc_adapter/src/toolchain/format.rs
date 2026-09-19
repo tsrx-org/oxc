@@ -3,11 +3,12 @@
 use std::{collections::HashSet, error::Error, fmt, str::FromStr, time::Instant};
 
 use oxc_allocator::Allocator;
+use oxc_diagnostics::GraphicalTheme;
 use oxc_formatter::{
     ArrowParentheses, AttributePosition, BracketSameLine, BracketSpacing, CommentLineStrategy,
-    CustomGroupDefinition, EmbeddedLanguageFormatting, Expand, GroupEntry, ImportModifier,
-    ImportSelector, JsFormatOptions, JsdocOptions, LineWrappingStyle, QuoteProperties, QuoteStyle,
-    Semicolons, SortImportsOptions, SortOrder, TrailingCommas, format_program, parse_for_format,
+    CustomGroupDefinition, Expand, GroupEntry, ImportModifier, ImportSelector, JsFormatOptions,
+    JsdocOptions, LineWrappingStyle, QuoteProperties, QuoteStyle, Semicolons, SortImportsOptions,
+    SortOrder, TrailingCommas, format_program, parse_for_format,
 };
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineEnding, LineWidth};
 use serde::Deserialize;
@@ -368,7 +369,7 @@ pub fn format(request: &FormatRequest<'_>) -> Result<EngineFormatResult, FormatE
     let started = Instant::now();
     let options =
         request.options.map_or_else(|| Ok(JsFormatOptions::default()), js_format_options)?;
-    let code = format_program(&allocator, &parsed.program, options, None)
+    let code = format_program(&allocator, &parsed.program, options)
         .print()
         .map_err(|error| FormatError::Print { detail: error.to_string() })?
         .into_code();
@@ -445,12 +446,9 @@ fn js_format_options(options: &FormatOptions) -> Result<JsFormatOptions, FormatO
         resolved.attribute_position =
             if single_attribute { AttributePosition::Multiline } else { AttributePosition::Auto };
     }
-    if let Some(value) = &options.embedded_language_formatting {
-        resolved.embedded_language_formatting = EmbeddedLanguageFormatting::from_str(value)
-            .map_err(|error| {
-                FormatOptionError::named("embeddedLanguageFormatting", value, error)
-            })?;
-    }
+    // `embeddedLanguageFormatting` is no longer a formatter-crate option: canonical Oxfmt
+    // implements it with an application-level embedded-language dispatcher this adapter does
+    // not carry, and the TSRX formatter rejects the option before reaching this point.
     if let Some(value) = &options.html_whitespace_sensitivity {
         resolved.html_whitespace_sensitivity_ignore = match value.as_str() {
             "ignore" => true,
@@ -686,6 +684,19 @@ fn jsdoc_options(setting: &JsdocSetting) -> Result<Option<JsdocOptions>, FormatO
         resolved.keep_unparsable_example_indent = value;
     }
     Ok(Some(resolved))
+}
+
+/// Appends one differing path to a `--check` report styled the way canonical Oxfmt styles it.
+///
+/// Since Oxfmt 0.60 the check report colours each differing path with the diagnostics theme's
+/// warning style, and detects colour support the same way its graphical report handler does:
+/// `CI` or `FORCE_COLOR` forces colour, a non-terminal gets none, and `NO_COLOR` strips it. The
+/// merged wrapper report interleaves canonical lines with TSRX lines, so both halves must make
+/// the same decision from the same environment; delegating to the pinned theme keeps them
+/// byte-identical without restating its rules here. `--list-different` output stays unstyled.
+pub fn write_check_report_path(output: &mut String, path: &str) {
+    // Writing into a `String` cannot fail.
+    let _ = GraphicalTheme::default().write_warning(output, path);
 }
 
 #[cfg(test)]

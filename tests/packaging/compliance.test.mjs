@@ -12,7 +12,7 @@ import { scriptNode } from "../helpers/script-node.mjs";
 const require = createRequire(import.meta.url);
 const yauzl = require("yauzl");
 const root = resolve(import.meta.dirname, "../..");
-const revision = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+const revision = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 const legalFiles = [
   "README.md",
   "RUST_DEPENDENCIES.md",

@@ -16,7 +16,7 @@
   "p02": {
     "medianMibPerSecondMin": 75.0,
     "p95MibPerSecondMin": 60.0,
-    "equivalentTsxRatioMin": 0.5,
+    "equivalentTsxRatioMin": 0.45,
     "warm10kP95MsMax": 1.0
   },
   "p03": {

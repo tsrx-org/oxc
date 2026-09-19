@@ -10,7 +10,7 @@ import {
 } from './performance-adjudication.mjs'
 
 const commonIdentity = Object.freeze({
-  oxcRevision: '8e0ed2ebb96137fb1611cdbd5742d5cb46037d40',
+  oxcRevision: '5a6e37e5cf895143a5b34050c50109c46e2ae96a',
   corpus: 'paired-corpus-v1',
   budgets: 'frozen-budgets-v1',
   host: 'test-host-v1',

@@ -20,7 +20,7 @@ import { resolveNpmInvocation } from "../tests/helpers/npm-invocation.mjs";
 import { parseNpmPackResponse } from "../tests/helpers/npm-pack-response.mjs";
 
 const root = resolve(import.meta.dirname, "..");
-const revision = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+const revision = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 // One multi-call executable carries all three tools. Three separate binaries
 // linked the same oxc parser, linter, and formatter three times, so a platform
 // package was a little over twice the download it needed to be.

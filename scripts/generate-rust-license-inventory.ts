@@ -10,7 +10,7 @@ if (unsupported.length > 0) {
   throw new Error(`unsupported option(s): ${unsupported.join(", ")}`);
 }
 
-const OXC_REVISION = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+const OXC_REVISION = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 const OXC_SOURCE = `git+https://github.com/oxc-project/oxc?rev=${OXC_REVISION}#${OXC_REVISION}`;
 const SHIPPING_ROOT_PACKAGE_NAMES = ["oxc_tsrx_cli", "parser_napi_binding"];
 const OXC_LICENSES = [

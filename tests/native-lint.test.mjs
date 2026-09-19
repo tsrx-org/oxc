@@ -104,7 +104,7 @@ test('runs real OXC rules once and reports original TSRX byte spans', async () =
 
   assert.equal(output.oxcTsrx.native, true);
   assert.equal(output.oxcTsrx.engine, 'oxc_linter');
-  assert.equal(output.oxcTsrx.oxcRevision, '8e0ed2ebb96137fb1611cdbd5742d5cb46037d40');
+  assert.equal(output.oxcTsrx.oxcRevision, '5a6e37e5cf895143a5b34050c50109c46e2ae96a');
   assert.equal(output.oxcTsrx.parseCount, 1);
   assert.equal(output.oxcTsrx.files.tsrx, 1);
   for (const field of ['scanNs', 'projectionNs', 'parseNs', 'semanticNs', 'lintNs']) {

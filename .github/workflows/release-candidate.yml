@@ -109,8 +109,8 @@ jobs:
       - name: Install the pinned release Rust toolchain and target
         shell: bash
         run: |
-          rustup toolchain install 1.95.0 --profile minimal
-          rustup default 1.95.0
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
           rustup target add "$TARGET"
           rustc -Vv
 

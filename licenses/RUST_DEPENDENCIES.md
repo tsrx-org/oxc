@@ -6,9 +6,9 @@ build dependency closure of the three binaries in `oxc_tsrx_cli` and the
 native addon in `parser_napi_binding`; benchmark and development-only
 dependencies are excluded.
 
-- Cargo.lock SHA-256: `9b14e831622b91d50b70987251cc5fb96651140aa4dc1aee8d38595b24371e3b`
-- Canonical OXC revision: `8e0ed2ebb96137fb1611cdbd5742d5cb46037d40`
-- Shipping third-party packages: 220
+- Cargo.lock SHA-256: `05cb314a15a631bf8d26da5018ec997548a77eac750f6ed25cc9388e4d07fc14`
+- Canonical OXC revision: `5a6e37e5cf895143a5b34050c50109c46e2ae96a`
+- Shipping third-party packages: 235
 - Accepted license policy: `licenses/allowed-rust-license-expressions.json`
 - Every dual/multi-license expression has an explicit selected distribution
   license. In particular, `self_cell` is distributed under Apache-2.0, not
@@ -18,6 +18,7 @@ dependencies are excluded.
 
 | Package | Version | Cargo license expression | Selected distribution license | Locked source | Checksum |
 | --- | --- | --- | --- | --- | --- |
+| adler2 | 2.0.1 | 0BSD OR MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/adler2/2.0.1) | 320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa |
 | aho-corasick | 1.1.4 | Unlicense OR MIT | **MIT** | [crates.io](https://crates.io/crates/aho-corasick/1.1.4) | ddd31a130427c27518df266943a5308ed92d4b226cc639f5a8f1002816174301 |
 | allocator-api2 | 0.2.21 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/allocator-api2/0.2.21) | 683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923 |
 | arrayvec | 0.7.8 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/arrayvec/0.7.8) | d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56 |
@@ -25,14 +26,18 @@ dependencies are excluded.
 | bitflags | 2.13.1 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/bitflags/2.13.1) | b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da |
 | borrow-or-share | 0.2.4 | MIT-0 | **MIT-0** | [crates.io](https://crates.io/crates/borrow-or-share/0.2.4) | dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c |
 | bstr | 1.13.0 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/bstr/1.13.0) | 1f7dc094d718f2e1c1559ad110e27eeaae14a5465d3d56dd6dbd793079fbd530 |
+| bumpalo | 3.20.3 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/bumpalo/3.20.3) | 72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649 |
+| bytecount | 0.6.9 | Apache-2.0/MIT | **MIT** | [crates.io](https://crates.io/crates/bytecount/0.6.9) | 175812e0be2bccb6abe50bb8d566126198344f707e304f45c648fd8f2cc0365e |
 | bytes | 1.12.1 | MIT | **MIT** | [crates.io](https://crates.io/crates/bytes/1.12.1) | fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04 |
 | castaway | 0.2.4 | MIT | **MIT** | [crates.io](https://crates.io/crates/castaway/0.2.4) | dec551ab6e7578819132c713a93c022a05d60159dc86e7a7050223577484c55a |
 | cc | 1.3.0 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/cc/1.3.0) | c89588d05638b5b4594a3348a2d6c20277e43a7f5c5202b05cc56888475a47b8 |
 | cfg-if | 1.0.4 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/cfg-if/1.0.4) | 9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801 |
 | cmake | 0.1.58 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/cmake/0.1.58) | c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678 |
-| compact_str | 0.9.1 | MIT | **MIT** | [crates.io](https://crates.io/crates/compact_str/0.9.1) | 9dfdd1c2274d9aa354115b09dc9a901d6c5576818cdf70d14cae2bdb47df00ab |
+| cobs | 0.3.0 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/cobs/0.3.0) | 0fa961b519f0b462e3a3b4a34b64d119eeaca1d59af726fe450bbba07a9fc0a1 |
+| compact_str | 0.10.0 | MIT | **MIT** | [crates.io](https://crates.io/crates/compact_str/0.10.0) | 79fcda08c33bb58b97008b2cdada6622500e949e060f5913361763121abd2416 |
 | constcat | 0.6.1 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/constcat/0.6.1) | 136d3e02915a2cea4d74caa8681e2d44b1c3254bdbf17d11d41d587ff858832c |
 | convert_case | 0.11.0 | MIT | **MIT** | [crates.io](https://crates.io/crates/convert_case/0.11.0) | affbf0190ed2caf063e3def54ff444b449371d55c58e513a95ab98eca50adb49 |
+| convert_case | 0.12.0 | MIT | **MIT** | [crates.io](https://crates.io/crates/convert_case/0.12.0) | 1af709f1f33454bf52eadfc8c78b3b9ef9cb26fb54d16dc9cd9a7299f899fd1b |
 | cow-utils | 0.1.3 | MIT | **MIT** | [crates.io](https://crates.io/crates/cow-utils/0.1.3) | 417bef24afe1460300965a25ff4a24b8b45ad011948302ec221e8a0a81eb2c79 |
 | crossbeam-deque | 0.8.7 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/crossbeam-deque/0.8.7) | 5181e0de7b61eb03a81e347d6dd8797bae9da5146707b51077e2d71a54ec0ceb |
 | crossbeam-epoch | 0.9.20 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/crossbeam-epoch/0.9.20) | 2d6914041f254d6e9176c01941b21115dcfb7089e55135a35411081bd106ef3f |
@@ -43,9 +48,11 @@ dependencies are excluded.
 | dragonbox_ecma | 0.1.12 | Apache-2.0 WITH LLVM-exception OR BSL-1.0 | **BSL-1.0** | [crates.io](https://crates.io/crates/dragonbox_ecma/0.1.12) | fd8e701084c37e7ef62d3f9e453b618130cbc0ef3573847785952a3ac3f746bf |
 | dyn-clone | 1.0.20 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/dyn-clone/1.0.20) | d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555 |
 | either | 1.16.0 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/either/1.16.0) | 91622ff5e7162018101f2fea40d6ebf4a78bbe5a49736a2020649edf9693679e |
+| embedded-io | 0.4.0 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/embedded-io/0.4.0) | ef1a6892d9eef45c8fa6b9e0086428a2cca8491aca8f787c534a3d6d0bcb3ced |
+| embedded-io | 0.6.1 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/embedded-io/0.6.1) | edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d |
 | equivalent | 1.0.2 | Apache-2.0 OR MIT | **MIT** | [crates.io](https://crates.io/crates/equivalent/1.0.2) | 877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f |
 | errno | 0.3.14 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/errno/0.3.14) | 39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb |
-| fast-glob | 1.0.1 | MIT | **MIT** | [crates.io](https://crates.io/crates/fast-glob/1.0.1) | 3b9e81515b0279bf618200fd15d132e7195d2048fb46eed6f0f3c10cbc068266 |
+| fast-glob | 1.1.1 | MIT | **MIT** | [crates.io](https://crates.io/crates/fast-glob/1.1.1) | 6d3f5d15b86ff37d2d23719f90657a53d5399abe0736dacb9e5fbe549314d349 |
 | fastrand | 2.4.1 | Apache-2.0 OR MIT | **MIT** | [crates.io](https://crates.io/crates/fastrand/2.4.1) | 9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6 |
 | find-msvc-tools | 0.1.9 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/find-msvc-tools/0.1.9) | 5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582 |
 | fixedbitset | 0.5.7 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/fixedbitset/0.5.7) | 1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99 |
@@ -79,11 +86,12 @@ dependencies are excluded.
 | icu_provider | 2.2.0 | Unicode-3.0 | **Unicode-3.0** | [crates.io](https://crates.io/crates/icu_provider/2.2.0) | 139c4cf31c8b5f33d7e199446eff9c1e02decfc2f0eec2c8d71f65befa45b421 |
 | idna_adapter | 1.2.2 | Apache-2.0 OR MIT | **MIT** | [crates.io](https://crates.io/crates/idna_adapter/1.2.2) | cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714 |
 | idna | 1.1.0 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/idna/1.1.0) | 3b0875f23caa03898994f6ddc501886a45c7d3d62d04d2d90788d47be1b1e4de |
-| ignore | 0.4.29 | Unlicense OR MIT | **MIT** | [crates.io](https://crates.io/crates/ignore/0.4.29) | d4ffa3a0547a138e59ddd6fa3b7c672ed47e6ad6a3cd177984ff1116aa5ba742 |
+| ignore | 0.4.33 | Unlicense OR MIT | **MIT** | [crates.io](https://crates.io/crates/ignore/0.4.33) | 00b69833ed729dc5aa7d19541d96d6cf8e9137194207a04916d658e43168402f |
 | indexmap | 2.14.0 | Apache-2.0 OR MIT | **MIT** | [crates.io](https://crates.io/crates/indexmap/2.14.0) | d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9 |
 | itertools | 0.15.0 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/itertools/0.15.0) | 8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc |
 | itoa | 1.0.18 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/itoa/1.0.18) | 8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682 |
-| javascript-globals | 1.5.1 | MIT | **MIT** | [crates.io](https://crates.io/crates/javascript-globals/1.5.1) | 6c5f4cff6dd96f6045e5e53d52ef114724989508a83e0dd72eea795844390297 |
+| javascript-globals | 2.0.0 | MIT | **MIT** | [crates.io](https://crates.io/crates/javascript-globals/2.0.0) | e56db50903c4e757fddbfa21c1db72c7b83c5fd4ecaef079c0c9ca240e3a2347 |
+| js-sys | 0.3.105 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/js-sys/0.3.105) | ce57d20d1ea864ce2ac172ab472d409214f4fd359f0b2a2775abdf522e2af99e |
 | json-strip-comments | 3.1.1 | MIT | **MIT** | [crates.io](https://crates.io/crates/json-strip-comments/3.1.1) | 9301b34ecbe81051a62001a2dfa56d906628efdfbc68153e0a4d5eba58181ece |
 | language-tags | 0.3.2 | MIT/Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/language-tags/0.3.2) | d4345964bb142484797b161f473a503a434de77149dd8c7427788c6e13379388 |
 | lazy-regex-proc_macros | 3.6.0 | MIT | **MIT** | [crates.io](https://crates.io/crates/lazy-regex-proc_macros/3.6.0) | 4de9c1e1439d8b7b3061b2d209809f447ca33241733d9a3c01eabf2dc8d94358 |
@@ -99,6 +107,7 @@ dependencies are excluded.
 | markdown | 1.0.0 | MIT | **MIT** | [crates.io](https://crates.io/crates/markdown/1.0.0) | a5cab8f2cadc416a82d2e783a1946388b31654d391d1c7d92cc1f03e295b1deb |
 | memchr | 2.8.3 | Unlicense OR MIT | **MIT** | [crates.io](https://crates.io/crates/memchr/2.8.3) | cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98 |
 | mimalloc-safe | 0.1.64 | MIT | **MIT** | [crates.io](https://crates.io/crates/mimalloc-safe/0.1.64) | afd082b59cfceeb3bf31dbff65e7b96e1f94fa9b918e131d02353e6867a12824 |
+| miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/miniz_oxide/0.9.1) | b63fbc4a50860e98e7b2aa7804ded1db5cbc3aff9193adaff57a6931bf7c4b4c |
 | napi-build | 2.3.2 | MIT | **MIT** | [crates.io](https://crates.io/crates/napi-build/2.3.2) | c9c366d2c8c60b86fa632df75f745509b52f9128f91a6bad4c796e44abb505e1 |
 | napi-derive-backend | 5.1.2 | MIT | **MIT** | [crates.io](https://crates.io/crates/napi-derive-backend/5.1.2) | 514281397bcddd9ea9a876c7a21a57bff2374237a000ca9a64ea0211ec1993e2 |
 | napi-derive | 3.5.10 | MIT | **MIT** | [crates.io](https://crates.io/crates/napi-derive/3.5.10) | b0fe526e81c105d3640516fcde83909dd1afe757c0d7a15af58830b5bc0fb9a1 |
@@ -112,37 +121,37 @@ dependencies are excluded.
 | num-integer | 0.1.46 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/num-integer/0.1.46) | 7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f |
 | num-traits | 0.2.19 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/num-traits/0.2.19) | 071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841 |
 | once_cell | 1.21.4 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/once_cell/1.21.4) | 9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50 |
-| owo-colors | 4.3.0 | MIT | **MIT** | [crates.io](https://crates.io/crates/owo-colors/4.3.0) | d211803b9b6b570f68772237e415a029d5a50c65d382910b879fb19d3271f94d |
-| oxc_allocator | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_ast_macros | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_ast_visit | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_ast | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_cfg | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_codegen | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_config | 0.0.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_data_structures | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_diagnostics | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_ecmascript | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_estree_tokens | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_estree | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_formatter_core | 0.59.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_formatter | 0.59.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
+| oxc_allocator | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_ast_macros | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_ast_visit | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_ast | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_cfg | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_codegen | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_compat | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_config | 0.0.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_data_structures | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_diagnostics | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_ecmascript | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_estree_tokens | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_estree | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_formatter_core | 0.67.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_formatter_tests | 0.62.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_formatter | 0.67.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
 | oxc_index | 5.0.0 | MIT | **MIT** | [crates.io](https://crates.io/crates/oxc_index/5.0.0) | 191884bee6c3744909a51acc7d78d4ae370d817b25875b10642f632327b6296e |
-| oxc_jsdoc | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_language_server | 1.41.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_linter | 1.74.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_macros | 0.0.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_parser | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_react_compiler | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_regular_expression | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_resolver | 11.24.2 | MIT | **MIT** | [crates.io](https://crates.io/crates/oxc_resolver/11.24.2) | 4fa374d03b255c070a32ae65b8a05231b8e658104d6ef22034c09da8fa0c2fd9 |
+| oxc_jsdoc | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_language_server | 1.41.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_linter | 1.82.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_macros | 0.0.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_parser | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_react_compiler | 0.143.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_regular_expression | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_resolver | 11.24.3 | MIT | **MIT** | [crates.io](https://crates.io/crates/oxc_resolver/11.24.3) | 2c7fd0839a5ecee17c0d2c88c8006e8ab4dff25d4a79e3a0bf7a9f0cce17f4e3 |
 | oxc_schemars_derive | 0.8.26 | MIT | **MIT** | [crates.io](https://crates.io/crates/oxc_schemars_derive/0.8.26) | 7f486258afefa5e80939dcff5d42c3a69e8ce4758e5270c3fb855bd45e8c7dd9 |
-| oxc_semantic | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_span | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_str | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc_syntax | 0.140.0 | MIT | **MIT** | [OXC 8e0ed2ebb961](https://github.com/oxc-project/oxc/tree/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40) | revision-pinned |
-| oxc-miette-derive | 3.0.0 | Apache-2.0 | **Apache-2.0** | [crates.io](https://crates.io/crates/oxc-miette-derive/3.0.0) | 66e0bafc397eee2f94c5bf89bb5a82ba6d522d1b79e2924c8169f053febb433f |
-| oxc-miette | 3.0.0 | Apache-2.0 | **Apache-2.0** | [crates.io](https://crates.io/crates/oxc-miette/3.0.0) | b776084bf11ad750806cb63f9ed2606a12ab374cf458f36a7731eba1f5d753fc |
+| oxc_semantic | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_span | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_str | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc_syntax | 0.150.0 | MIT | **MIT** | [OXC 5a6e37e5cf89](https://github.com/oxc-project/oxc/tree/5a6e37e5cf895143a5b34050c50109c46e2ae96a) | revision-pinned |
+| oxc-browserslist | 5.0.1 | MIT | **MIT** | [crates.io](https://crates.io/crates/oxc-browserslist/5.0.1) | 456720daa870e4f69f8d29fded1c8deea82da4780a6b8553baa160eb0cd8d864 |
 | oxc-schemars | 0.9.1 | MIT | **MIT** | [crates.io](https://crates.io/crates/oxc-schemars/0.9.1) | 70beb8d94ce75bafc509dc24824147b18dfbe7786e9afd4b49765b645d9cc505 |
 | papaya | 0.2.4 | MIT | **MIT** | [crates.io](https://crates.io/crates/papaya/0.2.4) | 997ee03cd38c01469a7046643714f0ad28880bcb9e6679ff0666e24817ca19b7 |
 | parking_lot_core | 0.9.12 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/parking_lot_core/0.9.12) | 2621685985a2ebf1c516881c026032ac7deafcda1a2c9b7850dc81e3dfcb64c1 |
@@ -153,6 +162,7 @@ dependencies are excluded.
 | phf_shared | 0.14.0 | MIT | **MIT** | [crates.io](https://crates.io/crates/phf_shared/0.14.0) | c6fd9027e2d9319be6349febd1db4e8d02aa544921200c9b777720ac34a3aa89 |
 | phf | 0.14.0 | MIT | **MIT** | [crates.io](https://crates.io/crates/phf/0.14.0) | 010378780309880b08997fae13be7834dba947d36393bd372f2b1556deb2a2f6 |
 | pin-project-lite | 0.2.17 | Apache-2.0 OR MIT | **MIT** | [crates.io](https://crates.io/crates/pin-project-lite/0.2.17) | a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd |
+| postcard | 1.1.3 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/postcard/1.1.3) | 6764c3b5dd454e283a30e6dfe78e9b31096d9e32036b5d1eaac7a6119ccb9a24 |
 | potential_utf | 0.1.5 | Unicode-3.0 | **Unicode-3.0** | [crates.io](https://crates.io/crates/potential_utf/0.1.5) | 0103b1cef7ec0cf76490e969665504990193874ea05c85ff9bab8b911d0a0564 |
 | proc-macro2 | 1.0.106 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/proc-macro2/1.0.106) | 8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934 |
 | quote | 1.0.46 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/quote/1.0.46) | dfbc457d0c7a0759a614551b11a6409e5951f6c7537be1f1b7682b9ae9230368 |
@@ -161,7 +171,7 @@ dependencies are excluded.
 | redox_syscall | 0.5.17 | MIT | **MIT** | [crates.io](https://crates.io/crates/redox_syscall/0.5.17) | 5407465600fb0548f1442edf71dd20683c6ed326200ace4b1ef0763521bb3b77 |
 | ref-cast-impl | 1.0.25 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/ref-cast-impl/1.0.25) | b7186006dcb21920990093f30e3dea63b7d6e977bf1256be20c3563a5db070da |
 | ref-cast | 1.0.25 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/ref-cast/1.0.25) | f354300ae66f76f1c85c5f84693f0ce81d747e2c3f21a45fef496d89c960bf7d |
-| regex-automata | 0.4.16 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/regex-automata/0.4.16) | 8fcfdb36bda0c880c5931cdc7a2bcdc8ba4556847b9d912bca70bc94708711ad |
+| regex-automata | 0.4.18 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/regex-automata/0.4.18) | ad8553b9b26413251cbf30e620595c7a41b3887f03da04579c0e6b0d6a06b4b2 |
 | regex-syntax | 0.8.11 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/regex-syntax/0.8.11) | d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4 |
 | regex | 1.13.1 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/regex/1.13.1) | f020237b6c8eed93db2e2cb53c00c60a8e1bc73da7d073199a1180401450218d |
 | rust-lapper | 1.3.0 | MIT | **MIT** | [crates.io](https://crates.io/crates/rust-lapper/1.3.0) | 5aafed57460ca80eb88c33989af3a31348dbde8e68f86f4fe2107c1a5fcd55b8 |
@@ -181,7 +191,7 @@ dependencies are excluded.
 | serde_json | 1.0.150 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/serde_json/1.0.150) | e8014e44b4736ed0538adeecded0fce2a272f22dc9578a7eb6b2d9993c74cfb9 |
 | serde | 1.0.228 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/serde/1.0.228) | 9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e |
 | shlex | 2.0.1 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/shlex/2.0.1) | f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba |
-| simd-json | 0.17.3 | Apache-2.0 OR MIT | **MIT** | [crates.io](https://crates.io/crates/simd-json/0.17.3) | e32d7ab2678282d21e53374fbead7119b7eacbede73685dcaac472870a29a11c |
+| simd-json | 0.18.1 | Apache-2.0 OR MIT | **MIT** | [crates.io](https://crates.io/crates/simd-json/0.18.1) | 6ebe141eb4a23ecc4d5de93fa5b139ac65dc07c38037a2fe9a8fb7c9d36bd832 |
 | simdutf8 | 0.1.5 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/simdutf8/0.1.5) | e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e |
 | siphasher | 1.0.3 | MIT/Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/siphasher/1.0.3) | 8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649 |
 | slab | 0.4.12 | MIT | **MIT** | [crates.io](https://crates.io/crates/slab/0.4.12) | 0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5 |
@@ -190,6 +200,7 @@ dependencies are excluded.
 | stable_deref_trait | 1.2.1 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/stable_deref_trait/1.2.1) | 6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596 |
 | static_assertions | 1.1.0 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/static_assertions/1.1.0) | a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f |
 | syn | 2.0.119 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/syn/2.0.119) | 872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297 |
+| syn | 3.0.6 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/syn/3.0.6) | 8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee |
 | sync_wrapper | 1.0.2 | Apache-2.0 | **Apache-2.0** | [crates.io](https://crates.io/crates/sync_wrapper/1.0.2) | 0bf256ce5efdfa370213c1dabab5935a12e49f2c58d15e9eac2870d3b4f27263 |
 | synstructure | 0.13.2 | MIT | **MIT** | [crates.io](https://crates.io/crates/synstructure/0.13.2) | 728a70f3dbaf5bab7f0c4b1ac8d7ae5ea60a4b5549c8a5914361c99147a709d2 |
 | textwrap | 0.16.2 | MIT | **MIT** | [crates.io](https://crates.io/crates/textwrap/0.16.2) | c13547615a44dc9c452a8a534638acdf07120d4b6847c8178705da06306a3057 |
@@ -216,6 +227,10 @@ dependencies are excluded.
 | utf8_iter | 1.0.4 | Apache-2.0 OR MIT | **MIT** | [crates.io](https://crates.io/crates/utf8_iter/1.0.4) | b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be |
 | value-trait | 0.12.2 | Apache-2.0/MIT | **MIT** | [crates.io](https://crates.io/crates/value-trait/0.12.2) | f3f4b4a98dfe54bc9ed3641af7ffcb837240269627dbd5cb047d13daa39736cc |
 | walkdir | 2.5.0 | Unlicense/MIT | **MIT** | [crates.io](https://crates.io/crates/walkdir/2.5.0) | 29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b |
+| wasm-bindgen-macro-support | 0.2.128 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/wasm-bindgen-macro-support/0.2.128) | 411e4887f0071ef2d2164a9d5fdf2d20efbef78fccd3a78b0c10a1dc5295e48a |
+| wasm-bindgen-macro | 0.2.128 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/wasm-bindgen-macro/0.2.128) | a690d511e3c1a8b3a55e33511e3c2c00c78415cd23650f32b808627f5696b9ed |
+| wasm-bindgen-shared | 0.2.128 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/wasm-bindgen-shared/0.2.128) | 81941cd78d0c92026c33e5e01312845a4cb1e9af3407f9134b100dd03144103e |
+| wasm-bindgen | 0.2.128 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/wasm-bindgen/0.2.128) | aecb87a33d3b0c5e3b7aa46336eaf486cffafbd281b195e4c8b80d50df2351bf |
 | winapi-util | 0.1.11 | Unlicense OR MIT | **MIT** | [crates.io](https://crates.io/crates/winapi-util/0.1.11) | c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22 |
 | windows-collections | 0.3.2 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/windows-collections/0.3.2) | 23b2d95af1a8a14a3c7367e1ed4fc9c20e0a26e79551b1454d72583c97cc6610 |
 | windows-core | 0.62.2 | MIT OR Apache-2.0 | **MIT** | [crates.io](https://crates.io/crates/windows-core/0.62.2) | b8e83a14d34d0623b51dce9581199302a221863196a1dde71a7663a4c2be9deb |

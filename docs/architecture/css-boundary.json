@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "decision": "KEEP_RAW",
-  "oxcRevision": "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
+  "oxcRevision": "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
   "shippingContract": {
     "payloadFidelity": "byte-exact",
     "embeddedParser": null,
@@ -12,15 +12,15 @@
     "cargoPatch": false
   },
   "upstreamBlocker": {
-    "formatterCrate": "oxc_formatter_css@0.59.0",
+    "formatterCrate": "oxc_formatter_css@0.67.0",
     "formatterCratePublished": false,
-    "formatterManifestSha256": "f366cf1a878d1790d36aefc5ee6c4ed6bb7a7a3020245b24b85483191093ae97",
-    "workspaceManifestSha256": "89cab38d3bc28b1145a2488084bee309ce0535ff93fa0b57fca2cc47beefe24f",
-    "parserDependency": "oxc-css-parser@0.0.7",
+    "formatterManifestSha256": "85fa68371772ea8a9d6a834af1bff006aa542bf4f57b54409298cec7746a7cf0",
+    "workspaceManifestSha256": "2560bda7282605b16dc4dbc92c4c631261e0f9178a57ce6408c59f39a2970465",
+    "parserDependency": "oxc-css-parser@0.0.15",
     "allocatorConflict": "The registry parser requests registry oxc_allocator while the pinned formatter uses workspace/git oxc_allocator. OXC itself unifies those types with [patch.crates-io].",
     "requiredUpstreamPatch": "oxc_allocator = { path = \"crates/oxc_allocator\" }",
-    "formatterManifestSource": "https://github.com/oxc-project/oxc/blob/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40/crates/oxc_formatter_css/Cargo.toml",
-    "workspaceManifestSource": "https://github.com/oxc-project/oxc/blob/8e0ed2ebb96137fb1611cdbd5742d5cb46037d40/Cargo.toml"
+    "formatterManifestSource": "https://github.com/oxc-project/oxc/blob/5a6e37e5cf895143a5b34050c50109c46e2ae96a/crates/oxc_formatter_css/Cargo.toml",
+    "workspaceManifestSource": "https://github.com/oxc-project/oxc/blob/5a6e37e5cf895143a5b34050c50109c46e2ae96a/Cargo.toml"
   },
   "requalifyOnlyWhen": [
     "Canonical OXC exposes a consumable CSS parser/formatter on the same exact-revision allocator graph without [patch], vendoring, or a fork.",

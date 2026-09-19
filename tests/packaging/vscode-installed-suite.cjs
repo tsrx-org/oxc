@@ -49,8 +49,13 @@ async function run() {
       true,
     );
     const suffix = process.platform === "win32" ? ".exe" : "";
+    // The VSIX ships the one multi-call native binary (`oxc-tsrx`, whose `lsp`
+    // tool is the language server); older packages shipped a dedicated
+    // `oxc-tsrx-lsp`. Either proves the native server travelled with the VSIX.
     assert.equal(
-      existsSync(join(installed.extensionPath, "dist/native", `oxc-tsrx-lsp${suffix}`)),
+      ["oxc-tsrx", "oxc-tsrx-lsp"].some((name) =>
+        existsSync(join(installed.extensionPath, "dist/native", `${name}${suffix}`)),
+      ),
       true,
     );
     await waitFor(() => installed.isActive, Boolean, "installed extension activation");

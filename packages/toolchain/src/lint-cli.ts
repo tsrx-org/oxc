@@ -437,14 +437,26 @@ function summaryLines(result, elapsedMilliseconds) {
 }
 
 // A GitHub workflow command, reproduced from canonical Oxlint's own annotation
-// reporter field for field:
+// reporter field for field (Oxlint 1.83.0, apps/oxlint/src/output_formatter/github.rs):
 //
-//   ::warning file=b.ts,line=2,endLine=2,col=9,endColumn=20,title=eslint(no-unused-vars)::message
+//   ::warning file=b.ts,line=2,endLine=2,col=9,endColumn=20,title=eslint(no-unused-vars)::b.ts:2:9: message
 //
 // `title` is the rule code, or the literal `oxlint` for a diagnostic that has
 // none, which is what canonical Oxlint prints for a parse error. The help text
 // is not part of an annotation. The end position is the label span's end, which
 // this file resolves from `offset + length` the same way it resolves the start.
+// The parameters before `::` only feed the annotations panel, so canonical
+// Oxlint repeats `file:line:col` at the head of the message text (since 1.80),
+// percent-escapes `%`, CR, and LF in the data, and additionally `:` and `,` in
+// the `file=` property, exactly as GitHub's runner unescapes them.
+function escapeGitHubData(value) {
+  return value.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
+}
+
+function escapeGitHubProperty(value) {
+  return escapeGitHubData(value).replaceAll(":", "%3A").replaceAll(",", "%2C");
+}
+
 function renderGitHub(result, cwd, elapsedMilliseconds) {
   const diagnostics = sortedDiagnostics(result);
   const lines = diagnostics.map((diagnostic) => {
@@ -458,8 +470,10 @@ function renderGitHub(result, cwd, elapsedMilliseconds) {
     // A diagnostic with no rule behind it, such as a parse error, is titled
     // `oxlint`, which is what canonical Oxlint titles its own.
     const title = diagnostic.code || diagnostic.rule || "oxlint";
-    const location = `file=${filename},line=${line},endLine=${endLine},col=${column},endColumn=${endColumn}`;
-    return `::${severity} ${location},title=${title}::${diagnostic.message}`;
+    const message = escapeGitHubData(diagnostic.message);
+    if (!filename) return `::${severity} title=${title}::${message}`;
+    const location = `file=${escapeGitHubProperty(filename)},line=${line},endLine=${endLine},col=${column},endColumn=${endColumn}`;
+    return `::${severity} ${location},title=${title}::${escapeGitHubData(filename)}:${line}:${column}: ${message}`;
   });
   // Canonical Oxlint separates the annotations from its summary with a blank
   // line, and prints the same two summary lines the compact reporter prints.

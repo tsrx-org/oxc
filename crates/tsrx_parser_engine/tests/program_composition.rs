@@ -370,7 +370,9 @@ fn parenthesized_sequence_expressions_survive_jsx_validation_without_parent_node
     )
     .expect("parenthesized sequence expression");
     assert!(result.errors.is_empty());
-    assert_eq!(result.suppressed_diagnostics, 1);
+    // OXC crates v0.150.0 no longer reports TS18007 for this shape, so nothing needs
+    // suppressing; the adapter keeps its guard in case a later revision regresses.
+    assert_eq!(result.suppressed_diagnostics, 0);
 
     let function = program_body(result.program())[0].as_object().expect("function declaration");
     let element = rendered(result.program(), code_block(result.program(), function));

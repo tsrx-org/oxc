@@ -216,7 +216,7 @@ try {
     build: {
       profile: "release",
       binary: "target/release/oxc-tsrx",
-      oxcRevision: "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
+      oxcRevision: "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
     },
     server: {
       binary: "target/release/oxc-tsrx",
@@ -228,7 +228,7 @@ try {
       typeAware: false,
       typeCheck: false,
       typeProcessCount: 0,
-      canonicalOxcRevision: "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40",
+      canonicalOxcRevision: "5a6e37e5cf895143a5b34050c50109c46e2ae96a",
       canonicalOxcLanguageServerVersion: "1.41.0",
     },
     corpus: {

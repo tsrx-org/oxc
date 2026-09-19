@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Write as _, sync::Arc};
 
 use oxc_adapter::parser::{
     OrdinaryParseRequest, ProjectedParseRecovery, ProjectedParseRequest, RejectionMetadata,
@@ -6,8 +6,9 @@ use oxc_adapter::parser::{
     render_diagnostic_codeframes,
 };
 use oxc_allocator::Allocator;
-use oxc_diagnostics::NamedSource;
+use oxc_diagnostics::{GraphicalReportHandler, GraphicalTheme, NamedSource};
 use oxc_parser::Parser;
+use oxc_semantic::SemanticBuilder;
 use oxc_span::SourceType;
 use tsrx_tape_schema::{
     DiagnosticPhase, DiagnosticSeverity, ExportExportNameKind, ExportImportNameKind,
@@ -224,12 +225,15 @@ fn rebuilt_codeframe_is_byte_exact_with_the_pinned_oxc_diagnostic() {
     let source = "export const broken = ;";
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, source, SourceType::tsx()).parse();
-    let expected = format!(
-        "{:?}",
-        parsed.diagnostics[0]
-            .clone()
-            .with_source_code(Arc::new(NamedSource::new(filename, source.to_owned())))
-    );
+    // Render the pinned OXC diagnostic exactly the way the adapter does: the same handler,
+    // the same pinned theme, so the comparison is byte-exact rather than environment-dependent.
+    let sourced = parsed.diagnostics[0]
+        .clone()
+        .with_source_code(Arc::new(NamedSource::new(filename, source.to_owned())));
+    let mut expected = String::new();
+    GraphicalReportHandler::new_themed(GraphicalTheme::none())
+        .render_report(&mut expected, sourced.as_ref())
+        .expect("pinned OXC codeframe");
 
     let mut result =
         parse_to_projected_tape(ProjectedParseRequest { filename, ..request(source, false) })
@@ -330,4 +334,41 @@ fn ordinary_public_oxc_route_remains_byte_for_byte_isolated() {
     });
     assert_eq!(before.program_and_fixes, after.program_and_fixes);
     assert_eq!(before.errors.len(), after.errors.len());
+}
+
+#[test]
+fn batched_codeframes_are_byte_exact_with_per_report_rendering_for_many_diagnostics() {
+    // Many diagnostics in one file exercise the shared-scanner batch path. Every stored
+    // codeframe must equal what the pinned handler renders for that diagnostic alone.
+    let filename = "Batch.tsrx";
+    let mut source = String::new();
+    for line in 0..64 {
+        writeln!(source, "{{ let dup{line}; let dup{line}; }}").expect("fixture line");
+    }
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &source, SourceType::tsx()).parse();
+    // Redeclaring a `let` is a semantic early error, so the parser itself stays quiet and
+    // the projected route appends the semantic diagnostics in order after the grammar ones.
+    assert!(parsed.diagnostics.is_empty(), "fixture must parse without grammar diagnostics");
+    let semantic = SemanticBuilder::new_compiler().build(&parsed.program);
+    assert!(semantic.diagnostics.len() >= 64, "fixture must produce many diagnostics");
+
+    let mut result =
+        parse_to_projected_tape(ProjectedParseRequest { filename, ..request(&source, true) })
+            .expect("structured semantic result");
+    render_diagnostic_codeframes(filename, &source, &mut result.errors)
+        .expect("batched authored codeframes");
+    assert_eq!(result.errors.len(), semantic.diagnostics.len());
+
+    let handler = GraphicalReportHandler::new_themed(GraphicalTheme::none());
+    for (index, diagnostic) in semantic.diagnostics.iter().enumerate() {
+        let sourced = diagnostic
+            .clone()
+            .with_source_code(Arc::new(NamedSource::new(filename, source.clone())));
+        let mut expected = String::new();
+        handler.render_report(&mut expected, sourced.as_ref()).expect("pinned OXC codeframe");
+        let record = &result.errors.records()[index];
+        let actual = result.errors.optional_string(record.codeframe).expect("rebuilt codeframe");
+        assert_eq!(actual, expected, "diagnostic {index}");
+    }
 }

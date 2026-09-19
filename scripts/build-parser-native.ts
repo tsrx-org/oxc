@@ -6,7 +6,7 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { NATIVE_TARGETS, nativeTargetForHost } from "../packages/toolchain/dist/native-targets.js";
 
 const root = resolve(import.meta.dirname, "..");
-const OXC_REVISION = "8e0ed2ebb96137fb1611cdbd5742d5cb46037d40";
+const OXC_REVISION = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";
 
 function parseArguments(argv) {
   const options = {

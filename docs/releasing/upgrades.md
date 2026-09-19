@@ -11,15 +11,15 @@ release that may require adapter changes and always requires full qualification.
 
 ## Current frozen set
 
-As of 2026-07-16, the release candidate is qualified against:
+As of 2026-09-18, the release candidate is qualified against:
 
 - official OXC commit
-  `8e0ed2ebb96137fb1611cdbd5742d5cb46037d40` across twelve direct adapter Git
+  `5a6e37e5cf895143a5b34050c50109c46e2ae96a` (crates v0.150.0) across twelve direct adapter Git
   dependencies, with their canonical workspace closure resolved from the same
   source and commit;
-- official Oxlint 1.74.0;
-- official Oxfmt 0.59.0;
-- `oxlint-tsgolint` 0.24.0;
+- official Oxlint 1.83.0;
+- official Oxfmt 0.68.0;
+- `oxlint-tsgolint` 7.0.2002;
 - Vite+ 0.1.24 as the tested minimum supported release; and
 - Vite+ 0.2.4 as the pinned current release (as of the date above).
 
@@ -64,6 +64,21 @@ For a deliberate upgrade:
    An API-compatible compile with a performance regression is not qualified.
 9. Build a new eight-target candidate. Never reuse artifacts produced by the
    scheduled advisory copy.
+
+### Re-baselined ratios
+
+Two budgets are ratios against the stock tool rather than absolute floors, so an
+upstream release that makes Oxlint or Oxfmt faster or leaner can turn them red
+without any change on this side. On 2026-09-18 (crates v0.150.0, Oxlint 1.83.0,
+Oxfmt 0.68.0) the owner re-baselined both with the candidate's absolute numbers
+flat or better: the native-lint P02 equivalent-TSX floor moved from 0.50 to 0.45
+(candidate 213-215 MiB/s against 214-227 before; stock plain-TSX parse 442-449
+MiB/s against 418-436), and the native-format P07 RSS ceiling moved from 1.15 to
+1.30 (candidate 194 MiB against 208 before; stock Oxfmt 157 MiB against 182).
+The frozen-hash snapshot in `tests/acceptance/performance-contract.test.mjs` and
+the weaken-guard in `crates/oxc_tsrx_format_benchmark/src/budgets.rs` carry the
+same values. A ratio may only move this way when the candidate's own absolute
+measurement did not regress, and the reason must be recorded here.
 
 If the candidate needs `[patch]`, `replace-with`, a fork, copied upstream
 source, an unpublished local crate, or a second OXC revision, reject it and keep
