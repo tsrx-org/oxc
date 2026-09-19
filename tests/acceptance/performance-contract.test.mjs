@@ -11,18 +11,19 @@ const frozenBudgetHashes = {
   comparative: 'd3ca368e0dba5d10090c70f58130af78ad574496a28389c7804ac82d0d5b05e3',
   editor: '1fe5c78f1ac1543ca9a169c721d463ba6bc119631f678b896e572334d29592cd',
   // Re-frozen 2026-09-19 with the formatter's settling pass (tsrx-org/oxc#93):
-  // a file the formatter changes is formatted a second time, and the benchmark
-  // corpora are unformatted, so the P04 direct ratios moved 1.05/1.08 -> 2.25/2.3
-  // and the generalized-control floors 15/12 -> 7/6 MiB/s. The 2026-09-18
+  // a file the formatter changes is parsed once more to decide whether a second
+  // pass is needed, and the benchmark corpora are unformatted, so the P04 direct
+  // ratios moved 1.05/1.08 -> 1.25/1.35 and the generalized-control floors
+  // 15/12 -> 12/10 MiB/s. The 2026-09-18
   // re-baseline (P07 RSS ceiling 1.15 -> 1.30 with the OXC crates v0.150.0
   // upgrade) is carried forward (docs/releasing/upgrades.md, "Re-baselined ratios").
-  'native-format': 'bef419af00245ecddbf52ca700bd5dd80c2e985420f18493e227da6d17de3219',
+  'native-format': 'd0c2d122bd374b1b1d9b8a71e0aacf6bc2b3a2bd8d4502f4dac8dfaff4c6f17c',
   'native-lint': '5a54761ef797aca67fd900068add0c35656ed37b341da59f99c7f1d3815e44fc',
   'type-aware': '799a15d0a986744f7e1d80688c35bc631697c32a926cde55595a7fbb591d0db4',
   // Re-frozen 2026-09-19 with the settling pass: the mixed format p95 ratio
-  // ceiling moved 2 -> 2.25 (observed 1.955 before, 2.05-2.11 after; the mixed lane
-  // formats an unformatted .tsrx file, which now takes two passes).
-  vite: '8628bb6c7647d8f8472d317c12cb7b3f3690a6a63fe1a87ddf3ed6026cecb341',
+  // ceiling moved 2 -> 2.1 (observed 1.955 before; the mixed lane formats an
+  // unformatted .tsrx file, which now also parses its output once).
+  vite: '8c76a547265fd2afcf3f420986f5df6d7bd97e9d72848f149e2293b3699218a0',
 }
 
 async function latest(family) {

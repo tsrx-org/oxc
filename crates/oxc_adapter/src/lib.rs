@@ -31,8 +31,8 @@ pub use toolchain::{
     FormatEngineTimings, FormatError, FormatOptionError, FormatOptions, FormatRequest, FramePart,
     JsPluginFreeLintConfig, LintEngine, LintEngineOptions, LintError, LintRequest, LintResult,
     RuleFilter, RuleSeverity, SUPPORTED_TSGOLINT_VERSION, TsgolintError, TypeBatchDiagnostic,
-    TypeBatchFile, TypeBatchResult, TypeLintError, TypeLintRequest, TypeLintResult, format, lint,
-    lint_config_without_js_plugins, write_check_report_path,
+    TypeBatchFile, TypeBatchResult, TypeLintError, TypeLintRequest, TypeLintResult,
+    count_expanded_objects, format, lint, lint_config_without_js_plugins, write_check_report_path,
 };
 
 pub const OXC_REVISION: &str = "5a6e37e5cf895143a5b34050c50109c46e2ae96a";

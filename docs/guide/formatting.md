@@ -54,19 +54,20 @@ Four steps:
    structure does not match, the tool errors out instead of writing a broken
    file.
 
-If a pass changed the file, the result is formatted once more before it is
-returned, and the settled output wins. Oxfmt is not idempotent on every input:
-with the default `objectWrap: "preserve"`, an object literal that the first
-pass breaks leaves a newline after `{` that a second pass reads as an authored
-expansion, and an enclosing member chain can then pick a different layout
+Oxfmt is not idempotent on every input: with the default `objectWrap:
+"preserve"`, an object literal that the first pass breaks leaves a newline after
+`{` that a second pass reads as an authored expansion, and an enclosing member
+chain can then pick a different layout
 ([#93](https://github.com/tsrx-org/oxc/issues/93),
-[oxc#23852](https://github.com/oxc-project/oxc/issues/23852)). Settling means
-one `--write` leaves nothing for `--check` to find. An already-formatted file
-costs one pass; a file that changed costs two, and `pass_count` in the format
-metadata says how many were taken. The one exception is CR-terminated output,
-which is returned as the single pass produced it, because Oxfmt reads a lone CR
-inside JSX text as ordinary whitespace and re-formatting would insert `{" "}`
-around expression children.
+[oxc#23852](https://github.com/oxc-project/oxc/issues/23852)). So when a pass
+changes the file, its output is parsed once more to count the objects the next
+pass would read as pre-expanded, and only if that count grew is the file
+formatted again. One `--write` therefore leaves nothing for `--check` to find.
+An already-formatted file costs one pass and no check; `pass_count` and
+`check_parse_count` in the format metadata say what was taken. The one
+exception is CR-terminated output, which is returned as the single pass
+produced it, because Oxfmt reads a lone CR inside JSX text as ordinary
+whitespace and re-formatting would insert `{" "}` around expression children.
 
 Two things are carried over rather than reformatted: dynamic closing tags are
 rebuilt from their opening expression, and whatever is inside a raw `<style>`

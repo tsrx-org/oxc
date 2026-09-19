@@ -50,31 +50,32 @@ P07 compares complete-output RSS for TSRX and canonical TSX in the same Rust
 binary.
 
 The harness rejects weakened limits. Existing gates remain: ordinary median
-and p95 overhead ≤2.25×/2.3× (re-baselined from 1.05×/1.08× on 2026-09-19 with
+and p95 overhead ≤1.25×/1.35× (re-baselined from 1.05×/1.08× on 2026-09-19 with
 the formatter's settling pass, tsrx-org/oxc#93: a file the first pass changed is
-formatted a second time, and this corpus is unformatted, so every sample pays
-that pass against the single-pass canonical control; observed 2.04×/1.95×),
+parsed once more to decide whether a second pass is needed, and this corpus is
+unformatted, so every sample pays that parse against the single-pass canonical
+control; observed 1.15×/1.26×),
 sequential TSRX ≥15 MiB/s and ≥16.6 MiB/s (10× the historical incumbent floor),
 batch p95 throughput ≥100 MiB/s, stdin p95 ≤110 ms and ≤1.25× official Oxfmt,
 and RSS ≤1.30× canonical TSX (re-baselined from 1.15× with the OXC crates
 v0.150.0 upgrade: stock Oxfmt 0.68.0 lowered its own peak RSS from ~182 MiB to
 ~157 MiB while the candidate fell from ~208 MiB to ~194 MiB, so the ratio rose
 although both absolute numbers improved). The generalized control lane additionally
-requires ≥7 MiB/s median, ≥6 MiB/s p95 (re-baselined from 15/12 MiB/s with the
-settling pass; observed 8.26-8.93 median, 7.35-8.48 p95), ≤1.35× normalized full/half scaling,
+requires ≥12 MiB/s median, ≥10 MiB/s p95 (re-baselined from 15/12 MiB/s with the
+settling pass; observed 16.1/15.0), ≤1.35× normalized full/half scaling,
 one OXC parse per formatter pass, and idempotence.
 
-Aggregate-selected representative report: `results-1789839644878.json`
+Aggregate-selected representative report: `results-1789846871499.json`
 (OXC crates v0.150.0, stock Oxfmt 0.68.0).
 
-- 55.68 MiB/s median (48.69 MiB/s p95) retained sequential corpus;
-- 688.64 MiB/s default-thread 16 MiB batch at p95;
-- 8.81 MiB/s generalized median and 7.80 MiB/s p95 across 394 dynamic tags
+- 99.18 MiB/s median (87.90 MiB/s p95) retained sequential corpus;
+- 322.35 MiB/s default-thread 16 MiB batch at p95;
+- 16.13 MiB/s generalized median and 14.90 MiB/s p95 across 394 dynamic tags
   and 197 raw style payloads;
-- 1.019× generalized normalized scaling;
+- 1.009× generalized normalized scaling;
 - one timed config load for two files/two parses with applied options;
-- 2.82 ms fresh stdin p95; and
-- 1.171× complete-output RSS.
+- 3.36 ms fresh stdin p95; and
+- 1.118× complete-output RSS.
 
 The report retains 30 raw samples for every sequential phase. No assertion
 landed inside the policy's 3% near-threshold band, so the aggregate selected

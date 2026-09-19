@@ -12,8 +12,8 @@ pub use config::{ConfigError, JsPluginFreeLintConfig, lint_config_without_js_plu
 pub use diagnostics::{EngineDiagnostic, EngineFix, EngineSpan};
 pub use engine::{LintEngine, LintEngineOptions};
 pub use format::{
-    EngineFormatResult, FormatError, FormatOptionError, FormatOptions, FormatRequest, format,
-    write_check_report_path,
+    EngineFormatResult, FormatError, FormatOptionError, FormatOptions, FormatRequest,
+    count_expanded_objects, format, write_check_report_path,
 };
 pub use session::{
     LintError, LintRequest, LintResult, TypeBatchDiagnostic, TypeBatchFile, TypeBatchResult,

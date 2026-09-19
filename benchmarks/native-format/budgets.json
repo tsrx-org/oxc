@@ -15,14 +15,14 @@
   "candidateBinary": "target/release/oxc-tsrx-fmt",
   "stockOxfmtBinary": "node_modules/oxfmt-current/bin/oxfmt",
   "p04": {
-    "directMedianLatencyRatioMax": 2.25,
-    "directP95LatencyRatioMax": 2.3,
+    "directMedianLatencyRatioMax": 1.25,
+    "directP95LatencyRatioMax": 1.35,
     "sequentialMedianMibPerSecondMin": 15.0,
     "sequentialP95MibPerSecondMin": 12.0,
     "historicalIncumbentDerivedMibPerSecondMin": 16.6,
     "defaultThreadMibPerSecondMin": 100.0,
-    "generalizedControlMedianMibPerSecondMin": 7.0,
-    "generalizedControlP95MibPerSecondMin": 6.0,
+    "generalizedControlMedianMibPerSecondMin": 12.0,
+    "generalizedControlP95MibPerSecondMin": 10.0,
     "generalizedControlScalingRatioMax": 1.35
   },
   "p05": {
