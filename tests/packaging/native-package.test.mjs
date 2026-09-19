@@ -194,7 +194,7 @@ function packedEntry(target) {
   return {
     id: `${nativePackageName(target)}@0.1.0`,
     name: nativePackageName(target),
-    version: "0.13.0",
+    version: "0.14.0",
     size: 6426070,
     unpackedSize: 14097905,
     shasum: "62e463f312886399ada17ae8cbbc6b0288856690",
@@ -270,7 +270,7 @@ test("current native release stages a complete, checksummed, npm-installable pla
     "--allow-missing-parser-addon",
   ]);
   const packaged = JSON.parse(stdout);
-  assert.equal(packaged.version, "0.13.0");
+  assert.equal(packaged.version, "0.14.0");
   assert.equal(packaged.target, hostTarget());
   assert.match(packaged.packageName, /^@tsrx\/oxc-/);
   assert.equal(resolve(packaged.tarball).startsWith(resolve(artifacts)), true);
@@ -291,7 +291,7 @@ test("current native release stages a complete, checksummed, npm-installable pla
   const packageRoot = join(consumer, "node_modules", ...packaged.packageName.split("/"));
   assert.equal((await realpath(packageRoot)).startsWith(await realpath(consumer)), true);
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
-  assert.equal(manifest.version, "0.13.0");
+  assert.equal(manifest.version, "0.14.0");
   assert.equal(manifest.oxcTsrx.target, hostTarget());
   assert.equal(manifest.oxcTsrx.oxcRevision, "5a6e37e5cf895143a5b34050c50109c46e2ae96a");
   assert.equal(manifest.scripts, undefined);
@@ -407,7 +407,7 @@ test("canonical parser packaging adds one verified schema-2 addon without changi
   assert.equal(record.apiVersion, 1);
   assert.equal(record.transportAbi, 1);
   assert.equal(record.nodeApi, 8);
-  assert.equal(record.packageVersion, "0.13.0");
+  assert.equal(record.packageVersion, "0.14.0");
   assert.equal(record.target, hostTarget());
   assert.equal(record.oxcRevision, "5a6e37e5cf895143a5b34050c50109c46e2ae96a");
   assert.deepEqual(record.capabilities, {
