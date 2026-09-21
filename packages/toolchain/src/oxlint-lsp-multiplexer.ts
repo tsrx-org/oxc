@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import { closeSync, openSync, readSync } from "node:fs";
-import { createRequire } from "node:module";
 import { basename, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolveCanonicalOxlint } from "./package-binary.js";
 import { discoverProviders, extensionOf, findProjectRoot } from "./provider-resolve.js";
 import { spawnCommand } from "./spawn-command.js";
 
@@ -525,15 +525,7 @@ export function createOxlintLspMultiplexer({
 }
 
 function resolveCanonicalOxlintBinary() {
-  const require = createRequire(import.meta.url);
-  const canonicalManifest = require.resolve("oxlint-current/package.json");
-  const manifest = require(canonicalManifest);
-  const declared =
-    typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.oxlint;
-  if (typeof declared !== "string" || declared.length === 0) {
-    throw new Error("oxlint-current does not declare the oxlint binary");
-  }
-  return fileURLToPath(new URL(declared, pathToFileURL(canonicalManifest)));
+  return resolveCanonicalOxlint(import.meta.url);
 }
 
 /**

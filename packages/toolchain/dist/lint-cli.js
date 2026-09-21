@@ -1,5 +1,5 @@
 import { runCaptured, runPassthrough } from "./process.js";
-import { resolvePackageBinary } from "./package-binary.js";
+import { resolveCanonicalOxlint, selectCanonicalOxlint } from "./package-binary.js";
 import { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, ensureSupportedOutput, isViteConfigPath, pathArguments, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveNativeCommand } from "./runtime.js";
 import { DELEGATE_ONLY, VALUE_OPTIONS, parseOxlintInvocation, parseOxlintOption, withOxlintOutputFormat } from "./lint-invocation.js";
 import { jsPluginUnmappedNote, preparePluginLane } from "./lint-js-plugins.js";
@@ -168,15 +168,25 @@ async function addLineColumns(diagnostics) {
 		}
 	}
 }
-function parseJson(result, label) {
+function parseJson(result, label, hint = "") {
 	try {
 		return result.stdout.trim() ? JSON.parse(result.stdout) : {
 			diagnostics: [],
 			number_of_files: 0
 		};
 	} catch {
-		throw new Error(`${label} returned non-JSON output while composing diagnostics:\n${result.stdout}${result.stderr}`);
+		throw new Error(`${label} returned non-JSON output while composing diagnostics:${hint}\n${result.stdout}${result.stderr}`);
 	}
+}
+/**
+* A configuration this command could not parse is the one failure whose cause
+* is absent from the output: the rule really is unknown to the binary that read
+* it. Name that binary and where it came from, instead of leaving the user to
+* read about JSON composition they never asked about (tsrx-org/oxc#105).
+*/
+function configRejectionHint(result, selected) {
+	if (!`${result.stdout}${result.stderr}`.includes("Failed to parse oxlint configuration file")) return "";
+	return ` ${selected.source === "project" ? "this project's own Oxlint" : "the Oxlint pinned by oxc-tsrx"}, version ${selected.version ?? "unknown"}, rejected this project's configuration.`;
 }
 function splitCapturedReport(result) {
 	if (result.stdout.trim() === "") return {
@@ -343,7 +353,7 @@ async function renderReport(report, cwd, format, elapsedMilliseconds) {
 	return renderGitHub(report, cwd, elapsedMilliseconds);
 }
 async function delegate(args, cwd) {
-	const upstreamArgs = [resolvePackageBinary("oxlint-current", "oxlint", import.meta.url), ...args];
+	const upstreamArgs = [resolveCanonicalOxlint(import.meta.url, cwd), ...args];
 	if (args.some((argument) => argument.split("=")[0] === "--lsp")) return (await runPassthrough(process.execPath, upstreamArgs, { cwd })).status;
 	const result = await runCaptured(process.execPath, upstreamArgs, { cwd });
 	process.stdout.write(result.stdout);
@@ -400,7 +410,7 @@ async function runCli(args, options = {}) {
 			})}\n`);
 			return 1;
 		}
-		const upstreamBinary = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+		const upstreamBinary = resolveCanonicalOxlint(import.meta.url, cwd);
 		const useMaterializedUpstreamConfig = Boolean(viteConfig && !viteConfig.requiresAuthoredBase);
 		let upstreamArgs = withOxlintOutputFormat(stripped.args, "json");
 		if (useMaterializedUpstreamConfig) upstreamArgs = replaceConfigArgument(upstreamArgs, viteConfig.path);
@@ -459,7 +469,7 @@ async function runCli(args, options = {}) {
 			return Math.max(upstreamResult.status, nativeResult.status);
 		}
 		if (!laneOutcome.ok) throw laneOutcome.error;
-		const upstream = parseJson(upstreamResult, "canonical Oxlint");
+		const upstream = parseJson(upstreamResult, "canonical Oxlint", configRejectionHint(upstreamResult, selectCanonicalOxlint(import.meta.url, cwd)));
 		const native = parseJson(nativeResult, "OXC for TSRX");
 		if (laneOutcome.value !== null) {
 			for (const failure of laneOutcome.value.failures ?? []) if (!args.includes("--silent")) process.stderr.write(`oxlint (oxc-tsrx): ${failure}\n`);

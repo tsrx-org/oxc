@@ -30,7 +30,14 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
-import { pathArguments, resolveNativeCommand, resolvePackageBinary, runCaptured } from "./runtime.js";
+import {
+  pathArguments,
+  resolveCanonicalOxlint,
+  resolveNativeCommand,
+  resolvePackageBinary,
+  runCaptured,
+  selectCanonicalOxlint,
+} from "./runtime.js";
 
 // The lane drives the published Oxlint binary through its command line, but the
 // shape of that command line is still a contract: `jsPlugins`, `--format=json`,
@@ -93,8 +100,16 @@ export function oxlintVersionRefusal(version) {
   );
 }
 
-/** The pinned Oxlint's own version, read through its public `./package.json` export. */
-export function installedOxlintVersion(fromUrl = import.meta.url) {
+/**
+ * The version of the Oxlint that will actually host this lane.
+ *
+ * That is not always the pinned one: `selectCanonicalOxlint` prefers the
+ * project's own Oxlint when it is at least as new as the pin, so this gate has
+ * to judge the binary that runs rather than the one this package shipped.
+ */
+export function installedOxlintVersion(fromUrl = import.meta.url, cwd = process.cwd()) {
+  const selected = selectCanonicalOxlint(fromUrl, cwd);
+  if (selected.version !== null) return selected.version;
   const localRequire = createRequire(fromUrl);
   const manifest = localRequire("oxlint-current/package.json");
   return typeof manifest.version === "string" ? manifest.version : "unknown";
@@ -522,7 +537,7 @@ export async function preparePluginLane({ cwd, files, viteConfig, explicitConfig
     return sawOptOut ? { status: "opted-out" } : null;
   }
 
-  const version = installedOxlintVersion();
+  const version = installedOxlintVersion(import.meta.url, cwd);
   if (!laneSupportsOxlintVersion(version)) {
     return { status: "version-refused", message: oxlintVersionRefusal(version) };
   }
@@ -715,7 +730,7 @@ async function runPluginLane({ cwd, configs, nativeConfig, explicit, temporary }
   // directory with nothing to ignore, and passing the flag changes what Oxlint
   // 1.74.0 puts in `context.filename`: with it, a rule sees a relative path;
   // without it, the absolute one it already sees on ordinary files.
-  const oxlintBinary = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+  const oxlintBinary = resolveCanonicalOxlint(import.meta.url, cwd);
   const oxlintArgs = [oxlintBinary, "--format=json"];
   if (explicit) oxlintArgs.push("--config", configs[0].mirrorConfig);
   const result = await runCaptured(process.execPath, [...oxlintArgs, ...mirrored], {
@@ -891,7 +906,7 @@ class EditorPluginLane {
     const relativePath = mirrorRelativePath(this.cwd, path);
     await writeMirrorFile(mirror, relativePath, projection);
 
-    const oxlintBinary = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+    const oxlintBinary = resolveCanonicalOxlint(import.meta.url, this.cwd);
     const result = await runCaptured(
       process.execPath,
       [oxlintBinary, "--format=json", relativePath],
@@ -976,7 +991,7 @@ async function runJsPluginLaneHost({
   output = process.stdout,
   errorOutput = process.stderr,
 } = {}) {
-  const version = installedOxlintVersion();
+  const version = installedOxlintVersion(import.meta.url, cwd);
   if (!laneSupportsOxlintVersion(version)) {
     output.write(`${JSON.stringify({ ready: false, error: oxlintVersionRefusal(version) })}\n`);
     return 0;

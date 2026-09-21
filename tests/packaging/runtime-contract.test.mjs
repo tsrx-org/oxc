@@ -304,16 +304,24 @@ test("mixed routing does not depend on private Oxlint modules or descriptor capt
     }
   }
 
+  // The lint lanes reach Oxlint through the canonical selector, which starts from
+  // the `oxlint-current` pin and prefers the project's own Oxlint only when that
+  // one is at least as new. The pin therefore still has to be the thing the
+  // selector resolves, and it still has to be resolved as a declared npm binary.
   assert.match(
     sources.get(join(root, "packages/toolchain/dist/bin/oxlint.js")),
-    /importDeclaredPackageBinary\("oxlint-current", "oxlint"/u,
+    /importCanonicalOxlint\(/u,
+  );
+  assert.match(
+    sources.get(join(root, "packages/toolchain/dist/package-binary.js")),
+    /resolvePackageBinary\("oxlint-current", "oxlint"/u,
   );
   assert.match(
     sources.get(join(root, "packages/toolchain/dist/bin/oxfmt.js")),
     /importDeclaredPackageBinary\("oxfmt-current", "oxfmt"/u,
   );
   const prestart = sources.get(join(root, "packages/toolchain/dist/lint-prestart.js"));
-  assert.match(prestart, /resolvePackageBinary\("oxlint-current", "oxlint"/u);
+  assert.match(prestart, /resolveCanonicalOxlint\(/u);
   assert.match(prestart, /runCaptured\(process\.execPath/u);
   assert.match(
     sources.get(join(root, "packages/toolchain/dist/process.js")),

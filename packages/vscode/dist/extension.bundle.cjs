@@ -22345,7 +22345,7 @@ var require_provider_client = /* @__PURE__ */ __commonJSMin(((exports, module) =
 	*/
 	const { closeSync, existsSync: existsSync$2, openSync, readSync } = require("node:fs");
 	const { createRequire: createRequire$3 } = require("node:module");
-	const { join: join$2, relative: relative$1, sep: sep$2 } = require("node:path");
+	const { join: join$3, relative: relative$1, sep: sep$2 } = require("node:path");
 	/** Yarn Plug'n'Play manifests, in the order a host should prefer them. */
 	const PLUG_AND_PLAY_FILES = Object.freeze([".pnp.cjs", ".pnp.js"]);
 	/** The capability a language client is built from. */
@@ -22452,7 +22452,7 @@ var require_provider_client = /* @__PURE__ */ __commonJSMin(((exports, module) =
 		const exists = options.existsSync ?? existsSync$2;
 		const load = options.requireModule ?? defaultRequire;
 		for (const name of PLUG_AND_PLAY_FILES) {
-			const path = join$2(folder, name);
+			const path = join$3(folder, name);
 			if (!exists(path)) continue;
 			let api;
 			try {
@@ -22742,6 +22742,104 @@ function resolvePackageBinary(packageName, binaryName, fromUrl) {
 	}
 	if (!metadata.isFile()) throw new Error(`${packageName} declares a non-file ${binaryName} npm binary at ${entry}`);
 	return entry;
+}
+function projectRootOf(start) {
+	const from = (0, node_path.resolve)(start);
+	const filesystemRoot = (0, node_path.parse)(from).root;
+	let directory = from;
+	for (;;) {
+		if ((0, node_fs.statSync)((0, node_path.join)(directory, "package.json"), { throwIfNoEntry: false })?.isFile()) return directory;
+		if (directory === filesystemRoot) return null;
+		directory = (0, node_path.dirname)(directory);
+	}
+}
+function versionParts(version) {
+	return String(version).split(/[-+]/u, 1)[0].split(".").map((part) => Number.parseInt(part, 10));
+}
+function compareVersions(left, right) {
+	const a = versionParts(left);
+	const b = versionParts(right);
+	for (let index = 0; index < 3; index += 1) {
+		const first = Number.isInteger(a[index]) ? a[index] : 0;
+		const second = Number.isInteger(b[index]) ? b[index] : 0;
+		if (first !== second) return first < second ? -1 : 1;
+	}
+	return 0;
+}
+function declaredVersion(manifestPath, localRequire) {
+	const version = localRequire(manifestPath).version;
+	return typeof version === "string" && /^\d+\.\d+\.\d+/u.test(version) ? version : null;
+}
+/**
+* Resolve the Oxlint that parses this project's configuration.
+*
+* `oxlint-current` is a pin: one Oxlint version, frozen when this package was
+* released. The configuration it has to parse is not pinned at all, because the
+* project owns that file and writes it against whatever Oxlint the project
+* installed. So a project whose Oxlint is newer than the pin has its own config
+* rejected over rules that do exist, which the pin has simply never heard of
+* (tsrx-org/oxc#105). Bumping the pin does not fix that: it re-breaks on the
+* next Oxlint release that adds a rule.
+*
+* Preferring the project's own Oxlint whenever it is at least as new as the pin
+* does fix it, and cannot regress the pinned behaviour. An older, absent, or
+* unreadable project Oxlint leaves the pin exactly where it was, so the pin
+* stays the floor every composition lane here was established against.
+*
+* This is deliberately not the question `decideCanonicalCommand` answers. That
+* one decides who owns the *command name*, where a merely transitive Oxlint must
+* not take the name away from an explicit `oxc-tsrx` install. Which binary
+* parses the project's config is separate: a transitively installed Oxlint is
+* still the version that project's config was written against.
+*/
+function selectCanonicalOxlint(fromUrl, cwd = process.cwd()) {
+	const pinnedPath = resolvePackageBinary("oxlint-current", "oxlint", fromUrl);
+	let pinned = {
+		path: pinnedPath,
+		version: null,
+		source: "pinned"
+	};
+	const localRequire = (0, node_module.createRequire)(fromUrl);
+	let pinnedManifestPath;
+	let pinnedVersion;
+	try {
+		pinnedManifestPath = localRequire.resolve("oxlint-current/package.json");
+		pinnedVersion = declaredVersion(pinnedManifestPath, localRequire);
+		pinned = {
+			path: pinnedPath,
+			version: pinnedVersion,
+			source: "pinned"
+		};
+	} catch {
+		return pinned;
+	}
+	if (pinnedVersion === null) return pinned;
+	const projectRoot = projectRootOf(cwd);
+	if (projectRoot === null) return pinned;
+	const projectRequire = (0, node_module.createRequire)((0, node_path.join)(projectRoot, "package.json"));
+	let projectManifestPath;
+	let projectVersion;
+	try {
+		projectManifestPath = projectRequire.resolve("oxlint/package.json");
+		projectVersion = declaredVersion(projectManifestPath, projectRequire);
+	} catch {
+		return pinned;
+	}
+	if (projectManifestPath === pinnedManifestPath) return pinned;
+	if (projectVersion === null || compareVersions(projectVersion, pinnedVersion) < 0) return pinned;
+	try {
+		return {
+			path: resolvePackageBinary("oxlint", "oxlint", (0, node_url.pathToFileURL)(projectManifestPath).href),
+			version: projectVersion,
+			source: "project"
+		};
+	} catch {
+		return pinned;
+	}
+}
+/** The path of the Oxlint that parses this project's config. */
+function resolveCanonicalOxlint(fromUrl, cwd = process.cwd()) {
+	return selectCanonicalOxlint(fromUrl, cwd).path;
 }
 var init_package_binary = __esmMin((() => {}));
 //#endregion
@@ -25459,11 +25557,13 @@ var runtime_exports = /* @__PURE__ */ __exportAll({
 	prepareVitePlusConfig: () => prepareVitePlusConfig,
 	removeExplicitTsrx: () => removeExplicitTsrx,
 	replaceConfigArgument: () => replaceConfigArgument,
+	resolveCanonicalOxlint: () => resolveCanonicalOxlint,
 	resolveNativeBinary: () => resolveNativeBinary,
 	resolveNativeCommand: () => resolveNativeCommand,
 	resolvePackageBinary: () => resolvePackageBinary,
 	runCaptured: () => runCaptured,
-	runPassthrough: () => runPassthrough
+	runPassthrough: () => runPassthrough,
+	selectCanonicalOxlint: () => selectCanonicalOxlint
 });
 function linuxLibc() {
 	if (process.platform !== "linux") return null;
