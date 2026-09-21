@@ -115,9 +115,17 @@ export function selectCanonicalOxlint(fromUrl, cwd = process.cwd()) {
   } catch {
     return pinned;
   }
-  // The pinned package resolves under this one, and `oxc-tsrx setup` can put
-  // this package itself in that slot. Either would route straight back here.
+  // The pinned package resolves under this one, so its own manifest must never
+  // be mistaken for a separate project install.
   if (projectManifestPath === pinnedManifestPath) return pinned;
+  // `oxc-tsrx setup` can write a compatibility facade into the `oxlint` slot.
+  // That facade carries this package's version and re-enters this launcher, so
+  // selecting it would recurse without bound. It is identified the same way
+  // `decideCanonicalCommand` identifies it, by its own manifest metadata,
+  // because its path is its own and a path comparison never sees it.
+  if (projectRequire(projectManifestPath).oxcTsrxCompatibility?.provider === "oxc-tsrx") {
+    return pinned;
+  }
   if (projectVersion === null || compareVersions(projectVersion, pinnedVersion) < 0) return pinned;
 
   try {

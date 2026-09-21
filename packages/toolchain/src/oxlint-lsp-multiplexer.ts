@@ -524,8 +524,8 @@ export function createOxlintLspMultiplexer({
   };
 }
 
-function resolveCanonicalOxlintBinary() {
-  return resolveCanonicalOxlint(import.meta.url);
+function resolveCanonicalOxlintBinary(cwd) {
+  return resolveCanonicalOxlint(import.meta.url, cwd);
 }
 
 /**
@@ -656,7 +656,7 @@ export async function runOxlintLspMultiplexer(args, options: any = {}) {
   // exact binary. Only `.tsrx` documents leave it for the native server. Said
   // once on the client's error stream, which the editor shows in its output
   // channel, so a session in that layout is never a mystery.
-  const canonicalBinary = options.canonical?.binPath ?? resolveCanonicalOxlintBinary();
+  const canonicalBinary = options.canonical?.binPath ?? resolveCanonicalOxlintBinary(cwd);
   if (options.canonical?.binPath) {
     const version = options.canonical.version ? ` ${options.canonical.version}` : "";
     clientError.write(

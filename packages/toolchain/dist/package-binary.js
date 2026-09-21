@@ -103,6 +103,7 @@ function selectCanonicalOxlint(fromUrl, cwd = process.cwd()) {
 		return pinned;
 	}
 	if (projectManifestPath === pinnedManifestPath) return pinned;
+	if (projectRequire(projectManifestPath).oxcTsrxCompatibility?.provider === "oxc-tsrx") return pinned;
 	if (projectVersion === null || compareVersions(projectVersion, pinnedVersion) < 0) return pinned;
 	try {
 		return {

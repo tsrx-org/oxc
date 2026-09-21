@@ -34,7 +34,6 @@ import {
   pathArguments,
   resolveCanonicalOxlint,
   resolveNativeCommand,
-  resolvePackageBinary,
   runCaptured,
   selectCanonicalOxlint,
 } from "./runtime.js";

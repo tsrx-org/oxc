@@ -454,8 +454,8 @@ function createOxlintLspMultiplexer({ clientInput, clientOutput, clientError, ca
 		}
 	};
 }
-function resolveCanonicalOxlintBinary() {
-	return resolveCanonicalOxlint(import.meta.url);
+function resolveCanonicalOxlintBinary(cwd) {
+	return resolveCanonicalOxlint(import.meta.url, cwd);
 }
 /**
 * A declared `bin` entry may be a JavaScript wrapper or a native executable.
@@ -561,7 +561,7 @@ async function runOxlintLspMultiplexer(args, options = {}) {
 	const spawnProcess = options.spawn ?? spawn;
 	const clientError = options.clientError ?? process.stderr;
 	const cwd = options.cwd ?? process.cwd();
-	const canonicalBinary = options.canonical?.binPath ?? resolveCanonicalOxlintBinary();
+	const canonicalBinary = options.canonical?.binPath ?? resolveCanonicalOxlintBinary(cwd);
 	if (options.canonical?.binPath) {
 		const version = options.canonical.version ? ` ${options.canonical.version}` : "";
 		clientError.write(`oxlint (oxc-tsrx): ordinary documents are served by the official oxlint${version} this project declares (${options.canonical.binPath}); .tsrx documents by the native server\n`);

@@ -12,7 +12,6 @@ import {
   replaceConfigArgument,
   resolveCanonicalOxlint,
   resolveNativeCommand,
-  resolvePackageBinary,
   runCaptured,
   runPassthrough,
   selectCanonicalOxlint,
