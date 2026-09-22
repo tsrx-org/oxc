@@ -31,6 +31,41 @@ export declare function decideCanonicalCommand(
   options?: OxcTsrxCanonicalOptions,
 ): Promise<OxcTsrxCanonicalDecision>;
 
+export interface OxcTsrxCanonicalBinary {
+  readonly command: OxcTsrxCanonicalCommand;
+  readonly binPath: string;
+  readonly version: string | null;
+  readonly source: "project" | "vendored";
+  readonly officialRoot: string;
+  readonly vendoredVersion: string | null;
+  readonly projectVersion: string | null;
+  readonly projectRoot: string | null;
+}
+
+export interface OxcTsrxCanonicalBinaryOptions {
+  readonly cwd?: string;
+  readonly fromUrl?: string;
+}
+
+/**
+ * The official binary that runs `command` when this package owns the name: the
+ * newer of the project's installed official package and the vendored copy.
+ */
+export declare function resolveCanonicalBinary(
+  command: OxcTsrxCanonicalCommand,
+  options?: OxcTsrxCanonicalBinaryOptions,
+): OxcTsrxCanonicalBinary;
+
+export declare function runCanonicalBinary(
+  resolved: OxcTsrxCanonicalBinary,
+  options?: { spawn?: unknown },
+): Promise<void>;
+
+export declare function configurationRejectionNotice(
+  resolved: OxcTsrxCanonicalBinary,
+  output: string,
+): string;
+
 export declare function providedArguments(args: readonly string[]): string[];
 
 export declare function usesNodeInterpreter(path: string): Promise<boolean>;

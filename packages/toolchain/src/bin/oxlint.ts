@@ -27,9 +27,13 @@ try {
 } catch {}
 
 try {
-  const { decideCanonicalCommand, deferralNotice, runOfficialCommand } = await import(
-    "../canonical-command.js"
-  );
+  const {
+    decideCanonicalCommand,
+    deferralNotice,
+    resolveCanonicalBinary,
+    runCanonicalBinary,
+    runOfficialCommand,
+  } = await import("../canonical-command.js");
   const args = process.argv.slice(2);
   const decision = await decideCanonicalCommand("oxlint");
   if (args.some((argument) => argument.split("=", 1)[0] === "--lsp")) {
@@ -47,17 +51,16 @@ try {
     if (notice !== null) console.error(notice);
     await runOfficialCommand(decision);
   } else {
-    const {
-      canRunCanonicalOxlint,
-      importDeclaredPackageBinary,
-      planCanonicalOxlintComposition,
-    } = await import("../lint-invocation.js");
+    const { canRunCanonicalOxlint, planCanonicalOxlintComposition } = await import(
+      "../lint-invocation.js"
+    );
     if (canRunCanonicalOxlint(args)) {
-      // This invocation cannot select TSRX. Execute the exact binary declared
-      // by the pinned Oxlint package in this process, preserving canonical
+      // This invocation cannot select TSRX. Execute the canonical Oxlint
+      // binary (the project's installed one when it is newer than the pin,
+      // see resolveCanonicalBinary) in this process, preserving canonical
       // output, plugins, config loading, fixes, LSP streams, and
       // cross-platform behavior.
-      await importDeclaredPackageBinary("oxlint-current", "oxlint", import.meta.url);
+      await runCanonicalBinary(resolveCanonicalBinary("oxlint"));
     } else {
       const vitePlusHost = Boolean(
         process.env.VP_VERSION ||

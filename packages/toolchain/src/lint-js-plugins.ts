@@ -30,7 +30,8 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
-import { pathArguments, resolveNativeCommand, resolvePackageBinary, runCaptured } from "./runtime.js";
+import { resolveCanonicalBinary } from "./canonical-command.js";
+import { pathArguments, resolveNativeCommand, runCaptured } from "./runtime.js";
 
 // The lane drives the published Oxlint binary through its command line, but the
 // shape of that command line is still a contract: `jsPlugins`, `--format=json`,
@@ -93,11 +94,9 @@ export function oxlintVersionRefusal(version) {
   );
 }
 
-/** The pinned Oxlint's own version, read through its public `./package.json` export. */
-export function installedOxlintVersion(fromUrl = import.meta.url) {
-  const localRequire = createRequire(fromUrl);
-  const manifest = localRequire("oxlint-current/package.json");
-  return typeof manifest.version === "string" ? manifest.version : "unknown";
+/** The version of the canonical Oxlint this lane will run (see `resolveCanonicalBinary`). */
+export function installedOxlintVersion(fromUrl = import.meta.url, cwd = process.cwd()) {
+  return resolveCanonicalBinary("oxlint", { cwd, fromUrl }).version ?? "unknown";
 }
 
 /**
@@ -715,7 +714,7 @@ async function runPluginLane({ cwd, configs, nativeConfig, explicit, temporary }
   // directory with nothing to ignore, and passing the flag changes what Oxlint
   // 1.74.0 puts in `context.filename`: with it, a rule sees a relative path;
   // without it, the absolute one it already sees on ordinary files.
-  const oxlintBinary = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+  const oxlintBinary = resolveCanonicalBinary("oxlint", { cwd, fromUrl: import.meta.url }).binPath;
   const oxlintArgs = [oxlintBinary, "--format=json"];
   if (explicit) oxlintArgs.push("--config", configs[0].mirrorConfig);
   const result = await runCaptured(process.execPath, [...oxlintArgs, ...mirrored], {
@@ -891,7 +890,10 @@ class EditorPluginLane {
     const relativePath = mirrorRelativePath(this.cwd, path);
     await writeMirrorFile(mirror, relativePath, projection);
 
-    const oxlintBinary = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+    const oxlintBinary = resolveCanonicalBinary("oxlint", {
+      cwd: this.cwd,
+      fromUrl: import.meta.url,
+    }).binPath;
     const result = await runCaptured(
       process.execPath,
       [oxlintBinary, "--format=json", relativePath],

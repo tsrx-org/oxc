@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
+import { statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { statSync } from "node:fs";
 //#region src/package-binary.ts
 /** Resolve the executable declared by an installed npm package's `bin` field. */
 function resolvePackageBinary(packageName, binaryName, fromUrl) {

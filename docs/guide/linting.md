@@ -26,6 +26,16 @@ Four steps:
 Step 2 also records which piece of the copy came from which piece of your file,
 and that record is what makes step 4 exact.
 
+Ordinary files never enter that pipeline. They run canonical Oxlint: the
+newer of the `oxlint` installed in your project, declared or not, and the copy
+this package vendors. Your configuration is parsed by an Oxlint at least as new
+as the one you installed, so a rule added after this package's pin is not
+rejected as unknown, and the copy vendored here still serves a project that
+installed nothing else. The `.tsrx` lane itself is built on one pinned OXC
+revision, so a rule newer than that revision cannot run on `.tsrx` files yet;
+it is skipped there, and the run says which rules it skipped, instead of
+refusing to lint at all.
+
 Ordinary `.js`, `.jsx`, `.ts`, and `.tsx` files skip steps 1 and 2 entirely.
 They go straight to OXC, exactly like running `oxlint` yourself.
 

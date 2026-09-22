@@ -1,5 +1,5 @@
+import { configurationRejectionNotice, resolveCanonicalBinary } from "./canonical-command.js";
 import { runCaptured, runPassthrough } from "./process.js";
-import { resolvePackageBinary } from "./package-binary.js";
 import { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, ensureSupportedOutput, isViteConfigPath, pathArguments, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveNativeCommand } from "./runtime.js";
 import { DELEGATE_ONLY, VALUE_OPTIONS, parseOxlintInvocation, parseOxlintOption, withOxlintOutputFormat } from "./lint-invocation.js";
 import { jsPluginUnmappedNote, preparePluginLane } from "./lint-js-plugins.js";
@@ -168,14 +168,16 @@ async function addLineColumns(diagnostics) {
 		}
 	}
 }
-function parseJson(result, label) {
+function parseJson(result, label, canonical = null) {
 	try {
 		return result.stdout.trim() ? JSON.parse(result.stdout) : {
 			diagnostics: [],
 			number_of_files: 0
 		};
 	} catch {
-		throw new Error(`${label} returned non-JSON output while composing diagnostics:\n${result.stdout}${result.stderr}`);
+		const output = `${result.stdout}${result.stderr}`;
+		if (canonical !== null && /Failed to parse oxlint configuration/u.test(output)) throw new Error(configurationRejectionNotice(canonical, output));
+		throw new Error(`${label} returned non-JSON output while composing diagnostics:\n${output}`);
 	}
 }
 function splitCapturedReport(result) {
@@ -201,6 +203,7 @@ function combine(upstream, native) {
 		diagnostics: [...upstream.diagnostics ?? [], ...native.diagnostics ?? []],
 		number_of_files: (upstream.number_of_files ?? 0) + (native.number_of_files ?? 0),
 		number_of_rules: Math.max(upstream.number_of_rules ?? 0, native.number_of_rules ?? 0),
+		skipped_rules: native.skipped_rules ?? [],
 		threads_count: upstream.threads_count ?? native.threads_count,
 		oxcTsrx: native.oxcTsrx
 	};
@@ -343,7 +346,10 @@ async function renderReport(report, cwd, format, elapsedMilliseconds) {
 	return renderGitHub(report, cwd, elapsedMilliseconds);
 }
 async function delegate(args, cwd) {
-	const upstreamArgs = [resolvePackageBinary("oxlint-current", "oxlint", import.meta.url), ...args];
+	const upstreamArgs = [resolveCanonicalBinary("oxlint", {
+		cwd,
+		fromUrl: import.meta.url
+	}).binPath, ...args];
 	if (args.some((argument) => argument.split("=")[0] === "--lsp")) return (await runPassthrough(process.execPath, upstreamArgs, { cwd })).status;
 	const result = await runCaptured(process.execPath, upstreamArgs, { cwd });
 	process.stdout.write(result.stdout);
@@ -400,7 +406,11 @@ async function runCli(args, options = {}) {
 			})}\n`);
 			return 1;
 		}
-		const upstreamBinary = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+		const canonicalOxlint = resolveCanonicalBinary("oxlint", {
+			cwd,
+			fromUrl: import.meta.url
+		});
+		const upstreamBinary = canonicalOxlint.binPath;
 		const useMaterializedUpstreamConfig = Boolean(viteConfig && !viteConfig.requiresAuthoredBase);
 		let upstreamArgs = withOxlintOutputFormat(stripped.args, "json");
 		if (useMaterializedUpstreamConfig) upstreamArgs = replaceConfigArgument(upstreamArgs, viteConfig.path);
@@ -459,8 +469,9 @@ async function runCli(args, options = {}) {
 			return Math.max(upstreamResult.status, nativeResult.status);
 		}
 		if (!laneOutcome.ok) throw laneOutcome.error;
-		const upstream = parseJson(upstreamResult, "canonical Oxlint");
+		const upstream = parseJson(upstreamResult, "canonical Oxlint", canonicalOxlint);
 		const native = parseJson(nativeResult, "OXC for TSRX");
+		if (Array.isArray(native.skipped_rules) && native.skipped_rules.length > 0) process.stderr.write(`oxlint (oxc-tsrx): ${native.skipped_rules.length} configured rule(s) are newer than the OXC revision this package is built on and were skipped on .tsrx files: ${native.skipped_rules.join(", ")}\n`);
 		if (laneOutcome.value !== null) {
 			for (const failure of laneOutcome.value.failures ?? []) if (!args.includes("--silent")) process.stderr.write(`oxlint (oxc-tsrx): ${failure}\n`);
 			const unmapped = laneOutcome.value.unmapped ?? 0;

@@ -98,6 +98,9 @@ pub struct Output {
     pub diagnostics: Vec<DiagnosticOutput>,
     pub number_of_files: u32,
     pub number_of_rules: usize,
+    /// Configured rules the pinned OXC crates do not know, skipped rather than refused
+    /// (tsrx-org/oxc#105). Empty in the common case.
+    pub skipped_rules: Vec<String>,
     /// How many threads this run actually linted on.
     ///
     /// Canonical Oxlint closes a report with `Finished in <t> on <n> files with <r> rules using
@@ -166,6 +169,7 @@ pub(crate) fn aggregate_outputs(session: &LintSession, outputs: Vec<Output>) -> 
         diagnostics,
         number_of_files,
         number_of_rules: session.engine.number_of_rules(),
+        skipped_rules: session.engine.skipped_rules().to_vec(),
         threads_count: u32::try_from(lint_threads.len()).unwrap_or(u32::MAX),
         lint_thread: thread::current().id(),
         metadata: Metadata {
@@ -228,6 +232,7 @@ fn failure_shell(session: &LintSession, diagnostics: Vec<DiagnosticOutput>) -> O
         diagnostics,
         number_of_files: 1,
         number_of_rules: session.engine.number_of_rules(),
+        skipped_rules: session.engine.skipped_rules().to_vec(),
         threads_count: 1,
         lint_thread: thread::current().id(),
         metadata: Metadata {

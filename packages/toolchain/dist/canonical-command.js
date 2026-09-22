@@ -3,8 +3,9 @@ import { spawnCommand } from "./spawn-command.js";
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { open, readFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, parse, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 //#region src/canonical-command.ts
 /**
@@ -38,6 +39,11 @@ const OWNED_COMMANDS = Object.freeze({
 });
 /** The extension this package's provider block claims. */
 const PROVIDED_EXTENSION = ".tsrx";
+/** The exact official package this package vendors for each command it owns. */
+const VENDORED_PACKAGES = Object.freeze({
+	oxlint: "oxlint-current",
+	oxfmt: "oxfmt-current"
+});
 function isPlainObject(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -116,6 +122,118 @@ async function decideCanonicalCommand(command, options = {}) {
 		binPath: resolve(dirname(manifestPath), declared)
 	};
 }
+function versionParts(version) {
+	return String(version).split(/[-+]/u, 1)[0].split(".").map((part) => Number.parseInt(part, 10));
+}
+function compareVersions(left, right) {
+	const a = versionParts(left);
+	const b = versionParts(right);
+	for (let index = 0; index < 3; index += 1) {
+		const first = Number.isInteger(a[index]) ? a[index] : 0;
+		const second = Number.isInteger(b[index]) ? b[index] : 0;
+		if (first !== second) return first < second ? -1 : 1;
+	}
+	return 0;
+}
+function findProjectRootSync(start) {
+	let directory = resolve(start);
+	const filesystemRoot = parse(directory).root;
+	for (;;) {
+		if (existsSync(join(directory, "package.json"))) return directory;
+		if (directory === filesystemRoot) return null;
+		directory = dirname(directory);
+	}
+}
+/** The declared `command` binary of the package whose manifest is at `manifestPath`, if any. */
+function declaredBinaryOf(manifestPath, command) {
+	const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+	if (isCompatibilityFacade(manifest)) return null;
+	const declared = declaredBin(manifest, command);
+	if (declared === null) return null;
+	const binPath = resolve(dirname(manifestPath), declared);
+	let metadata;
+	try {
+		metadata = statSync(binPath);
+	} catch {
+		return null;
+	}
+	if (!metadata.isFile()) return null;
+	return {
+		binPath,
+		root: dirname(manifestPath),
+		version: typeof manifest.version === "string" ? manifest.version : null
+	};
+}
+const resolvedCanonicalBinaries = /* @__PURE__ */ new Map();
+/**
+* The official binary that runs `command` when this package owns the name.
+*
+* Owning the command name does not mean the vendored copy is the right tool
+* for the project's configuration. That configuration is the project's, and it
+* tracks whatever Oxlint or Oxfmt the project installed: a rule or option added
+* after this package's pin is rejected as unknown by the pin, even though the
+* project never chose the pin (tsrx-org/oxc#105). So the binary is the newer of
+* the project's installed official package, resolved from the project root
+* whether or not it is declared there, and the vendored copy. Rules are added
+* far more often than removed, so the newer parser accepts what either would.
+*
+* Never throws for an ordinary project: an unresolvable, undeclared, or
+* facade `command` package simply leaves the vendored copy in charge. Command
+* ownership itself is still `decideCanonicalCommand`'s decision.
+*/
+function resolveCanonicalBinary(command, options = {}) {
+	const vendoredPackage = VENDORED_PACKAGES[command];
+	if (vendoredPackage === void 0) throw new Error(`unknown canonical command: ${command}`);
+	const cwd = options.cwd ?? process.cwd();
+	const fromUrl = options.fromUrl ?? import.meta.url;
+	const key = `${command}\0${fromUrl}\0${cwd}`;
+	const cached = resolvedCanonicalBinaries.get(key);
+	if (cached !== void 0) return cached;
+	const vendored = declaredBinaryOf(createRequire(fromUrl).resolve(`${vendoredPackage}/package.json`), command);
+	if (vendored === null) throw new Error(`${vendoredPackage} does not declare its ${command} npm binary`);
+	const projectRoot = findProjectRootSync(cwd);
+	let project = null;
+	if (projectRoot !== null) try {
+		project = declaredBinaryOf(createRequire(join(projectRoot, "package.json")).resolve(`${command}/package.json`), command);
+	} catch {
+		project = null;
+	}
+	const preferProject = project !== null && project.version !== null && vendored.version !== null && compareVersions(project.version, vendored.version) > 0;
+	const chosen = preferProject ? project : vendored;
+	const resolved = Object.freeze({
+		command,
+		binPath: chosen.binPath,
+		version: chosen.version,
+		source: preferProject ? "project" : "vendored",
+		officialRoot: chosen.root,
+		vendoredVersion: vendored.version,
+		projectVersion: project?.version ?? null,
+		projectRoot
+	});
+	resolvedCanonicalBinaries.set(key, resolved);
+	return resolved;
+}
+/**
+* Runs the resolved canonical binary in place of this launcher, the way
+* `runOfficialCommand` runs a project's declared package. The vendored copy is
+* this package's own JavaScript launcher, so it is imported in this process
+* whatever its shebang says; a project's copy is executed by whatever it
+* declares.
+*/
+async function runCanonicalBinary(resolved, options = {}) {
+	if (resolved.source === "vendored") {
+		await import(pathToFileURL(resolved.binPath).href);
+		return;
+	}
+	await runOfficialCommand(resolved, options);
+}
+/**
+* Explains a configuration the resolved canonical tool rejected, naming the
+* versions involved so a project can see at once whether the pin is behind.
+*/
+function configurationRejectionNotice(resolved, output) {
+	return `${`${resolved.command} ${resolved.version ?? "of unknown version"} (${resolved.source === "project" ? "the project's installed copy" : "the copy vendored by oxc-tsrx"})`} rejected this project's configuration.${resolved.projectVersion !== null && resolved.projectVersion !== resolved.version ? ` The project has ${resolved.command} ${resolved.projectVersion} installed.` : ""}\n${output}`.trimEnd();
+}
 /** Arguments that name a file this package's provider block claims. */
 function providedArguments(args) {
 	return args.filter((argument) => typeof argument === "string" && !argument.startsWith("-") && extensionOf(argument) === PROVIDED_EXTENSION);
@@ -193,4 +311,4 @@ async function runOfficialCommand(decision, options = {}) {
 	process.exitCode = signal === null ? status ?? 0 : 2;
 }
 //#endregion
-export { decideCanonicalCommand, deferralNotice, providedArguments, runOfficialCommand, usesNodeInterpreter };
+export { configurationRejectionNotice, decideCanonicalCommand, deferralNotice, providedArguments, resolveCanonicalBinary, runCanonicalBinary, runOfficialCommand, usesNodeInterpreter };

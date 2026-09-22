@@ -5,7 +5,7 @@ try {
 	enableCompileCache?.();
 } catch {}
 try {
-	const { decideCanonicalCommand, deferralNotice, runOfficialCommand } = await import("../canonical-command.js");
+	const { decideCanonicalCommand, deferralNotice, resolveCanonicalBinary, runCanonicalBinary, runOfficialCommand } = await import("../canonical-command.js");
 	const args = process.argv.slice(2);
 	const decision = await decideCanonicalCommand("oxlint");
 	if (args.some((argument) => argument.split("=", 1)[0] === "--lsp")) {
@@ -19,8 +19,8 @@ try {
 		if (notice !== null) console.error(notice);
 		await runOfficialCommand(decision);
 	} else {
-		const { canRunCanonicalOxlint, importDeclaredPackageBinary, planCanonicalOxlintComposition } = await import("../lint-invocation.js");
-		if (canRunCanonicalOxlint(args)) await importDeclaredPackageBinary("oxlint-current", "oxlint", import.meta.url);
+		const { canRunCanonicalOxlint, planCanonicalOxlintComposition } = await import("../lint-invocation.js");
+		if (canRunCanonicalOxlint(args)) await runCanonicalBinary(resolveCanonicalBinary("oxlint"));
 		else {
 			const plan = Boolean(process.env.VP_VERSION || process.env.VP_COMMAND || process.env.NODE_PACKAGE_MANAGER === "vite-plus") ? null : planCanonicalOxlintComposition(args);
 			const prestart = plan === null ? Promise.resolve(null) : import("../lint-prestart.js").then(({ startCanonicalOxlint }) => startCanonicalOxlint(plan.args));

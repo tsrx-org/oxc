@@ -68,6 +68,31 @@ function comparableDiagnostics(output) {
   }));
 }
 
+// tsrx-org/oxc#105. The native lane is built on one pinned OXC revision while the
+// configuration follows the Oxlint the project installed, so a rule added upstream after the
+// pin must be skipped, and named, rather than refuse the whole run.
+test('a configured rule the pinned OXC crates do not know is skipped on .tsrx and named', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'oxc-tsrx-unknown-rule-'));
+  const config = join(directory, '.oxlintrc.json');
+  await writeFile(
+    config,
+    JSON.stringify({
+      plugins: ['react'],
+      rules: { 'react/rule-from-the-future': 'off', 'no-debugger': 'error' },
+      overrides: [{ files: ['*.tsrx'], rules: { 'react/another-future-rule': 'warn' } }],
+    }),
+  );
+  const file = join(directory, 'View.tsrx');
+  await writeFile(file, 'export function View() @{ debugger; <p>hi</p>; }\n');
+  const result = await run(['lint', '--config', config, file]);
+  assert.equal(result.code, 1, result.stderr || result.stdout);
+  const report = JSON.parse(result.stdout);
+  assert.deepEqual(report.skipped_rules, ['react/rule-from-the-future', 'react/another-future-rule']);
+  // The rules the pin does know still ran.
+  assert.ok(report.diagnostics.some((diagnostic) => diagnostic.rule === 'no-debugger'), result.stdout);
+  await rm(directory, { recursive: true, force: true });
+});
+
 test('runs real OXC rules once and reports original TSRX byte spans', async () => {
   const source = await readFile(tsrxFixture, 'utf8');
   const result = await run([

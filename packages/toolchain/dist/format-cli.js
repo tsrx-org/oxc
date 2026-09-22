@@ -1,9 +1,9 @@
+import { resolveCanonicalBinary } from "./canonical-command.js";
 import { runCaptured, runPassthrough } from "./process.js";
-import { resolvePackageBinary } from "./package-binary.js";
 import { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, isViteConfigPath, pathArguments, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveNativeCommand } from "./runtime.js";
 import { VALUE_OPTIONS, parseOxfmtInvocation, parseOxfmtOption } from "./format-invocation.js";
-import { isAbsolute, relative } from "node:path";
 import { readFileSync } from "node:fs";
+import { isAbsolute, relative } from "node:path";
 //#region src/format-cli.ts
 function unknownOptionMessage(name) {
 	return `Error: \`${name}\` is not expected in this context`;
@@ -187,7 +187,10 @@ function mergeFormatStderr(upstream, native, stdout) {
 	return `\n${merged}`;
 }
 async function delegate(args, cwd, input) {
-	const upstreamArgs = [resolvePackageBinary("oxfmt-current", "oxfmt", import.meta.url), ...args];
+	const upstreamArgs = [resolveCanonicalBinary("oxfmt", {
+		cwd,
+		fromUrl: import.meta.url
+	}).binPath, ...args];
 	if (args.some((argument) => argument.split("=")[0] === "--lsp")) return (await runPassthrough(process.execPath, upstreamArgs, { cwd })).status;
 	const result = await runCaptured(process.execPath, upstreamArgs, {
 		cwd,
@@ -246,7 +249,10 @@ async function runCli(args, options = {}) {
 	try {
 		const stripped = removeExplicitTsrx(args, VALUE_OPTIONS);
 		const shouldRunUpstream = !stripped.hadPositionals || stripped.remainingPositionals > 0;
-		const upstream = resolvePackageBinary("oxfmt-current", "oxfmt", import.meta.url);
+		const upstream = resolveCanonicalBinary("oxfmt", {
+			cwd,
+			fromUrl: import.meta.url
+		}).binPath;
 		const useMaterializedUpstreamConfig = Boolean(viteConfig && !viteConfig.requiresAuthoredBase);
 		const upstreamArgs = useMaterializedUpstreamConfig ? replaceConfigArgument(stripped.args, viteConfig.path) : stripped.args;
 		nativePaths = files.length > 0 ? await pathArguments(withCwdRelativePaths(files, cwd)) : null;

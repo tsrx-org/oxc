@@ -216,7 +216,7 @@ nearest `package.json` and decides for itself.
 | What your project's `package.json` says | What `oxlint` and `oxfmt` then run |
 | --- | --- |
 | It declares `oxlint` or `oxfmt` itself | That pinned binary, unchanged. Adding `@tsrx/oxc` cannot alter what a pinned project's lint command does. To lint `.tsrx` there, run `oxc-tsrx-lint` and `oxc-tsrx-fmt` |
-| It declares neither | TSRX support, through this package. A transitive official `oxlint`, such as the one Vite+ brings, is not a declaration |
+| It declares neither | TSRX support, through this package. Ordinary files run canonical Oxlint or Oxfmt: the newer of the official package installed in the project, whether or not it is declared, and the copy this package vendors. A configuration written for the project's Oxlint is never rejected by an older pin ([#105](https://github.com/tsrx-org/oxc/issues/105)). A transitive official `oxlint`, such as the one Vite+ brings, is still not a declaration of the command name |
 | It declares one that is not installed | Nothing. The launcher exits 2 rather than guess which binary you meant |
 
 **`oxc-tsrx setup`** is the genuine shim, and only Vite+ needs it: Vite+ resolves

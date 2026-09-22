@@ -1,12 +1,12 @@
+import { resolveCanonicalBinary } from "./canonical-command.js";
 import { runCaptured } from "./process.js";
-import { resolvePackageBinary } from "./package-binary.js";
 import { pathArguments, resolveNativeCommand } from "./runtime.js";
 import { createRequire } from "node:module";
+import { existsSync, realpathSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
-import { existsSync, realpathSync } from "node:fs";
 //#region src/lint-js-plugins.ts
 const OXLINT_JS_PLUGIN_LANE_MINIMUM = "1.74.0";
 const OXLINT_JS_PLUGIN_LANE_BELOW = "2.0.0";
@@ -40,10 +40,12 @@ function laneSupportsOxlintVersion(version) {
 function oxlintVersionRefusal(version) {
 	return `oxlint (oxc-tsrx): JS plugins on .tsrx require oxlint >=${OXLINT_JS_PLUGIN_LANE_MINIMUM} <${OXLINT_JS_PLUGIN_LANE_BELOW}; found ${version}. Refusing rather than silently skipping your rules.`;
 }
-/** The pinned Oxlint's own version, read through its public `./package.json` export. */
-function installedOxlintVersion(fromUrl = import.meta.url) {
-	const manifest = createRequire(fromUrl)("oxlint-current/package.json");
-	return typeof manifest.version === "string" ? manifest.version : "unknown";
+/** The version of the canonical Oxlint this lane will run (see `resolveCanonicalBinary`). */
+function installedOxlintVersion(fromUrl = import.meta.url, cwd = process.cwd()) {
+	return resolveCanonicalBinary("oxlint", {
+		cwd,
+		fromUrl
+	}).version ?? "unknown";
 }
 /**
 * The one line this lane prints before the report.
@@ -557,7 +559,10 @@ async function runPluginLane({ cwd, configs, nativeConfig, explicit, temporary }
 		if (found === null) namespacesKnown = false;
 		else for (const name of found) namespaces.add(name);
 	}
-	const oxlintArgs = [resolvePackageBinary("oxlint-current", "oxlint", import.meta.url), "--format=json"];
+	const oxlintArgs = [resolveCanonicalBinary("oxlint", {
+		cwd,
+		fromUrl: import.meta.url
+	}).binPath, "--format=json"];
 	if (explicit) oxlintArgs.push("--config", configs[0].mirrorConfig);
 	const result = await runCaptured(process.execPath, [...oxlintArgs, ...mirrored], {
 		cwd: mirror,
@@ -664,7 +669,10 @@ var EditorPluginLane = class {
 		const mirror = await this.mirrorRoot();
 		const relativePath = mirrorRelativePath(this.cwd, path);
 		await writeMirrorFile(mirror, relativePath, projection);
-		const oxlintBinary = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+		const oxlintBinary = resolveCanonicalBinary("oxlint", {
+			cwd: this.cwd,
+			fromUrl: import.meta.url
+		}).binPath;
 		const result = await runCaptured(process.execPath, [
 			oxlintBinary,
 			"--format=json",

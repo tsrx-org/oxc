@@ -11,7 +11,6 @@ import {
   removeExplicitTsrx,
   replaceConfigArgument,
   resolveNativeCommand,
-  resolvePackageBinary,
   runCaptured,
   runPassthrough,
 } from "./runtime.js";
@@ -22,6 +21,7 @@ import {
   parseOxlintOption,
   withOxlintOutputFormat,
 } from "./lint-invocation.js";
+import { configurationRejectionNotice, resolveCanonicalBinary } from "./canonical-command.js";
 import { jsPluginUnmappedNote, preparePluginLane } from "./lint-js-plugins.js";
 
 // Mixed invocations need captured JSON so the canonical and TSRX diagnostics
@@ -231,15 +231,20 @@ async function addLineColumns(diagnostics) {
   }
 }
 
-function parseJson(result, label) {
+function parseJson(result, label, canonical = null) {
   try {
     return result.stdout.trim()
       ? JSON.parse(result.stdout)
       : { diagnostics: [], number_of_files: 0 };
   } catch {
-    throw new Error(
-      `${label} returned non-JSON output while composing diagnostics:\n${result.stdout}${result.stderr}`,
-    );
+    const output = `${result.stdout}${result.stderr}`;
+    // A rejected configuration is the user's problem to solve, and it is
+    // usually a version question (tsrx-org/oxc#105), so it is reported as one
+    // rather than as this command's plumbing.
+    if (canonical !== null && /Failed to parse oxlint configuration/u.test(output)) {
+      throw new Error(configurationRejectionNotice(canonical, output));
+    }
+    throw new Error(`${label} returned non-JSON output while composing diagnostics:\n${output}`);
   }
 }
 
@@ -268,6 +273,7 @@ function combine(upstream, native) {
     diagnostics: [...(upstream.diagnostics ?? []), ...(native.diagnostics ?? [])],
     number_of_files: (upstream.number_of_files ?? 0) + (native.number_of_files ?? 0),
     number_of_rules: Math.max(upstream.number_of_rules ?? 0, native.number_of_rules ?? 0),
+    skipped_rules: native.skipped_rules ?? [],
     // A batch whose every positional was a `.tsrx` path never starts canonical
     // Oxlint, and canonical Oxlint used to be the only half reporting a thread
     // count - so that one shape lost the whole second summary line, and with it
@@ -525,7 +531,7 @@ async function renderReport(report, cwd, format, elapsedMilliseconds) {
 }
 
 async function delegate(args, cwd) {
-  const upstream = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+  const upstream = resolveCanonicalBinary("oxlint", { cwd, fromUrl: import.meta.url }).binPath;
   const upstreamArgs = [upstream, ...args];
   // --lsp starts a long-lived stdio LSP server, so the session must stream
   // through the wrapper instead of being captured and replayed on exit.
@@ -623,7 +629,8 @@ export async function runCli(args, options: any = {}) {
       }
       return 1;
     }
-    const upstreamBinary = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+    const canonicalOxlint = resolveCanonicalBinary("oxlint", { cwd, fromUrl: import.meta.url });
+    const upstreamBinary = canonicalOxlint.binPath;
     const useMaterializedUpstreamConfig = Boolean(viteConfig && !viteConfig.requiresAuthoredBase);
     let upstreamArgs = withOxlintOutputFormat(stripped.args, "json");
     if (useMaterializedUpstreamConfig) {
@@ -700,8 +707,19 @@ export async function runCli(args, options: any = {}) {
 
     if (!laneOutcome.ok) throw laneOutcome.error;
 
-    const upstream = parseJson(upstreamResult, "canonical Oxlint");
+    const upstream = parseJson(upstreamResult, "canonical Oxlint", canonicalOxlint);
     const native = parseJson(nativeResult, "OXC for TSRX");
+    if (Array.isArray(native.skipped_rules) && native.skipped_rules.length > 0) {
+      // The native lane is built on one pinned OXC revision; the configuration follows the
+      // Oxlint the project installed (tsrx-org/oxc#105). Rules the pin does not know ran on
+      // ordinary files through canonical Oxlint and were skipped on .tsrx files. Said once, on
+      // stderr, so the skip is never silent.
+      process.stderr.write(
+        `oxlint (oxc-tsrx): ${native.skipped_rules.length} configured rule(s) are newer than the ` +
+          `OXC revision this package is built on and were skipped on .tsrx files: ` +
+          `${native.skipped_rules.join(", ")}\n`,
+      );
+    }
     // The plugin half joins the native half before positions are resolved, so
     // its line and column are counted in the authored `.tsrx` file rather than
     // in the projection Oxlint actually read.

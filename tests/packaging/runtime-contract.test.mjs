@@ -306,14 +306,14 @@ test("mixed routing does not depend on private Oxlint modules or descriptor capt
 
   assert.match(
     sources.get(join(root, "packages/toolchain/dist/bin/oxlint.js")),
-    /importDeclaredPackageBinary\("oxlint-current", "oxlint"/u,
+    /runCanonicalBinary\(resolveCanonicalBinary\("oxlint"\)\)/u,
   );
   assert.match(
     sources.get(join(root, "packages/toolchain/dist/bin/oxfmt.js")),
-    /importDeclaredPackageBinary\("oxfmt-current", "oxfmt"/u,
+    /runCanonicalBinary\(resolveCanonicalBinary\("oxfmt"\)\)/u,
   );
   const prestart = sources.get(join(root, "packages/toolchain/dist/lint-prestart.js"));
-  assert.match(prestart, /resolvePackageBinary\("oxlint-current", "oxlint"/u);
+  assert.match(prestart, /resolveCanonicalBinary\("oxlint", \{/u);
   assert.match(prestart, /runCaptured\(process\.execPath/u);
   assert.match(
     sources.get(join(root, "packages/toolchain/dist/process.js")),

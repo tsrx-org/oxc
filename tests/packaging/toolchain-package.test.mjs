@@ -10,6 +10,7 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { basename, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
@@ -106,7 +107,7 @@ const GENERAL_HOST_BINS = ["oxlint", "oxfmt", "oxc-tsrx"];
 const HOST_MARKERS = [
   { label: "provider discovery", pattern: /provider-resolve|discoverProviders|providers-report/u },
   { label: "language-server multiplexing", pattern: /multiplexer|--lsp/u },
-  { label: "delegation to another host wrapper", pattern: /importDeclaredPackageBinary/u },
+  { label: "delegation to another host wrapper", pattern: /runCanonicalBinary\(resolveCanonicalBinary\(/u },
 ];
 
 /** Everything a leaf capability executor must not do. */
@@ -502,6 +503,98 @@ test("an isolated consumer resolves every public export and bin from the package
 
     const manifest = JSON.parse(await readFile(join(installed, "package.json"), "utf8"));
     assert.equal(manifest.scripts, undefined);
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Owning the `oxlint` name does not make the vendored pin the right parser for
+ * the project's configuration (tsrx-org/oxc#105): a rule added after the pin is
+ * rejected as unknown although the project never chose the pin. The canonical
+ * binary is therefore the newer of the project's installed `oxlint`, declared or
+ * not, and the vendored copy.
+ */
+test("the canonical binary is the newer of the project's installed Oxlint and the vendored pin", async () => {
+  const { resolveCanonicalBinary, configurationRejectionNotice } = await import(
+    pathToFileURL(join(packageRoot, "dist/canonical-command.js"))
+  );
+  const vendoredVersion = JSON.parse(
+    await readFile(
+      createRequire(pathToFileURL(join(packageRoot, "package.json"))).resolve(
+        "oxlint-current/package.json",
+      ),
+      "utf8",
+    ),
+  ).version;
+  const temporary = await temporaryDirectory("oxc-tsrx-canonical-binary-");
+  const project = async (name, modules = {}) => {
+    const directory = join(temporary, name);
+    await mkdir(join(directory, "src"), { recursive: true });
+    await writeFile(
+      join(directory, "package.json"),
+      `${JSON.stringify({ name, private: true, dependencies: { "@tsrx/oxc": "0.15.0" } }, null, 2)}\n`,
+    );
+    for (const [packageName, { manifest, files = {} }] of Object.entries(modules)) {
+      await writePackage(join(directory, "node_modules", packageName), manifest, files);
+    }
+    return directory;
+  };
+  const fakeOxlint = (version) => ({
+    manifest: { name: "oxlint", version, bin: { oxlint: "./bin/oxlint" } },
+    files: { "bin/oxlint": `#!/usr/bin/env node\nconsole.log("fake oxlint ${version}");\n` },
+  });
+
+  try {
+    // Nothing installed: the vendored copy, exactly as before.
+    const plain = await project("plain");
+    const vendored = resolveCanonicalBinary("oxlint", { cwd: plain });
+    assert.equal(vendored.source, "vendored");
+    assert.equal(vendored.version, vendoredVersion);
+    assert.equal(vendored.projectVersion, null);
+
+    // An older transitive Oxlint (the one Vite+ brings) does not replace a newer pin.
+    const older = await project("older", { oxlint: fakeOxlint("1.0.0") });
+    const keptPin = resolveCanonicalBinary("oxlint", { cwd: join(older, "src") });
+    assert.equal(keptPin.source, "vendored");
+    assert.equal(keptPin.projectVersion, "1.0.0");
+
+    // A newer one wins, declared or not, and the launcher runs it for the
+    // invocations it hands to canonical Oxlint. This is the reporter's case:
+    // `@tsrx/oxc` arrived transitively, the project's own Oxlint is newer.
+    const newer = await project("newer", { oxlint: fakeOxlint("999.0.0") });
+    const preferred = resolveCanonicalBinary("oxlint", { cwd: join(newer, "src") });
+    assert.equal(preferred.source, "project");
+    assert.equal(preferred.version, "999.0.0");
+    assert.equal(preferred.vendoredVersion, vendoredVersion);
+    assert.equal(
+      relative(preferred.binPath, join(newer, "node_modules/oxlint/bin/oxlint")),
+      "",
+    );
+    const ran = runNode(join(packageRoot, "dist/bin/oxlint.js"), ["--version"], { cwd: newer });
+    assert.equal(ran.status, 0, ran.stderr);
+    assert.match(ran.stdout, /fake oxlint 999\.0\.0/u);
+
+    // The compatibility facade `oxc-tsrx setup` writes into that slot is this
+    // package, not an Oxlint, so it never competes.
+    const bridged = await project("bridged", {
+      oxlint: {
+        manifest: {
+          name: "oxlint",
+          version: "999.0.0",
+          bin: { oxlint: "./bin/oxlint" },
+          oxcTsrxCompatibility: { provider: "oxc-tsrx" },
+        },
+        files: { "bin/oxlint": "#!/usr/bin/env node\n" },
+      },
+    });
+    assert.equal(resolveCanonicalBinary("oxlint", { cwd: bridged }).source, "vendored");
+
+    // A rejected configuration is reported as the version question it is.
+    const notice = configurationRejectionNotice(keptPin, "Rule 'x' not found in plugin 'react'\n");
+    assert.match(notice, new RegExp(`oxlint ${vendoredVersion.replaceAll(".", "\\.")} \\(the copy vendored by oxc-tsrx\\) rejected this project's configuration`, "u"));
+    assert.match(notice, /The project has oxlint 1\.0\.0 installed\./u);
+    assert.match(notice, /Rule 'x' not found/u);
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }

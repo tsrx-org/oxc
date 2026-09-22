@@ -10,10 +10,10 @@ import {
   removeExplicitTsrx,
   replaceConfigArgument,
   resolveNativeCommand,
-  resolvePackageBinary,
   runCaptured,
   runPassthrough,
 } from "./runtime.js";
+import { resolveCanonicalBinary } from "./canonical-command.js";
 import { VALUE_OPTIONS, parseOxfmtInvocation, parseOxfmtOption } from "./format-invocation.js";
 
 // Canonical Oxfmt's own wording for an option it has never heard of, reproduced
@@ -282,7 +282,7 @@ function mergeFormatStderr(upstream, native, stdout) {
 }
 
 async function delegate(args, cwd, input) {
-  const upstream = resolvePackageBinary("oxfmt-current", "oxfmt", import.meta.url);
+  const upstream = resolveCanonicalBinary("oxfmt", { cwd, fromUrl: import.meta.url }).binPath;
   const upstreamArgs = [upstream, ...args];
   // --lsp starts a long-lived stdio LSP server, so the session must stream
   // through the wrapper instead of being captured and replayed on exit.
@@ -369,7 +369,7 @@ export async function runCli(args, options: any = {}) {
   try {
     const stripped = removeExplicitTsrx(args, VALUE_OPTIONS);
     const shouldRunUpstream = !stripped.hadPositionals || stripped.remainingPositionals > 0;
-    const upstream = resolvePackageBinary("oxfmt-current", "oxfmt", import.meta.url);
+    const upstream = resolveCanonicalBinary("oxfmt", { cwd, fromUrl: import.meta.url }).binPath;
     const useMaterializedUpstreamConfig = Boolean(viteConfig && !viteConfig.requiresAuthoredBase);
     const upstreamArgs = useMaterializedUpstreamConfig
       ? replaceConfigArgument(stripped.args, viteConfig.path)

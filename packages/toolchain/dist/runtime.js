@@ -2,11 +2,11 @@ import { nativePackageName, nativeTargetForHost } from "./native-targets.js";
 import { runCaptured, runPassthrough } from "./process.js";
 import { resolvePackageBinary } from "./package-binary.js";
 import { createRequire } from "node:module";
+import { existsSync, statSync } from "node:fs";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, parse, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
-import { existsSync, statSync } from "node:fs";
 //#region src/runtime.ts
 const require = createRequire(import.meta.url);
 const runtimeManifest = require("../package.json");
