@@ -1,6 +1,6 @@
 import { discoverProviders, extensionOf, findProjectRoot } from "./provider-resolve.js";
 import { spawnCommand } from "./spawn-command.js";
-import { createRequire } from "node:module";
+import { resolveCanonicalOxlint } from "./package-binary.js";
 import { spawn } from "node:child_process";
 import { basename, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -454,13 +454,8 @@ function createOxlintLspMultiplexer({ clientInput, clientOutput, clientError, ca
 		}
 	};
 }
-function resolveCanonicalOxlintBinary() {
-	const require = createRequire(import.meta.url);
-	const canonicalManifest = require.resolve("oxlint-current/package.json");
-	const manifest = require(canonicalManifest);
-	const declared = typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.oxlint;
-	if (typeof declared !== "string" || declared.length === 0) throw new Error("oxlint-current does not declare the oxlint binary");
-	return fileURLToPath(new URL(declared, pathToFileURL(canonicalManifest)));
+function resolveCanonicalOxlintBinary(cwd) {
+	return resolveCanonicalOxlint(import.meta.url, cwd);
 }
 /**
 * A declared `bin` entry may be a JavaScript wrapper or a native executable.
@@ -566,7 +561,7 @@ async function runOxlintLspMultiplexer(args, options = {}) {
 	const spawnProcess = options.spawn ?? spawn;
 	const clientError = options.clientError ?? process.stderr;
 	const cwd = options.cwd ?? process.cwd();
-	const canonicalBinary = options.canonical?.binPath ?? resolveCanonicalOxlintBinary();
+	const canonicalBinary = options.canonical?.binPath ?? resolveCanonicalOxlintBinary(cwd);
 	if (options.canonical?.binPath) {
 		const version = options.canonical.version ? ` ${options.canonical.version}` : "";
 		clientError.write(`oxlint (oxc-tsrx): ordinary documents are served by the official oxlint${version} this project declares (${options.canonical.binPath}); .tsrx documents by the native server\n`);

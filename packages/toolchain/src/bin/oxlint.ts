@@ -49,7 +49,7 @@ try {
   } else {
     const {
       canRunCanonicalOxlint,
-      importDeclaredPackageBinary,
+      importCanonicalOxlint,
       planCanonicalOxlintComposition,
     } = await import("../lint-invocation.js");
     if (canRunCanonicalOxlint(args)) {
@@ -57,7 +57,7 @@ try {
       // by the pinned Oxlint package in this process, preserving canonical
       // output, plugins, config loading, fixes, LSP streams, and
       // cross-platform behavior.
-      await importDeclaredPackageBinary("oxlint-current", "oxlint", import.meta.url);
+      await importCanonicalOxlint(import.meta.url);
     } else {
       const vitePlusHost = Boolean(
         process.env.VP_VERSION ||

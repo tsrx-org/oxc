@@ -1,7 +1,7 @@
 import { statSync } from "node:fs";
 import { resolve } from "pathe";
 
-export { importDeclaredPackageBinary } from "./package-binary.js";
+export { importCanonicalOxlint, importDeclaredPackageBinary } from "./package-binary.js";
 
 // Keep argument routing in one lightweight module. The executable imports this
 // before the full TSRX bridge, so ordinary explicit files can enter Oxlint's

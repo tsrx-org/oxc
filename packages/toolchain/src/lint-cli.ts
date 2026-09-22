@@ -10,10 +10,11 @@ import {
   prepareVitePlusConfig,
   removeExplicitTsrx,
   replaceConfigArgument,
+  resolveCanonicalOxlint,
   resolveNativeCommand,
-  resolvePackageBinary,
   runCaptured,
   runPassthrough,
+  selectCanonicalOxlint,
 } from "./runtime.js";
 import {
   DELEGATE_ONLY,
@@ -231,16 +232,32 @@ async function addLineColumns(diagnostics) {
   }
 }
 
-function parseJson(result, label) {
+function parseJson(result, label, hint = "") {
   try {
     return result.stdout.trim()
       ? JSON.parse(result.stdout)
       : { diagnostics: [], number_of_files: 0 };
   } catch {
     throw new Error(
-      `${label} returned non-JSON output while composing diagnostics:\n${result.stdout}${result.stderr}`,
+      `${label} returned non-JSON output while composing diagnostics:${hint}\n${result.stdout}${result.stderr}`,
     );
   }
+}
+
+/**
+ * A configuration this command could not parse is the one failure whose cause
+ * is absent from the output: the rule really is unknown to the binary that read
+ * it. Name that binary and where it came from, instead of leaving the user to
+ * read about JSON composition they never asked about (tsrx-org/oxc#105).
+ */
+function configRejectionHint(result, selected) {
+  const output = `${result.stdout}${result.stderr}`;
+  if (!output.includes("Failed to parse oxlint configuration file")) return "";
+  const origin =
+    selected.source === "project"
+      ? "this project's own Oxlint"
+      : "the Oxlint pinned by oxc-tsrx";
+  return ` ${origin}, version ${selected.version ?? "unknown"}, rejected this project's configuration.`;
 }
 
 // A half that exits above 1 still hands back whatever it had composed when it
@@ -525,7 +542,7 @@ async function renderReport(report, cwd, format, elapsedMilliseconds) {
 }
 
 async function delegate(args, cwd) {
-  const upstream = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+  const upstream = resolveCanonicalOxlint(import.meta.url, cwd);
   const upstreamArgs = [upstream, ...args];
   // --lsp starts a long-lived stdio LSP server, so the session must stream
   // through the wrapper instead of being captured and replayed on exit.
@@ -623,7 +640,7 @@ export async function runCli(args, options: any = {}) {
       }
       return 1;
     }
-    const upstreamBinary = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+    const upstreamBinary = resolveCanonicalOxlint(import.meta.url, cwd);
     const useMaterializedUpstreamConfig = Boolean(viteConfig && !viteConfig.requiresAuthoredBase);
     let upstreamArgs = withOxlintOutputFormat(stripped.args, "json");
     if (useMaterializedUpstreamConfig) {
@@ -700,7 +717,11 @@ export async function runCli(args, options: any = {}) {
 
     if (!laneOutcome.ok) throw laneOutcome.error;
 
-    const upstream = parseJson(upstreamResult, "canonical Oxlint");
+    const upstream = parseJson(
+      upstreamResult,
+      "canonical Oxlint",
+      configRejectionHint(upstreamResult, selectCanonicalOxlint(import.meta.url, cwd)),
+    );
     const native = parseJson(nativeResult, "OXC for TSRX");
     // The plugin half joins the native half before positions are resolved, so
     // its line and column are counted in the authored `.tsrx` file rather than

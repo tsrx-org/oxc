@@ -1,5 +1,5 @@
 import { runCaptured } from "./process.js";
-import { resolvePackageBinary } from "./package-binary.js";
+import { resolveCanonicalOxlint, selectCanonicalOxlint } from "./package-binary.js";
 import { pathArguments, resolveNativeCommand } from "./runtime.js";
 import { createRequire } from "node:module";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -40,8 +40,16 @@ function laneSupportsOxlintVersion(version) {
 function oxlintVersionRefusal(version) {
 	return `oxlint (oxc-tsrx): JS plugins on .tsrx require oxlint >=${OXLINT_JS_PLUGIN_LANE_MINIMUM} <${OXLINT_JS_PLUGIN_LANE_BELOW}; found ${version}. Refusing rather than silently skipping your rules.`;
 }
-/** The pinned Oxlint's own version, read through its public `./package.json` export. */
-function installedOxlintVersion(fromUrl = import.meta.url) {
+/**
+* The version of the Oxlint that will actually host this lane.
+*
+* That is not always the pinned one: `selectCanonicalOxlint` prefers the
+* project's own Oxlint when it is at least as new as the pin, so this gate has
+* to judge the binary that runs rather than the one this package shipped.
+*/
+function installedOxlintVersion(fromUrl = import.meta.url, cwd = process.cwd()) {
+	const selected = selectCanonicalOxlint(fromUrl, cwd);
+	if (selected.version !== null) return selected.version;
 	const manifest = createRequire(fromUrl)("oxlint-current/package.json");
 	return typeof manifest.version === "string" ? manifest.version : "unknown";
 }
@@ -388,7 +396,7 @@ async function preparePluginLane({ cwd, files, viteConfig, explicitConfig }) {
 	const nativeConfigEntry = nativeSource === null ? null : configs.get(nativeSource.path);
 	const nativeNeedsStrip = Boolean(nativeConfigEntry && nativeConfigEntry.stripsNative && !nativeConfigEntry.optedOut);
 	if (laneFiles.length === 0) return sawOptOut ? { status: "opted-out" } : null;
-	const version = installedOxlintVersion();
+	const version = installedOxlintVersion(import.meta.url, cwd);
 	if (!laneSupportsOxlintVersion(version)) return {
 		status: "version-refused",
 		message: oxlintVersionRefusal(version)
@@ -557,7 +565,7 @@ async function runPluginLane({ cwd, configs, nativeConfig, explicit, temporary }
 		if (found === null) namespacesKnown = false;
 		else for (const name of found) namespaces.add(name);
 	}
-	const oxlintArgs = [resolvePackageBinary("oxlint-current", "oxlint", import.meta.url), "--format=json"];
+	const oxlintArgs = [resolveCanonicalOxlint(import.meta.url, cwd), "--format=json"];
 	if (explicit) oxlintArgs.push("--config", configs[0].mirrorConfig);
 	const result = await runCaptured(process.execPath, [...oxlintArgs, ...mirrored], {
 		cwd: mirror,
@@ -664,7 +672,7 @@ var EditorPluginLane = class {
 		const mirror = await this.mirrorRoot();
 		const relativePath = mirrorRelativePath(this.cwd, path);
 		await writeMirrorFile(mirror, relativePath, projection);
-		const oxlintBinary = resolvePackageBinary("oxlint-current", "oxlint", import.meta.url);
+		const oxlintBinary = resolveCanonicalOxlint(import.meta.url, this.cwd);
 		const result = await runCaptured(process.execPath, [
 			oxlintBinary,
 			"--format=json",
@@ -732,7 +740,7 @@ var EditorPluginLane = class {
 * same mirror file.
 */
 async function runJsPluginLaneHost({ cwd = process.cwd(), input = process.stdin, output = process.stdout, errorOutput = process.stderr } = {}) {
-	const version = installedOxlintVersion();
+	const version = installedOxlintVersion(import.meta.url, cwd);
 	if (!laneSupportsOxlintVersion(version)) {
 		output.write(`${JSON.stringify({
 			ready: false,

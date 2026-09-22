@@ -7,7 +7,11 @@ import { pathToFileURL } from "node:url";
 import { nativePackageName, nativeTargetForHost } from "./native-targets.js";
 import { runCaptured } from "./process.js";
 
-export { resolvePackageBinary } from "./package-binary.js";
+export {
+  resolveCanonicalOxlint,
+  resolvePackageBinary,
+  selectCanonicalOxlint,
+} from "./package-binary.js";
 export { runCaptured, runPassthrough } from "./process.js";
 
 const require = createRequire(import.meta.url);

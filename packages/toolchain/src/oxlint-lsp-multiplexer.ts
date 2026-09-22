@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import { closeSync, openSync, readSync } from "node:fs";
-import { createRequire } from "node:module";
 import { basename, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolveCanonicalOxlint } from "./package-binary.js";
 import { discoverProviders, extensionOf, findProjectRoot } from "./provider-resolve.js";
 import { spawnCommand } from "./spawn-command.js";
 
@@ -524,16 +524,8 @@ export function createOxlintLspMultiplexer({
   };
 }
 
-function resolveCanonicalOxlintBinary() {
-  const require = createRequire(import.meta.url);
-  const canonicalManifest = require.resolve("oxlint-current/package.json");
-  const manifest = require(canonicalManifest);
-  const declared =
-    typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.oxlint;
-  if (typeof declared !== "string" || declared.length === 0) {
-    throw new Error("oxlint-current does not declare the oxlint binary");
-  }
-  return fileURLToPath(new URL(declared, pathToFileURL(canonicalManifest)));
+function resolveCanonicalOxlintBinary(cwd) {
+  return resolveCanonicalOxlint(import.meta.url, cwd);
 }
 
 /**
@@ -664,7 +656,7 @@ export async function runOxlintLspMultiplexer(args, options: any = {}) {
   // exact binary. Only `.tsrx` documents leave it for the native server. Said
   // once on the client's error stream, which the editor shows in its output
   // channel, so a session in that layout is never a mystery.
-  const canonicalBinary = options.canonical?.binPath ?? resolveCanonicalOxlintBinary();
+  const canonicalBinary = options.canonical?.binPath ?? resolveCanonicalOxlintBinary(cwd);
   if (options.canonical?.binPath) {
     const version = options.canonical.version ? ` ${options.canonical.version}` : "";
     clientError.write(

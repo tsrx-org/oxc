@@ -1,4 +1,4 @@
-import { importDeclaredPackageBinary } from "./package-binary.js";
+import { importCanonicalOxlint, importDeclaredPackageBinary } from "./package-binary.js";
 import { statSync } from "node:fs";
 import { resolve } from "pathe";
 //#region src/lint-invocation.ts
@@ -189,4 +189,4 @@ function canRunCanonicalOxlint(args, cwd = process.cwd()) {
 	});
 }
 //#endregion
-export { DELEGATE_ONLY, VALUE_OPTIONS, canRunCanonicalOxlint, importDeclaredPackageBinary, parseOxlintInvocation, parseOxlintOption, planCanonicalOxlintComposition, withOxlintOutputFormat };
+export { DELEGATE_ONLY, VALUE_OPTIONS, canRunCanonicalOxlint, importCanonicalOxlint, importDeclaredPackageBinary, parseOxlintInvocation, parseOxlintOption, planCanonicalOxlintComposition, withOxlintOutputFormat };

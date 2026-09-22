@@ -1,6 +1,6 @@
 import { nativePackageName, nativeTargetForHost } from "./native-targets.js";
 import { runCaptured, runPassthrough } from "./process.js";
-import { resolvePackageBinary } from "./package-binary.js";
+import { resolveCanonicalOxlint, resolvePackageBinary, selectCanonicalOxlint } from "./package-binary.js";
 import { createRequire } from "node:module";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, parse, resolve, sep } from "node:path";
@@ -382,4 +382,4 @@ function ensureSupportedOutput(format, files) {
 	if (files.length > 0 && format !== "default" && format !== "json") throw new Error(`OXC for TSRX currently combines default and json lint output; ${format} is unavailable for mixed .tsrx runs`);
 }
 //#endregion
-export { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, ensureSupportedOutput, isViteConfigPath, pathArguments, platformPackage, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveNativeBinary, resolveNativeCommand, resolvePackageBinary, runCaptured, runPassthrough };
+export { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, ensureSupportedOutput, isViteConfigPath, pathArguments, platformPackage, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveCanonicalOxlint, resolveNativeBinary, resolveNativeCommand, resolvePackageBinary, runCaptured, runPassthrough, selectCanonicalOxlint };
