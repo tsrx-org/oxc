@@ -127,7 +127,9 @@ fn map_projection_labels(
 ///
 /// An invalid dynamic tag part starts and ends on authored tokens, but may span a nested element
 /// the projection rewrote, so it need not lie in one segment. Each end still maps on its own, the
-/// way the parser lane maps the same report.
+/// way the parser lane maps the same report. Should either end sit in generated text, the whole
+/// authored expression of the dynamic tag holding the label stands in for it, again as the parser
+/// lane does, so lint and the editor never leave out a report the parser keeps.
 fn map_authored_endpoints(
     projection: &MappedProjection,
     labels: &[PluginLabel],
@@ -146,11 +148,59 @@ fn map_authored_endpoints(
     labels
         .iter()
         .map(|label| {
-            let start = map(label.offset, true)?;
-            let end = map(label.offset.saturating_add(label.length), false)?;
-            (start < end).then_some(PluginLabel { offset: start, length: end - start })
+            let start = map(label.offset, true);
+            let end = map(label.offset.saturating_add(label.length), false);
+            match (start, end) {
+                (Some(start), Some(end)) if start <= end => {
+                    Some(PluginLabel { offset: start, length: end - start })
+                }
+                _ => enclosing_dynamic_expression(projection, *label),
+            }
         })
         .collect()
+}
+
+/// The authored expression of the innermost dynamic tag whose projected expression `label` touches.
+///
+/// The projection copies each dynamic tag expression from its authored bytes, so both ends of the
+/// authored expression map forward into the projection. `None` when the label shares no byte with
+/// any expression: such a report is on projection-only text and stays dropped.
+fn enclosing_dynamic_expression(
+    projection: &MappedProjection,
+    label: PluginLabel,
+) -> Option<PluginLabel> {
+    let segments = projection.view().segments;
+    let projected = |point: u32, start: bool| {
+        segments.iter().find_map(|segment| {
+            let original_end =
+                segment.original_start + (segment.projected.end - segment.projected.start);
+            let contains = if start {
+                segment.original_start <= point && point < original_end
+            } else {
+                segment.original_start < point && point <= original_end
+            };
+            contains.then(|| segment.projected.start + (point - segment.original_start))
+        })
+    };
+    let label_end = label.offset.saturating_add(label.length);
+    projection
+        .dynamic_expression_spans()
+        .iter()
+        .filter_map(|expression| {
+            let start = projected(expression.start, true)?;
+            let end = projected(expression.end, false)?;
+            let overlaps = if label.length == 0 {
+                start <= label.offset && label.offset <= end
+            } else {
+                start < label_end && label.offset < end
+            };
+            overlaps.then_some((end - start, expression))
+        })
+        .min_by_key(|(width, _)| *width)
+        .map(|(_, expression)| PluginLabel {
+            offset: expression.start,
+            length: expression.end - expression.start,
+        })
 }
 
 #[derive(Default)]
@@ -276,9 +326,10 @@ pub(crate) fn translate_type_diagnostics(
 
 #[cfg(test)]
 mod tests {
-    use tsrx_syntax::{project_for_lint, scan};
+    use oxc_adapter::{DYNAMIC_TAG_EXPRESSION_CODE, EngineDiagnostic, EngineSpan};
+    use tsrx_syntax::{MappedProjection, project_for_lint, scan, scan_for_parser};
 
-    use super::{PluginLabel, PluginProjection};
+    use super::{PluginLabel, PluginProjection, translate_diagnostics};
 
     #[test]
     fn plugin_projection_maps_labels_and_rejects_projection_only_text() {
@@ -358,6 +409,96 @@ mod tests {
         let error = PluginProjection::new("export function Broken() @{\n  <main>\n}\n")
             .expect_err("an unprojectable TSRX source has no legal TSX to lint");
         assert!(error.contains("unterminated"), "{error}");
+    }
+
+    fn dynamic_tag_report(code: &str, offset: u32, length: u32) -> EngineDiagnostic {
+        EngineDiagnostic {
+            rule: Some(code.to_owned()),
+            plugin: None,
+            code: code.to_owned(),
+            severity: "error".to_owned(),
+            message: "report".to_owned(),
+            labels: vec![EngineSpan { offset, length, message: None }],
+            fixes: Vec::new(),
+        }
+    }
+
+    fn translated_spans<'s>(
+        source: &'s str,
+        projection: &MappedProjection,
+        diagnostic: EngineDiagnostic,
+    ) -> Vec<&'s str> {
+        translate_diagnostics(vec![diagnostic], Some(projection))
+            .diagnostics
+            .iter()
+            .flat_map(|diagnostic| &diagnostic.labels)
+            .map(|label| &source[label.offset as usize..(label.offset + label.length) as usize])
+            .collect()
+    }
+
+    /// A dynamic tag report whose end sits in text the projection generated falls back to the
+    /// tag's whole authored expression, as the parser lane reports it, instead of being dropped.
+    #[test]
+    fn a_dynamic_tag_report_with_an_unmapped_end_falls_back_to_its_authored_expression() {
+        let source = "function View(c) @{ <{c ? B : <b>/* c */</b>} /> }";
+        let overlay = scan_for_parser(source).unwrap();
+        let projection = project_for_lint(source, &overlay).unwrap();
+        let projected = projection.source();
+        let find = |needle: &str| u32::try_from(projected.find(needle).unwrap()).unwrap();
+        let expression_start = find("c ? B");
+        let expression_end = find("} _t0_Z0_");
+        // The `{` the projection wraps the JSX text comment in has no authored byte.
+        let generated = find("{/* c */}");
+
+        // Both ends authored: the report maps exactly, as before.
+        let exact = dynamic_tag_report(
+            DYNAMIC_TAG_EXPRESSION_CODE,
+            expression_start,
+            expression_end - expression_start,
+        );
+        assert_eq!(translated_spans(source, &projection, exact), ["c ? B : <b>/* c */</b>"]);
+
+        // The start is generated text inside the expression.
+        let start_generated =
+            dynamic_tag_report(DYNAMIC_TAG_EXPRESSION_CODE, generated, expression_end - generated);
+        assert_eq!(
+            translated_spans(source, &projection, start_generated),
+            ["c ? B : <b>/* c */</b>"]
+        );
+
+        // The end is generated text inside the expression.
+        let end_generated = dynamic_tag_report(
+            DYNAMIC_TAG_EXPRESSION_CODE,
+            expression_start,
+            generated + 1 - expression_start,
+        );
+        assert_eq!(
+            translated_spans(source, &projection, end_generated),
+            ["c ? B : <b>/* c */</b>"]
+        );
+
+        // The start is the scaffold the projection writes in front of the expression.
+        let scaffold = find("<_t0_D0");
+        let from_scaffold =
+            dynamic_tag_report(DYNAMIC_TAG_EXPRESSION_CODE, scaffold, expression_end - scaffold);
+        assert_eq!(
+            translated_spans(source, &projection, from_scaffold),
+            ["c ? B : <b>/* c */</b>"]
+        );
+
+        // Any other report with the same unmapped label is still dropped.
+        let other = dynamic_tag_report("eslint(no-var)", generated, expression_end - generated);
+        let translated = translate_diagnostics(vec![other], Some(&projection));
+        assert!(translated.diagnostics.is_empty());
+        assert_eq!(translated.suppressed, 1);
+
+        // A dynamic tag report wholly on projection-only text outside every expression still has
+        // no authored position, so it stays dropped too.
+        let marker = find("/*_t0_0*/");
+        let outside = dynamic_tag_report(DYNAMIC_TAG_EXPRESSION_CODE, marker, 9);
+        let translated = translate_diagnostics(vec![outside], Some(&projection));
+        assert!(translated.diagnostics.is_empty());
+        assert_eq!(translated.suppressed, 1);
     }
 
     #[test]

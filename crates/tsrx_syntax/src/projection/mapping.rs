@@ -13,6 +13,7 @@ pub struct MappedProjection {
     pub(super) dynamic_prefix: Option<String>,
     pub(super) dynamic_count: u32,
     pub(super) dynamic_offsets: Vec<u32>,
+    pub(super) dynamic_expressions: Vec<ByteSpan>,
     pub(super) synthetic_generator_spans: Vec<ByteSpan>,
     pub(super) synthetic_callee_spans: Vec<(u32, u32)>,
 }
@@ -111,6 +112,15 @@ impl MappedProjection {
         self.dynamic_prefix
             .as_deref()
             .map(|prefix| (prefix, self.dynamic_count, self.dynamic_offsets.as_slice()))
+    }
+
+    /// The authored span of each dynamic tag's name expression, by scaffold ordinal.
+    ///
+    /// A report on a dynamic tag expression whose ends cannot be mapped on their own still
+    /// belongs to one of these, which is where the parser lane reports it too.
+    #[must_use]
+    pub fn dynamic_expression_spans(&self) -> &[ByteSpan] {
+        &self.dynamic_expressions
     }
 
     /// Collision-free marker namespace used by the parser-only reconstruction lane.

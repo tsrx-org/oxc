@@ -145,6 +145,7 @@ impl<'a> Builder<'a> {
             dynamic_prefix: None,
             dynamic_count: 0,
             dynamic_offsets: Vec::new(),
+            dynamic_expressions: Vec::new(),
             synthetic_generator_spans: Vec::new(),
             synthetic_callee_spans: Vec::new(),
         };
@@ -1071,6 +1072,8 @@ pub(super) fn build_projection_with_purpose(
         mapped.dynamic_count = to_u32(overlay.dynamic_tags.len())?;
         mapped.dynamic_offsets =
             overlay.dynamic_tags.iter().map(|tag| tag.expression.start).collect();
+        mapped.dynamic_expressions =
+            overlay.dynamic_tags.iter().map(|tag| tag.expression).collect();
     }
     Ok(BuiltProjection { mapped, prefix, wrappers, headers, tries, text_comment_payloads })
 }
