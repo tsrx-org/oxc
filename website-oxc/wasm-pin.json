@@ -1,10 +1,10 @@
 {
-  "tag": "wasm-demo-df6adc4b8e5f",
-  "inputsHash": "df6adc4b8e5f31340ebdac8c5c86d2f22c2fe5bf855c576a6ea2d02a20d993cc",
-  "sourceCommit": "5fb78e26e9afb086a64b9f0f442e014713bb706a",
+  "tag": "wasm-demo-5c8cb589d5f6",
+  "inputsHash": "5c8cb589d5f698ed333940a0c3dfd08fd15bf6410d47be64f88fd2aa5dd624df",
+  "sourceCommit": "60c1d6210b7aa488a83b560d9f745d59e951f45e",
   "wasm": {
-    "sha256": "68c7a5bffcffcc73d627ec8cee27a2589f2347984b01b2630e4d37ce82966b65",
-    "bytes": 8907926
+    "sha256": "9265d6d84f797353f91c872466489337a10400d0fe4a9a267ddc81d8f2963330",
+    "bytes": 8910977
   },
   "worker": {
     "sha256": "9e8064c5af1619769984b28fe66e5400cdf8b46ab4678f45cdb4f1b5a2441f47",
