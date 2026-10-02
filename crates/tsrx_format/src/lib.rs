@@ -1982,6 +1982,24 @@ mod tests {
     }
 
     #[test]
+    fn raw_elements_that_break_keep_their_payload_on_every_pass() {
+        let source = concat!(
+            "export function View() @{\n",
+            "  <div>\n",
+            "    <script type=\"text/plain\" data-kind=\"static\">const a = 1;</script>\n",
+            "    <style data-a=\"1\" data-b=\"2\">.a{color:red}</style>\n",
+            "  </div>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Raw.tsrx"), source).unwrap();
+        assert!(first.code.contains(">const a = 1;</script>"), "{}", first.code);
+        assert!(first.code.contains(">.a{color:red}</style>"), "{}", first.code);
+        let second = format_text(Path::new("Raw.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
     fn repeated_dynamic_style_markers_converge_past_single_digit_ordinals() {
         let mut source = String::from("export function View({Tag}:{Tag:string}) @{<main>");
         for _ in 0..32 {
