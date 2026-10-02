@@ -88,6 +88,7 @@ impl<'a> Scanner<'a> {
             statement_boundaries: self.statement_boundaries,
             jsx_text_comments: Vec::new(),
             jsx_text_gts: Vec::new(),
+            case_expressions: Vec::new(),
             implicit_closes: Vec::new(),
             first_root: self.first_root,
             last_root: self.last_root,

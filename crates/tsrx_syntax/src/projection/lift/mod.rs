@@ -1,3 +1,4 @@
+mod case_expressions;
 mod embedded;
 mod guards;
 mod parser;
@@ -10,6 +11,7 @@ mod writer;
 use crate::diagnostics::ProjectionError;
 
 use super::{format::FormatProjection, marker::structural_fingerprint};
+use case_expressions::lift_case_expressions;
 use embedded::lift_embedded;
 use guards::lift_markup_guards;
 use parser::lift_parser_scaffolds;
@@ -67,6 +69,11 @@ pub fn lift_formatted(
         lifted
     } else {
         lift_embedded(&lifted, original_source, projection)?
+    };
+    let lifted = if projection.case_expressions == 0 {
+        lifted
+    } else {
+        lift_case_expressions(lifted, projection)?
     };
     // Before the token lift, which reads every `/*` marker in the namespace as a token marker.
     let lifted = if projection.text_comments.is_empty() {

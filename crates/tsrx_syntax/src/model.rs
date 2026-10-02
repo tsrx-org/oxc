@@ -414,6 +414,9 @@ pub struct Overlay {
     /// where TSX rejects it, so every projection writes a stand-in for each one that TSX reads as
     /// text, and each lane puts the `>` back.
     pub(crate) jsx_text_gts: Vec<u32>,
+    /// Each `{ … }` that begins a consequent directly in an `@case` or `@default` body, in source
+    /// order. `@tsrx/core` reads one as a template expression container, not a block statement.
+    pub(crate) case_expressions: Vec<ByteSpan>,
     pub(crate) implicit_closes: Vec<ImplicitClose>,
     pub(crate) first_root: u32,
     pub(crate) last_root: u32,
@@ -457,6 +460,12 @@ impl Overlay {
     #[must_use]
     pub fn jsx_text_gts(&self) -> &[u32] {
         &self.jsx_text_gts
+    }
+
+    /// Expression containers that begin a consequent of an `@case` or `@default` body.
+    #[must_use]
+    pub fn case_expressions(&self) -> &[ByteSpan] {
+        &self.case_expressions
     }
 
     /// Elements a `}` closed before their closing tag.
