@@ -52,7 +52,7 @@ pub(super) fn lift_embedded(
             output.push_str(&source[copied..cursor]);
             output.push_str("</{");
             let expression = expressions[index];
-            output.push_str(&source[expression.start..expression.end]);
+            output.push_str(without_edge_comments(&source[expression.start..expression.end]));
             output.push_str("}>");
             copied = end;
             cursor = end;
@@ -171,4 +171,106 @@ pub(super) fn lift_embedded(
         return Err(ProjectionError::ScaffoldMismatch { index });
     }
     Ok(output)
+}
+
+/// The dynamic tag expression without its leading and trailing comments, which stay in the
+/// opening tag only: copied into the closing tag, the next pass moves them into the children.
+fn without_edge_comments(expression: &str) -> &str {
+    let bytes = expression.as_bytes();
+    let (mut start, mut end) = (None, 0);
+    let mut index = 0;
+    while index < bytes.len() {
+        let next = match bytes[index] {
+            b'/' if bytes.get(index + 1) == Some(&b'/') => {
+                index = expression[index..].find(['\n', '\r']).map_or(bytes.len(), |at| index + at);
+                continue;
+            }
+            b'/' if bytes.get(index + 1) == Some(&b'*') => {
+                index = expression[index + 2..].find("*/").map_or(bytes.len(), |at| index + at + 4);
+                continue;
+            }
+            byte if byte.is_ascii_whitespace() => {
+                index += 1;
+                continue;
+            }
+            quote @ (b'\'' | b'"' | b'`') => {
+                let mut at = index + 1;
+                while at < bytes.len() && bytes[at] != quote {
+                    at += if bytes[at] == b'\\' { 2 } else { 1 };
+                }
+                (at + 1).min(bytes.len())
+            }
+            // A regex after an operator or an opening, whose body may hold `//` or `/*`.
+            b'/' if start.is_none()
+                || matches!(
+                    bytes[end - 1],
+                    b'(' | b','
+                        | b'='
+                        | b':'
+                        | b'['
+                        | b'!'
+                        | b'&'
+                        | b'|'
+                        | b'?'
+                        | b'{'
+                        | b';'
+                        | b'+'
+                        | b'-'
+                        | b'*'
+                        | b'%'
+                        | b'<'
+                        | b'>'
+                        | b'~'
+                        | b'^'
+                ) =>
+            {
+                let (mut at, mut class) = (index + 1, false);
+                while at < bytes.len() && (class || bytes[at] != b'/') {
+                    match bytes[at] {
+                        b'\\' => at += 1,
+                        b'[' => class = true,
+                        b']' => class = false,
+                        _ => {}
+                    }
+                    at += 1;
+                }
+                at = (at + 1).min(bytes.len());
+                while at < bytes.len() && bytes[at].is_ascii_alphabetic() {
+                    at += 1;
+                }
+                at
+            }
+            _ => index + expression[index..].chars().next().map_or(1, char::len_utf8),
+        };
+        start.get_or_insert(index);
+        end = next;
+        index = next;
+    }
+    start.map_or("", |start| &expression[start..end])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::without_edge_comments;
+
+    #[test]
+    fn edge_comments_come_off_whole_and_inner_text_stays() {
+        // Bugbot on tsrx-org/oxc#198: a `/*` inside a trailing comment cut the closing tag at it,
+        // and a trailing `//` copied into `</{…}>` would comment out the `}>`.
+        for (expression, expected) in [
+            ("Comp /* c */", "Comp"),
+            ("/* c */ Comp", "Comp"),
+            ("Comp /* a /* b */", "Comp"),
+            ("Comp // c\n", "Comp"),
+            ("// c\nComp // d", "Comp"),
+            ("a /* x */.b", "a /* x */.b"),
+            ("tags['/*'] /* c */", "tags['/*']"),
+            // Bugbot on tsrx-org/oxc#198: a regex body is not a comment.
+            ("(/a\\/*b/.test(x) ? A : B) /* c */", "(/a\\/*b/.test(x) ? A : B)"),
+            ("pick(x, /[//]/g) // c\n", "pick(x, /[//]/g)"),
+            ("a / b / c /* c */", "a / b / c"),
+        ] {
+            assert_eq!(without_edge_comments(expression), expected, "{expression:?}");
+        }
+    }
 }
