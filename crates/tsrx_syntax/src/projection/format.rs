@@ -42,6 +42,7 @@ pub(super) struct DynamicManifest {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct StyleManifest {
     pub(super) payload: ByteSpan,
+    pub(super) self_closing: bool,
 }
 
 /// What separates a comment in JSX text from its neighbour on one side, as authored.
@@ -129,7 +130,7 @@ impl FormatProjection {
         self.tokens.len()
             + self.dynamics.len()
             + self.dynamic_comments.len()
-            + self.styles.len()
+            + self.style_count()
             + self.scripts.len()
             + self.text_comments.len()
             + self.text_gts
@@ -139,7 +140,7 @@ impl FormatProjection {
 
     #[must_use]
     pub fn style_count(&self) -> usize {
-        self.styles.len()
+        self.styles.iter().filter(|style| !style.self_closing).count()
     }
 
     /// Returns the collision-free synthetic dynamic-tag namespace and expected tag count.
@@ -173,8 +174,11 @@ pub fn project_for_format(
     for (slot, manifest) in built.tries.iter().enumerate() {
         try_slots[manifest.node as usize] = to_u32(slot)?;
     }
-    let styles =
-        overlay.style_blocks.iter().map(|style| StyleManifest { payload: style.content }).collect();
+    let styles = overlay
+        .style_blocks
+        .iter()
+        .map(|style| StyleManifest { payload: style.content, self_closing: style.self_closing })
+        .collect();
     let scripts = overlay
         .script_blocks
         .iter()
@@ -251,7 +255,7 @@ mod layout_tests {
         assert_eq!(size_of::<TokenManifest>(), 8);
         assert_eq!(size_of::<TryManifest>(), 8);
         assert_eq!(size_of::<DynamicManifest>(), 1);
-        assert_eq!(size_of::<StyleManifest>(), 8);
+        assert_eq!(size_of::<StyleManifest>(), 12);
         assert_eq!(size_of::<ScriptManifest>(), 8);
     }
 }
