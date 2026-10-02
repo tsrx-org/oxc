@@ -27,7 +27,9 @@ impl LiftWriter {
         let bytes = source.as_bytes();
         let mut index = 0usize;
         while index < bytes.len() {
-            if self.line_start && self.state != TextState::Template {
+            if self.line_start
+                && !matches!(self.state, TextState::Template | TextState::BlockComment)
+            {
                 let mut removed = 0usize;
                 while removed < dedent
                     && bytes.get(index).is_some_and(|byte| matches!(byte, b' ' | b'\t'))

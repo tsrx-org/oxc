@@ -1982,6 +1982,28 @@ mod tests {
     }
 
     #[test]
+    fn block_comment_continuation_lines_keep_their_indent_inside_a_for_body() {
+        let source = concat!(
+            "export function View({ items }: { items: { id: number }[] }) @{\n",
+            "  <ul>\n",
+            "    @for (const item of items; key item.id) {\n",
+            "      {\n",
+            "        /* first line\n",
+            "    second line */\n",
+            "      }\n",
+            "      <li />\n",
+            "    }\n",
+            "  </ul>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Comment.tsrx"), source).unwrap();
+        assert!(first.code.contains("\n    second line */"), "{}", first.code);
+        let second = format_text(Path::new("Comment.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
     fn repeated_dynamic_style_markers_converge_past_single_digit_ordinals() {
         let mut source = String::from("export function View({Tag}:{Tag:string}) @{<main>");
         for _ in 0..32 {
