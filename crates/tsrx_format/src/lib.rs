@@ -951,6 +951,27 @@ mod tests {
     }
 
     #[test]
+    fn a_space_before_a_jsx_text_comment_keeps_its_spacer_on_its_own_line() {
+        // A space after an opening tag and before a comment is a text child. Oxfmt prints it as
+        // `{" "}` on its own line, and the lift turned that into a plain space at the start of a
+        // line, which JSX drops, so `<div> /* c */<b />` lost its space.
+        for (source, expected) in [
+            (
+                "export function App() @{\n  <div> /* c */\n    <b />\n  </div>\n}\n",
+                "export function App() @{\n  <div>\n    {\" \"}\n    /* c */\n    <b />\n  </div>;\n}\n",
+            ),
+            (
+                "export function App() @{\n  <div> // c\n    <b />\n  </div>\n}\n",
+                "export function App() @{\n  <div>\n    {\" \"}\n    // c\n    <b />\n  </div>;\n}\n",
+            ),
+        ] {
+            let first = format_text(Path::new("App.tsrx"), source).unwrap();
+            assert_eq!(first.code, expected);
+            assert_eq!(format_text(Path::new("App.tsrx"), &first.code).unwrap().code, expected);
+        }
+    }
+
+    #[test]
     fn a_gt_and_an_unowned_branch_keyword_in_jsx_text_format_as_text() {
         // tsrx-org/oxc#145 and #146: `@tsrx/core` reads a `>` in JSX text, and an `@else` no
         // control owns, as text. The projection writes a private-use stand-in for each `>` that

@@ -59,7 +59,12 @@ pub(super) fn lift_text_comments(
         let kept = prefix.trim_end();
         match (before, prefix[kept.len()..].contains(['\n', '\r'])) {
             (Gap::Glued, true) => output.push_str(kept),
-            (Gap::Spaced, true) if kept.ends_with(SPACER) => {
+            // A spacer on its own line stays: a space at the start of a line is layout.
+            (Gap::Spaced, true)
+                if kept.strip_suffix(SPACER).is_some_and(|stem| {
+                    !stem.trim_end_matches([' ', '\t']).ends_with(['\n', '\r'])
+                }) =>
+            {
                 output.push_str(&kept[..kept.len() - SPACER.len()]);
                 output.push(' ');
             }
