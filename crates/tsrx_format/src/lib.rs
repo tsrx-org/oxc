@@ -662,6 +662,7 @@ fn settle_format(
 struct DriftProbe {
     formatted: String,
     source_kind: SourceKind,
+    tsrx: bool,
     expanded_before: u32,
 }
 
@@ -669,7 +670,7 @@ impl DriftProbe {
     /// One parse of the formatted text. Text that does not parse back is treated as drifting so
     /// the next pass surfaces the real error.
     fn may_drift(&self) -> bool {
-        match oxc_adapter::count_expanded_objects(&self.formatted, self.source_kind) {
+        match oxc_adapter::count_expanded_objects(&self.formatted, self.source_kind, self.tsrx) {
             Ok(after) => after > self.expanded_before,
             Err(_) => true,
         }
@@ -711,6 +712,7 @@ fn format_once(
             DynamicTagContract { prefix, count, original_offsets }
         }),
         options: options.map(|options| &options.engine),
+        tsrx: true,
     })?;
     timings.parse_ns = engine.timings.parse_ns;
     timings.format_ns = engine.timings.format_ns;
@@ -744,6 +746,7 @@ fn format_once(
     let probe = DriftProbe {
         formatted: engine.code,
         source_kind: SourceKind::TypeScriptReact,
+        tsrx: true,
         expanded_before: engine.expanded_objects,
     };
     Ok((output, probe))
@@ -760,6 +763,7 @@ fn format_direct(
         source_kind,
         dynamic_tags: None,
         options: options.map(|options| &options.engine),
+        tsrx: false,
     })?;
     let code = apply_final_newline(engine.code, options);
     let output = FormatOutput {
@@ -788,6 +792,7 @@ fn format_direct(
     let probe = DriftProbe {
         formatted: output.code.clone(),
         source_kind,
+        tsrx: false,
         expanded_before: engine.expanded_objects,
     };
     Ok((output, probe))
@@ -1979,6 +1984,44 @@ mod tests {
         assert!(first.code.contains("\n}\n"), "{}", first.code);
         let second = format_text(Path::new("Regex.tsrx"), &first.code).unwrap();
         assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn imports_inside_a_module_block_format_as_the_tsrx_parser_accepts_them() {
+        // TSRX `module server { … }` blocks import their own dependencies. Before tsrx-org/oxc#181
+        // OXC's TS1147 for a namespace import refused the whole file.
+        let source = concat!(
+            "module server {\n",
+            "import { commitOrder } from './server-domain.ts';\n",
+            "import   type { Order } from './domain.ts';\n",
+            "export async function placeOrder(request: Order) { return commitOrder(request) }\n",
+            "}\n\n",
+            "import { placeOrder } from 'server';\n",
+            "export function App() @{ <button onClick={() => placeOrder({})}>Order</button> }\n"
+        );
+        let first = format_text(Path::new("Server.tsrx"), source).unwrap();
+        assert!(
+            first.code.contains("  import { commitOrder } from \"./server-domain.ts\";\n"),
+            "{}",
+            first.code
+        );
+        assert!(
+            first.code.contains("  import type { Order } from \"./domain.ts\";\n"),
+            "{}",
+            first.code
+        );
+        assert!(first.code.contains("import { placeOrder } from \"server\";"), "{}", first.code);
+        assert_eq!(first.metadata.pass_count, 1, "{}", first.code);
+        let second = format_text(Path::new("Server.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
+    fn module_block_imports_stay_a_parse_error_outside_tsrx() {
+        let source = "module server {\n  import { x } from './x.ts';\n}\n";
+        let error = format_text(Path::new("Server.tsx"), source).unwrap_err().to_string();
+        assert!(error.contains("Import declarations in a namespace"), "{error}");
     }
 
     #[test]

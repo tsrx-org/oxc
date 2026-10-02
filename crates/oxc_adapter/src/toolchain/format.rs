@@ -5,7 +5,7 @@ use std::{collections::HashSet, error::Error, fmt, str::FromStr, time::Instant};
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{ObjectExpression, Program, TSTypeLiteral};
 use oxc_ast_visit::{Visit, walk};
-use oxc_diagnostics::GraphicalTheme;
+use oxc_diagnostics::{GraphicalTheme, OxcDiagnostic};
 use oxc_formatter::{
     ArrowParentheses, AttributePosition, BracketSameLine, BracketSpacing, CommentLineStrategy,
     CustomGroupDefinition, Expand, GroupEntry, ImportModifier, ImportSelector, JsFormatOptions,
@@ -119,6 +119,9 @@ pub struct FormatRequest<'a> {
     pub source_kind: SourceKind,
     pub dynamic_tags: Option<DynamicTagContract<'a>>,
     pub options: Option<&'a FormatOptions>,
+    /// The source is a TSRX projection, so the grammar diagnostics the TSRX parser accepts do not
+    /// stop formatting.
+    pub tsrx: bool,
 }
 
 /// Oxfmt-compatible options that affect JavaScript, TypeScript, JSX, and TSRX output.
@@ -361,15 +364,33 @@ pub struct EngineFormatResult {
 /// # Errors
 ///
 /// Returns [`FormatError::Parse`] when the source does not parse.
-pub fn count_expanded_objects(source: &str, source_kind: SourceKind) -> Result<u32, FormatError> {
+pub fn count_expanded_objects(
+    source: &str,
+    source_kind: SourceKind,
+    tsrx: bool,
+) -> Result<u32, FormatError> {
     let allocator = Allocator::default();
     let parsed = parse_for_format(&allocator, source, source_kind.source_type());
-    if !parsed.diagnostics.is_empty() {
-        let detail =
-            parsed.diagnostics.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ");
-        return Err(FormatError::Parse { detail });
-    }
+    reject_parse_diagnostics(source, &parsed.diagnostics, tsrx)?;
     Ok(expanded_objects(&parsed.program, source))
+}
+
+/// Fails on any parse diagnostic, except that a TSRX projection keeps the TypeScript grammar
+/// diagnostics the TSRX parser also accepts, such as TS1147 for an `import` in a `module` block.
+fn reject_parse_diagnostics(
+    source: &str,
+    diagnostics: &[OxcDiagnostic],
+    tsrx: bool,
+) -> Result<(), FormatError> {
+    let mut retained = diagnostics.iter().filter(|diagnostic| {
+        !tsrx || !crate::is_tsrx_compatible_grammar_diagnostic(source, diagnostic)
+    });
+    let Some(first) = retained.next() else {
+        return Ok(());
+    };
+    let detail =
+        std::iter::once(first).chain(retained).map(ToString::to_string).collect::<Vec<_>>();
+    Err(FormatError::Parse { detail: detail.join("; ") })
 }
 
 /// Counts non-empty object and type literals whose source has a line break between `{` and the
@@ -426,11 +447,7 @@ pub fn format(request: &FormatRequest<'_>) -> Result<EngineFormatResult, FormatE
 
     let started = Instant::now();
     let parsed = parse_for_format(&allocator, request.parse_source, source_type);
-    if !parsed.diagnostics.is_empty() {
-        let detail =
-            parsed.diagnostics.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ");
-        return Err(FormatError::Parse { detail });
-    }
+    reject_parse_diagnostics(request.parse_source, &parsed.diagnostics, request.tsrx)?;
     // `@tsrx/core` formatters format a file whose dynamic tag expressions it only reports, so
     // only a broken scaffold contract stops formatting; the lint lane reports the expressions.
     find_invalid_dynamic_tags(&parsed.program, request.dynamic_tags)?;
@@ -791,6 +808,7 @@ mod tests {
                 original_offsets: &original_offsets,
             }),
             options: None,
+            tsrx: false,
         })
         .map(|result| result.code)
     }

@@ -17,6 +17,7 @@ pub(crate) fn measure_control(source: &str) -> Result<(u64, String), String> {
         source_kind: SourceKind::TypeScriptReact,
         dynamic_tags: None,
         options: None,
+        tsrx: false,
     })?;
     Ok((elapsed_ns(started), output.code))
 }
