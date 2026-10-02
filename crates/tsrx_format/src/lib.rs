@@ -951,6 +951,20 @@ mod tests {
     }
 
     #[test]
+    fn slashes_glued_to_a_jsx_text_block_comment_stay_text() {
+        // `@tsrx/core` reads `//` right after `*/` as text. Where Oxfmt broke the line between
+        // them, the `//` started a line and became a comment, so `// two three` stopped rendering.
+        let source = "export function App() @{\n  <p>one /* x */// two three</p>\n}\n";
+        let options = root_options(&json!({ "printWidth": 18 }));
+        let first =
+            format_text_with_options(Path::new("App.tsrx"), source, Some(&options)).unwrap();
+        assert!(first.code.contains("/* x */// two"), "{}", first.code);
+        let second =
+            format_text_with_options(Path::new("App.tsrx"), &first.code, Some(&options)).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
     fn a_gt_and_an_unowned_branch_keyword_in_jsx_text_format_as_text() {
         // tsrx-org/oxc#145 and #146: `@tsrx/core` reads a `>` in JSX text, and an `@else` no
         // control owns, as text. The projection writes a private-use stand-in for each `>` that
