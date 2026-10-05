@@ -39,11 +39,11 @@ pub(super) fn lift_markup_guards(lifted: String) -> Result<(String, Overlay), Pr
         if bytes[semicolon] != b';' {
             continue;
         }
-        // The scanner's own line terminators: LF, and a bare CR, which `endOfLine: "cr"` prints.
-        let line_start = bytes[..semicolon]
-            .iter()
-            .rposition(|byte| matches!(byte, b'\n' | b'\r'))
-            .map_or(0, |at| at + 1);
+        // Use every line terminator recognized by the scanner, including preserved LS/PS.
+        let line_start = lifted[..semicolon]
+            .char_indices()
+            .rfind(|(_, character)| matches!(character, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
+            .map_or(0, |(at, character)| at + character.len_utf8());
         if !bytes[line_start..semicolon].iter().all(u8::is_ascii_whitespace) {
             continue;
         }

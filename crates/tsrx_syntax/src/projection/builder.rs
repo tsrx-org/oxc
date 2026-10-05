@@ -804,7 +804,9 @@ impl<'a> Builder<'a> {
             .ok_or(ProjectionError::SourceChanged { offset: attribute.identifier.start })?;
         self.copy_to(attribute.span.start as usize)?;
         // `<a{b} />` glues the shorthand to the tag name, which the scaffold name must not join.
-        if !self.output.ends_with(|character: char| character.is_ascii_whitespace()) {
+        if !self.output.ends_with(|character: char| {
+            character.is_ascii_whitespace() || matches!(character, '\u{2028}' | '\u{2029}')
+        }) {
             self.output.push(' ');
         }
         // The type lane names the attribute as the author did, so the checker sees `name={name}`.

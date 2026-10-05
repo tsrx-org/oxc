@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::Scanner;
-use super::lexical::trim_ascii_end;
+use super::lexical::{keyword_boundary, trim_ascii_end, trivia_whitespace_len};
 use super::stack::TinyStack;
 
 impl Scanner<'_> {
@@ -175,6 +175,35 @@ impl Scanner<'_> {
         Ok(2)
     }
 
+    fn skip_header_whitespace(&self, mut index: usize, end: usize) -> usize {
+        while index < end {
+            let width = trivia_whitespace_len(self.bytes, index);
+            if width == 0 || index + width > end {
+                break;
+            }
+            index += width;
+        }
+        index
+    }
+
+    fn skip_header_identifier(&self, mut index: usize, end: usize) -> usize {
+        while index < end && trivia_whitespace_len(self.bytes, index) == 0 {
+            let Some(width) = self.identifier_continue_width(index) else { break };
+            if index + width > end {
+                break;
+            }
+            index += width;
+        }
+        index
+    }
+
+    fn header_keyword_at(&self, index: usize, keyword: &[u8]) -> bool {
+        // Callers already found the annotation start after a semicolon and its whitespace.
+        self.bytes.get(index..index + keyword.len()) == Some(keyword)
+            && (trivia_whitespace_len(self.bytes, index + keyword.len()) != 0
+                || keyword_boundary(self.bytes, index + keyword.len()))
+    }
+
     pub(super) fn analyze_for_header(
         &self,
         header: ByteSpan,
@@ -188,17 +217,17 @@ impl Scanner<'_> {
         let Some(of) = self.find_top_level_keyword(inner_start, first, b"of")? else {
             return Ok(ForHeader::default());
         };
-        let first_value = self.skip_ascii_whitespace(first + 1, inner_end);
-        if !self.bare_keyword_at(first_value, b"index")
-            && !self.bare_keyword_at(first_value, b"key")
+        let first_value = self.skip_header_whitespace(first + 1, inner_end);
+        if !self.header_keyword_at(first_value, b"index")
+            && !self.header_keyword_at(first_value, b"key")
         {
             return Ok(ForHeader::default());
         }
 
-        let base_end = trim_ascii_end(self.bytes, inner_start, first);
-        let left_end = trim_ascii_end(self.bytes, inner_start, of);
-        let right_start = self.skip_ascii_whitespace(of + 2, base_end);
-        let right_end = trim_ascii_end(self.bytes, right_start, base_end);
+        let base_end = trim_header_end(self.bytes, inner_start, first);
+        let left_end = trim_header_end(self.bytes, inner_start, of);
+        let right_start = self.skip_header_whitespace(of + 2, base_end);
+        let right_end = trim_header_end(self.bytes, right_start, base_end);
         if left_end <= inner_start || right_end <= right_start {
             return Err(ProjectionError::MalformedSyntax {
                 offset: to_u32(of)?,
@@ -214,10 +243,10 @@ impl Scanner<'_> {
         };
         for (position, &semi) in semicolons.iter().enumerate() {
             let segment_end = semicolons.get(position + 1).copied().unwrap_or(inner_end);
-            let keyword_start = self.skip_ascii_whitespace(semi + 1, segment_end);
-            let (kind, keyword_len) = if self.bare_keyword_at(keyword_start, b"index") {
+            let keyword_start = self.skip_header_whitespace(semi + 1, segment_end);
+            let (kind, keyword_len) = if self.header_keyword_at(keyword_start, b"index") {
                 (ClauseRole::For, 5)
-            } else if self.bare_keyword_at(keyword_start, b"key") {
+            } else if self.header_keyword_at(keyword_start, b"key") {
                 (ClauseRole::Empty, 3)
             } else {
                 return Err(ProjectionError::MalformedSyntax {
@@ -225,8 +254,8 @@ impl Scanner<'_> {
                     expected: "`index` or `key` annotation",
                 });
             };
-            let value_start = self.skip_ascii_whitespace(keyword_start + keyword_len, segment_end);
-            let value_end = trim_ascii_end(self.bytes, value_start, segment_end);
+            let value_start = self.skip_header_whitespace(keyword_start + keyword_len, segment_end);
+            let value_end = trim_header_end(self.bytes, value_start, segment_end);
             if value_start == value_end {
                 return Err(ProjectionError::MalformedSyntax {
                     offset: to_u32(value_start)?,
@@ -367,8 +396,11 @@ impl Scanner<'_> {
                     delimiters.pop();
                     index += 1;
                 }
+                _ if trivia_whitespace_len(self.bytes, index) != 0 => {
+                    index = self.skip_header_whitespace(index, end);
+                }
                 _ if delimiters.is_empty() && self.identifier_start_width(index).is_some() => {
-                    let word_end = self.skip_identifier(index);
+                    let word_end = self.skip_header_identifier(index, end);
                     if &self.bytes[index..word_end] == keyword {
                         return Ok(Some(index));
                     }
@@ -378,5 +410,16 @@ impl Scanner<'_> {
             }
         }
         Ok(None)
+    }
+}
+
+fn trim_header_end(bytes: &[u8], start: usize, mut end: usize) -> usize {
+    loop {
+        end = trim_ascii_end(bytes, start, end);
+        if end >= start + 3 && matches!(bytes.get(end - 3..end), Some([0xe2, 0x80, 0xa8 | 0xa9])) {
+            end -= 3;
+        } else {
+            return end;
+        }
     }
 }
