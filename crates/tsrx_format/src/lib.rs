@@ -951,6 +951,35 @@ mod tests {
     }
 
     #[test]
+    fn a_comment_in_a_dynamic_tag_expression_stays_in_the_opening_tag() {
+        // The closing tag was written back from the formatted opening expression, comments and
+        // all, and the next pass moved the closing tag's copy into the children as `{/* c */}`.
+        for (source, expected) in [
+            (
+                "const a = <{Comp /* c */}>text</{Comp}>;\n",
+                "const a = (\n  <{Comp /* c */}>\n    text\n  </{Comp}>\n);\n",
+            ),
+            ("const a = <{/* c */ Comp}></{Comp}>;\n", "const a = <{/* c */ Comp}></{Comp}>;\n"),
+            (
+                "const a = <{a /* x */.b}>text</{a /* x */.b}>;\n",
+                "const a = (\n  <{a /* x */.b}>\n    text\n  </{a /* x */.b}>\n);\n",
+            ),
+            (
+                "const a = <{Comp /* a /* b */}>text</{Comp}>;\n",
+                "const a = (\n  <{Comp /* a /* b */}>\n    text\n  </{Comp}>\n);\n",
+            ),
+            (
+                "const a = <{// c\nComp}>text</{Comp}>;\n",
+                "const a = (\n  <{// c\n      Comp}\n  >\n    text\n  </{Comp}>\n);\n",
+            ),
+        ] {
+            let first = format_text(Path::new("App.tsrx"), source).unwrap();
+            assert_eq!(first.code, expected);
+            assert_eq!(format_text(Path::new("App.tsrx"), &first.code).unwrap().code, expected);
+        }
+    }
+
+    #[test]
     fn a_gt_and_an_unowned_branch_keyword_in_jsx_text_format_as_text() {
         // tsrx-org/oxc#145 and #146: `@tsrx/core` reads a `>` in JSX text, and an `@else` no
         // control owns, as text. The projection writes a private-use stand-in for each `>` that
