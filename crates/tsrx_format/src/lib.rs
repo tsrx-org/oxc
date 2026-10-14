@@ -662,6 +662,7 @@ fn settle_format(
 struct DriftProbe {
     formatted: String,
     source_kind: SourceKind,
+    tsrx: bool,
     expanded_before: u32,
 }
 
@@ -669,7 +670,7 @@ impl DriftProbe {
     /// One parse of the formatted text. Text that does not parse back is treated as drifting so
     /// the next pass surfaces the real error.
     fn may_drift(&self) -> bool {
-        match oxc_adapter::count_expanded_objects(&self.formatted, self.source_kind) {
+        match oxc_adapter::count_expanded_objects(&self.formatted, self.source_kind, self.tsrx) {
             Ok(after) => after > self.expanded_before,
             Err(_) => true,
         }
@@ -711,6 +712,7 @@ fn format_once(
             DynamicTagContract { prefix, count, original_offsets }
         }),
         options: options.map(|options| &options.engine),
+        tsrx: true,
     })?;
     timings.parse_ns = engine.timings.parse_ns;
     timings.format_ns = engine.timings.format_ns;
@@ -744,6 +746,7 @@ fn format_once(
     let probe = DriftProbe {
         formatted: engine.code,
         source_kind: SourceKind::TypeScriptReact,
+        tsrx: true,
         expanded_before: engine.expanded_objects,
     };
     Ok((output, probe))
@@ -760,6 +763,7 @@ fn format_direct(
         source_kind,
         dynamic_tags: None,
         options: options.map(|options| &options.engine),
+        tsrx: false,
     })?;
     let code = apply_final_newline(engine.code, options);
     let output = FormatOutput {
@@ -788,6 +792,7 @@ fn format_direct(
     let probe = DriftProbe {
         formatted: output.code.clone(),
         source_kind,
+        tsrx: false,
         expanded_before: engine.expanded_objects,
     };
     Ok((output, probe))
@@ -942,6 +947,41 @@ mod tests {
             (
                 "export function App() @{\r\t<p>\r\t\ta // c\r\t\tb\r\t</p>\r}\r",
                 "export function App() @{\n  <p>\n    a // c\n    b\n  </p>;\n}\n",
+            ),
+        ] {
+            let first = format_text(Path::new("App.tsrx"), source).unwrap();
+            assert_eq!(first.code, expected);
+            assert_eq!(format_text(Path::new("App.tsrx"), &first.code).unwrap().code, expected);
+        }
+    }
+
+    #[test]
+    fn slashes_glued_to_a_jsx_text_block_comment_stay_text() {
+        // `@tsrx/core` reads `//` right after `*/` as text. Where Oxfmt broke the line between
+        // them, the `//` started a line and became a comment, so `// two three` stopped rendering.
+        let source = "export function App() @{\n  <p>one /* x */// two three</p>\n}\n";
+        let options = root_options(&json!({ "printWidth": 18 }));
+        let first =
+            format_text_with_options(Path::new("App.tsrx"), source, Some(&options)).unwrap();
+        assert!(first.code.contains("/* x */// two"), "{}", first.code);
+        let second =
+            format_text_with_options(Path::new("App.tsrx"), &first.code, Some(&options)).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn a_space_before_a_jsx_text_comment_keeps_its_spacer_on_its_own_line() {
+        // A space after an opening tag and before a comment is a text child. Oxfmt prints it as
+        // `{" "}` on its own line, and the lift turned that into a plain space at the start of a
+        // line, which JSX drops, so `<div> /* c */<b />` lost its space.
+        for (source, expected) in [
+            (
+                "export function App() @{\n  <div> /* c */\n    <b />\n  </div>\n}\n",
+                "export function App() @{\n  <div>\n    {\" \"}\n    /* c */\n    <b />\n  </div>;\n}\n",
+            ),
+            (
+                "export function App() @{\n  <div> // c\n    <b />\n  </div>\n}\n",
+                "export function App() @{\n  <div>\n    {\" \"}\n    // c\n    <b />\n  </div>;\n}\n",
             ),
         ] {
             let first = format_text(Path::new("App.tsrx"), source).unwrap();
@@ -1979,6 +2019,108 @@ mod tests {
         assert!(first.code.contains("\n}\n"), "{}", first.code);
         let second = format_text(Path::new("Regex.tsrx"), &first.code).unwrap();
         assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn self_closing_style_elements_format_beside_raw_style_payloads() {
+        // A self-closing `<style />` has no payload and no projection marker. Before tsrx-org/oxc#180
+        // the lift still waited for one, so the file was refused with "Oxfmt changed TSRX scaffold 0".
+        let source = concat!(
+            "export const bundle = <style apply={[a, b]} />;\n",
+            "export function View() @{<><style apply={theme} /><style>.x{color:red}</style>",
+            "<div><style children={STYLES} /></div></>}\n",
+            "export function Plain() { return <div><style dangerouslySetInnerHTML={{ __html: css }} /></div>; }\n"
+        );
+        let first = format_text(Path::new("SelfClosing.tsrx"), source).unwrap();
+        assert!(first.code.contains("<style apply={[a, b]} />"), "{}", first.code);
+        assert!(first.code.contains("<style apply={theme} />"), "{}", first.code);
+        assert!(first.code.contains("<style>.x{color:red}</style>"), "{}", first.code);
+        assert!(first.code.contains("<style children={STYLES} />"), "{}", first.code);
+        assert!(
+            first.code.contains("<style dangerouslySetInnerHTML={{ __html: css }} />"),
+            "{}",
+            first.code
+        );
+        let second = format_text(Path::new("SelfClosing.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn imports_inside_a_module_block_format_as_the_tsrx_parser_accepts_them() {
+        // TSRX `module server { … }` blocks import their own dependencies. Before tsrx-org/oxc#181
+        // OXC's TS1147 for a namespace import refused the whole file.
+        let source = concat!(
+            "module server {\n",
+            "import { commitOrder } from './server-domain.ts';\n",
+            "import   type { Order } from './domain.ts';\n",
+            "export async function placeOrder(request: Order) { return commitOrder(request) }\n",
+            "}\n\n",
+            "import { placeOrder } from 'server';\n",
+            "export function App() @{ <button onClick={() => placeOrder({})}>Order</button> }\n"
+        );
+        let first = format_text(Path::new("Server.tsrx"), source).unwrap();
+        assert!(
+            first.code.contains("  import { commitOrder } from \"./server-domain.ts\";\n"),
+            "{}",
+            first.code
+        );
+        assert!(
+            first.code.contains("  import type { Order } from \"./domain.ts\";\n"),
+            "{}",
+            first.code
+        );
+        assert!(first.code.contains("import { placeOrder } from \"server\";"), "{}", first.code);
+        assert_eq!(first.metadata.pass_count, 1, "{}", first.code);
+        let second = format_text(Path::new("Server.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
+    fn raw_elements_that_break_keep_their_payload_on_every_pass() {
+        let source = concat!(
+            "export function View() @{\n",
+            "  <div>\n",
+            "    <script type=\"text/plain\" data-kind=\"static\">const a = 1;</script>\n",
+            "    <style data-a=\"1\" data-b=\"2\">.a{color:red}</style>\n",
+            "  </div>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Raw.tsrx"), source).unwrap();
+        assert!(first.code.contains(">const a = 1;</script>"), "{}", first.code);
+        assert!(first.code.contains(">.a{color:red}</style>"), "{}", first.code);
+        let second = format_text(Path::new("Raw.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
+    fn block_comment_continuation_lines_keep_their_indent_inside_a_for_body() {
+        let source = concat!(
+            "export function View({ items }: { items: { id: number }[] }) @{\n",
+            "  <ul>\n",
+            "    @for (const item of items; key item.id) {\n",
+            "      {\n",
+            "        /* first line\n",
+            "    second line */\n",
+            "      }\n",
+            "      <li />\n",
+            "    }\n",
+            "  </ul>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Comment.tsrx"), source).unwrap();
+        assert!(first.code.contains("\n    second line */"), "{}", first.code);
+        let second = format_text(Path::new("Comment.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
+    fn module_block_imports_stay_a_parse_error_outside_tsrx() {
+        let source = "module server {\n  import { x } from './x.ts';\n}\n";
+        let error = format_text(Path::new("Server.tsx"), source).unwrap_err().to_string();
+        assert!(error.contains("Import declarations in a namespace"), "{error}");
     }
 
     #[test]
