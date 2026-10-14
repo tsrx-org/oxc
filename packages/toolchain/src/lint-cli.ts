@@ -645,6 +645,14 @@ export async function runCli(args, options: any = {}) {
     let upstreamArgs = withOxlintOutputFormat(stripped.args, "json");
     if (useMaterializedUpstreamConfig) {
       upstreamArgs = replaceConfigArgument(upstreamArgs, viteConfig.path);
+    } else if (viteConfig && explicitConfig === null) {
+      // Vite+ 0.x hands the linter `-c vite.config.mjs`; Vite+ 1.x passes no
+      // `-c` and leaves the config to be discovered. Canonical Oxlint discovers
+      // only `vite.config.ts` on its own, so the authored file this bridge found
+      // goes to the ordinary half explicitly. It stays the authored file, not
+      // the materialized JSON, because `extends`, `overrides`, and
+      // `ignorePatterns` resolve against the directory that file lives in.
+      upstreamArgs = replaceConfigArgument(upstreamArgs, viteConfig.source);
     }
     // With the lane running, the native leaf is handed the same configuration
     // minus `jsPlugins`, so `reject_unavailable_lint_capabilities` is never

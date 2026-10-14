@@ -414,6 +414,7 @@ async function runCli(args, options = {}) {
 		const useMaterializedUpstreamConfig = Boolean(viteConfig && !viteConfig.requiresAuthoredBase);
 		let upstreamArgs = withOxlintOutputFormat(stripped.args, "json");
 		if (useMaterializedUpstreamConfig) upstreamArgs = replaceConfigArgument(upstreamArgs, viteConfig.path);
+		else if (viteConfig && explicitConfig === null) upstreamArgs = replaceConfigArgument(upstreamArgs, viteConfig.source);
 		const nativeResolvedConfig = pluginLane?.nativeConfig ?? viteConfig;
 		nativePaths = files.length > 0 ? await pathArguments(files) : null;
 		const nativeArgs = nativePaths ? nativeArguments(args, nativePaths.args, nativeResolvedConfig) : null;

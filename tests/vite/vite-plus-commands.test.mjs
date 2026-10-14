@@ -122,3 +122,67 @@ for (const version of versions) {
     }
   });
 }
+
+// Vite+ 0.2.4 and 0.3.x hand the linter `-c vite.config.mjs`, but Vite+ 1.x
+// passes no `-c` at all and leaves the Vite config for the linter to find.
+// Canonical Oxlint only discovers `vite.config.ts` by itself, so the bridge has
+// to hand the config it discovered to the ordinary-file half as well, or the
+// authored `extends`, `overrides`, and `ignorePatterns` silently stop applying
+// to every file that is not `.tsrx`. These drive the bridge the way each host
+// does, so no Vite+ 1.x install is needed to hold the line.
+async function runBridgeLint(project, args) {
+  const bridge = join(project, "node_modules/@tsrx/oxc/bin/oxlint");
+  return run(process.execPath, [bridge, ...args], {
+    cwd: project,
+    env: {
+      ...process.env,
+      NO_COLOR: "1",
+      VP_VERSION: "1.2.0",
+      VP_COMMAND: "lint",
+      OXC_TSRX_LINT_BIN: lintBin,
+      OXC_TSRX_FORMAT_BIN: formatBin,
+    },
+  });
+}
+
+for (const [label, args] of [
+  ["without -c, as Vite+ 1.x invokes it", ["src"]],
+  ["with -c vite.config.mjs, as Vite+ 0.x invokes it", ["-c", "vite.config.mjs", "src"]],
+]) {
+  test(`the lint bridge applies the authored vite.config.mjs to ordinary files ${label}`, async () => {
+    const project = await makeConsumer("relative-config", versions[0].packageName);
+    try {
+      const lint = await runBridgeLint(project, args);
+      const lintOutput = lint.stdout + lint.stderr;
+      assert.equal(lint.status, 1, lintOutput);
+      assert.match(lintOutput, /active\.tsrx/);
+      assert.match(lintOutput, /ordinary\.tsx/);
+      assert.doesNotMatch(lintOutput, /ignored\.tsrx/);
+      assert.equal(lintOutput.match(/no-console/g)?.length, 2, lintOutput);
+      assert.equal(lintOutput.match(/no-debugger/g)?.length, 1, lintOutput);
+    } finally {
+      await rm(project, { recursive: true, force: true });
+    }
+  });
+}
+
+// An ordinary-only file list never reaches the TSRX bridge: canonical Oxlint
+// runs it in-process. The authored config has to reach that route too, or
+// `vp lint src/ordinary.tsx` (what lint-staged runs) loses it under Vite+ 1.x.
+for (const [label, args] of [
+  ["without -c, as Vite+ 1.x invokes it", ["src/ordinary.tsx"]],
+  ["with -c vite.config.mjs, as Vite+ 0.x invokes it", ["-c", "vite.config.mjs", "src/ordinary.tsx"]],
+]) {
+  test(`the canonical route applies the authored vite.config.mjs to an ordinary-only file list ${label}`, async () => {
+    const project = await makeConsumer("relative-config", versions[0].packageName);
+    try {
+      const lint = await runBridgeLint(project, args);
+      const lintOutput = lint.stdout + lint.stderr;
+      assert.equal(lint.status, 1, lintOutput);
+      assert.match(lintOutput, /ordinary\.tsx/);
+      assert.equal(lintOutput.match(/no-console/g)?.length, 1, lintOutput);
+    } finally {
+      await rm(project, { recursive: true, force: true });
+    }
+  });
+}

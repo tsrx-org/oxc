@@ -1,5 +1,5 @@
-import { statSync } from "node:fs";
-import { resolve } from "pathe";
+import { existsSync, statSync } from "node:fs";
+import { basename, dirname, join, resolve } from "pathe";
 
 export { importCanonicalOxlint, importDeclaredPackageBinary } from "./package-binary.js";
 
@@ -200,6 +200,57 @@ export function planCanonicalOxlintComposition(args) {
     ordinaryFiles,
     tsrxFiles,
   };
+}
+
+// Every name Vite+ loads its config from. Canonical Oxlint discovers only
+// `vite.config.ts` by itself.
+const VITE_CONFIG_FILES = [
+  "vite.config.ts",
+  "vite.config.mts",
+  "vite.config.cts",
+  "vite.config.js",
+  "vite.config.mjs",
+  "vite.config.cjs",
+];
+
+function hasConfigArgument(args) {
+  for (const argument of args) {
+    if (argument === "--") return false;
+    const { name } = parseOxlintOption(argument);
+    if (name === "-c" || name === "--config") return true;
+  }
+  return false;
+}
+
+function findViteConfigFile(cwd) {
+  let directory = resolve(cwd);
+  for (;;) {
+    for (const file of VITE_CONFIG_FILES) {
+      const candidate = join(directory, file);
+      if (existsSync(candidate)) return candidate;
+    }
+    const parent = dirname(directory);
+    if (parent === directory) return null;
+    directory = parent;
+  }
+}
+
+/**
+ * Vite+ 0.x hands the linter `-c vite.config.mjs`; Vite+ 1.x passes no `-c`
+ * and leaves the config to be discovered. When canonical Oxlint runs an
+ * ordinary-only invocation under a Vite+ host and would not discover the
+ * project's Vite config itself, the arguments gain the `-c` an older host
+ * would have passed, so the authored lint settings still apply.
+ */
+export function withDiscoveredViteConfig(args, cwd = process.cwd()) {
+  if (hasConfigArgument(args)) return args;
+  const configFile = findViteConfigFile(cwd);
+  if (configFile === null || basename(configFile) === "vite.config.ts") return args;
+  const output = [...args];
+  const terminator = output.indexOf("--");
+  if (terminator === -1) output.push("-c", configFile);
+  else output.splice(terminator, 0, "-c", configFile);
+  return output;
 }
 
 export function canRunCanonicalOxlint(args, cwd = process.cwd()) {
