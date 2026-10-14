@@ -22,7 +22,7 @@ pub(super) fn lift_embedded(
     let mut expressions = vec![ScaffoldSpan::MISSING; projection.dynamics.len()];
     let mut opened = vec![false; projection.dynamics.len()];
     let mut closed = vec![false; projection.dynamics.len()];
-    let mut styles = vec![false; projection.styles.len()];
+    let mut styles: Vec<bool> = projection.styles.iter().map(|style| style.self_closing).collect();
     let mut scripts = vec![false; projection.scripts.len()];
     let restored_bytes = projection
         .styles

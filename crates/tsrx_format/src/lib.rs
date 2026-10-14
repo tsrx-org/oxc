@@ -1982,6 +1982,30 @@ mod tests {
     }
 
     #[test]
+    fn self_closing_style_elements_format_beside_raw_style_payloads() {
+        // A self-closing `<style />` has no payload and no projection marker. Before tsrx-org/oxc#180
+        // the lift still waited for one, so the file was refused with "Oxfmt changed TSRX scaffold 0".
+        let source = concat!(
+            "export const bundle = <style apply={[a, b]} />;\n",
+            "export function View() @{<><style apply={theme} /><style>.x{color:red}</style>",
+            "<div><style children={STYLES} /></div></>}\n",
+            "export function Plain() { return <div><style dangerouslySetInnerHTML={{ __html: css }} /></div>; }\n"
+        );
+        let first = format_text(Path::new("SelfClosing.tsrx"), source).unwrap();
+        assert!(first.code.contains("<style apply={[a, b]} />"), "{}", first.code);
+        assert!(first.code.contains("<style apply={theme} />"), "{}", first.code);
+        assert!(first.code.contains("<style>.x{color:red}</style>"), "{}", first.code);
+        assert!(first.code.contains("<style children={STYLES} />"), "{}", first.code);
+        assert!(
+            first.code.contains("<style dangerouslySetInnerHTML={{ __html: css }} />"),
+            "{}",
+            first.code
+        );
+        let second = format_text(Path::new("SelfClosing.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
     fn repeated_dynamic_style_markers_converge_past_single_digit_ordinals() {
         let mut source = String::from("export function View({Tag}:{Tag:string}) @{<main>");
         for _ in 0..32 {
