@@ -40,6 +40,9 @@ const releaseModeOnly = "inputs.mode == 'release'";
 
 const source = await readFile(workflowPath, "utf8");
 const workflow = parseYaml(source);
+const candidate = parseYaml(
+  await readFile(join(root, ".github/workflows/release-candidate.yml"), "utf8"),
+);
 
 // The file explains in prose why `id-token: write` is absent, so a raw search
 // for it matches the explanation. Comments are stripped before any assertion
@@ -210,4 +213,50 @@ test("no id-token: write anywhere, so this workflow cannot publish to npm", () =
   }
   // And it must not reach npm by any other route while holding that token.
   assert.doesNotMatch(executable, /npm publish|pnpm publish|NPM_TOKEN/u);
+});
+
+test("musl release addons are built with a musl host and loaded before upload", () => {
+  const native = candidate.jobs["build-native"];
+  const hostBuild = native.steps.find(
+    (entry) => entry.name === "Build the parser addon for this target",
+  );
+  assert.equal(hostBuild.if, "matrix.libc != 'musl'", "a glibc host must not build the musl cdylib");
+  for (const name of [
+    "Build the musl parser addon on Alpine",
+    "Verify and load the musl parser addon on Alpine",
+  ]) {
+    const index = native.steps.findIndex((entry) => entry.name === name);
+    assert.ok(index >= 0, `missing ${name}`);
+    assert.equal(native.steps[index].if, "matrix.libc == 'musl'");
+    assert.ok(index < native.steps.findIndex((entry) => entry.name === "Upload the target candidate"));
+  }
+  const build = native.steps.find(
+    (entry) => entry.name === "Build the musl parser addon on Alpine",
+  ).run;
+  assert.match(build, /docker run/u);
+  assert.match(build, /rust:1\.96\.0-alpine3\.22/u);
+  assert.match(build, /CARGO_TARGET_DIR=\/workspace\/target\/parser-musl/u);
+  assert.match(build, /scripts\/build-parser-native\.ts/u);
+  assert.match(build, /--target "\$TARGET"/u);
+  assert.match(build, /--target-dir target\/parser-musl/u);
+  assert.match(build, /--env BUILDER_ID="\$\(id -u\):\$\(id -g\)"/u);
+  assert.match(build, /apk add --no-cache nodejs su-exec/u);
+  assert.match(build, /su-exec "\$BUILDER_ID" node --experimental-strip-types/u);
+  assert.match(build, /su-exec "\$BUILDER_ID" cp/u);
+  const probe = native.steps.find(
+    (entry) => entry.name === "Verify and load the musl parser addon on Alpine",
+  ).run;
+  assert.match(probe, /readelf --dynamic/u);
+  assert.match(probe, /musl parser addon depends on glibc/u);
+  assert.match(probe, /node:20\.19\.4-alpine node:22-alpine/u);
+  assert.match(probe, /docker run/u);
+  assert.match(probe, /OXC_TSRX_PARSER_ADDON=\/workspace\/release\/addon\/parser\.node/u);
+  assert.match(probe, /node --test tests\/parser-api\/addon-load\.test\.mjs/u);
+  assert.deepEqual(
+    native.strategy.matrix.include
+      .filter((entry) => entry.libc === "musl")
+      .map((entry) => entry.expected_arch)
+      .sort(),
+    ["arm64", "x64"],
+  );
 });

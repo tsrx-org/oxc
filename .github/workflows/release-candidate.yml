@@ -161,6 +161,7 @@ jobs:
       # only place that could have run it and no target but the developer's own
       # ever loaded one. It now precedes the smoke, and the smoke opens it.
       - name: Build the parser addon for this target
+        if: matrix.libc != 'musl'
         shell: bash
         run: |
           # Ships inside the same native package as the binaries. Without it npm
@@ -174,6 +175,31 @@ jobs:
           # is pointed at, so the load check below needs the record under the
           # default name too. The suffixed copy stays as per-target evidence.
           cp "release/addon/parser-addon-$PACKAGE_SUFFIX.json" "release/addon/parser.node.json"
+
+      - name: Build the musl parser addon on Alpine
+        if: matrix.libc == 'musl'
+        shell: bash
+        run: |
+          # A glibc host can still link a musl cdylib against glibc when
+          # crt-static is disabled. Build with a native musl compiler and CRT.
+          docker run --rm \
+            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/workspace" \
+            --mount "type=bind,src=$HOME/.cargo/registry,dst=/usr/local/cargo/registry" \
+            --mount "type=bind,src=$HOME/.cargo/git,dst=/usr/local/cargo/git" \
+            --workdir /workspace \
+            --env TARGET --env PACKAGE_SUFFIX \
+            --env BUILDER_ID="$(id -u):$(id -g)" \
+            --env RUSTUP_TOOLCHAIN=1.96.0 \
+            --env CARGO_TARGET_DIR=/workspace/target/parser-musl \
+            rust:1.96.0-alpine3.22 sh -ec '
+              apk add --no-cache nodejs su-exec
+              su-exec "$BUILDER_ID" node --experimental-strip-types scripts/build-parser-native.ts \
+                --target "$TARGET" \
+                --target-dir target/parser-musl \
+                --out release/addon/parser.node \
+                --record "release/addon/parser-addon-$PACKAGE_SUFFIX.json"
+              su-exec "$BUILDER_ID" cp "release/addon/parser-addon-$PACKAGE_SUFFIX.json" release/addon/parser.node.json
+            '
 
       - name: Smoke the companion CLIs on this host
         shell: bash
@@ -190,16 +216,35 @@ jobs:
           node --test tests/packaging/runtime-contract.test.mjs tests/vite/package-seam.test.mjs
 
       - name: Load the parser addon built for this target
-        # musl is excluded by decision, not for convenience. These two targets
-        # cross-compile on a glibc runner, and a musl-linked `.node` cannot be
-        # dlopen'd by a glibc Node, so there is no host here that could open it.
-        # The musl addon is built, checksummed, and packaged without ever being
-        # loaded anywhere, which is what the published support matrix labels.
+        # glibc Node cannot load a musl addon; the Alpine lane below does that.
         if: matrix.libc != 'musl'
         shell: bash
         run: |
           OXC_TSRX_PARSER_ADDON="$GITHUB_WORKSPACE/release/addon/parser.node" \
             pnpm run test:parser-addon
+
+      - name: Verify and load the musl parser addon on Alpine
+        if: matrix.libc == 'musl'
+        shell: bash
+        run: |
+          set -euo pipefail
+          addon="release/addon/parser.node"
+          readelf --dynamic "$addon" > release/addon/dynamic.txt
+          cat release/addon/dynamic.txt
+          grep -Eq 'Shared library: \[libc\.musl-[^]]+\.so\.1\]' release/addon/dynamic.txt
+          if grep -Eq 'Shared library: \[(libc\.so\.6|ld-linux[^]]*|lib(m|pthread|rt|dl|resolv)\.so\.[0-9]+)\]' release/addon/dynamic.txt; then
+            echo "musl parser addon depends on glibc" >&2
+            exit 1
+          fi
+          # Run on each target's native architecture, through the shipped loader
+          # and its integrity record, without a glibc compatibility package.
+          for image in node:20.19.4-alpine node:22-alpine; do
+            docker run --rm \
+              --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/workspace,readonly" \
+              --workdir /workspace \
+              --env OXC_TSRX_PARSER_ADDON=/workspace/release/addon/parser.node \
+              "$image" node --test tests/parser-api/addon-load.test.mjs
+          done
 
       - name: Package the native npm artifact and target VSIX
         shell: bash
