@@ -2048,6 +2048,19 @@ mod tests {
         assert!(first.code.contains("import { placeOrder } from \"server\";"), "{}", first.code);
         assert_eq!(first.metadata.pass_count, 1, "{}", first.code);
         let second = format_text(Path::new("Server.tsrx"), &first.code).unwrap();
+    fn raw_elements_that_break_keep_their_payload_on_every_pass() {
+        let source = concat!(
+            "export function View() @{\n",
+            "  <div>\n",
+            "    <script type=\"text/plain\" data-kind=\"static\">const a = 1;</script>\n",
+            "    <style data-a=\"1\" data-b=\"2\">.a{color:red}</style>\n",
+            "  </div>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Raw.tsrx"), source).unwrap();
+        assert!(first.code.contains(">const a = 1;</script>"), "{}", first.code);
+        assert!(first.code.contains(">.a{color:red}</style>"), "{}", first.code);
+        let second = format_text(Path::new("Raw.tsrx"), &first.code).unwrap();
         assert_eq!(second.code, first.code);
         assert!(!second.changed);
     }

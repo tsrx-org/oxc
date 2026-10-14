@@ -125,7 +125,8 @@ pub(super) fn lift_embedded(
                 .get(manifest.payload.start as usize..manifest.payload.end as usize)
                 .ok_or(ProjectionError::StructuralMismatch)?;
             output.push_str(&source[copied..cursor]);
-            output.push_str(payload);
+            push_raw_payload(&mut output, payload);
+            let end = skip_whitespace_before_close(source, end);
             copied = end;
             cursor = end;
             styles[index] = true;
@@ -147,7 +148,8 @@ pub(super) fn lift_embedded(
                 .get(manifest.payload.start as usize..manifest.payload.end as usize)
                 .ok_or(ProjectionError::StructuralMismatch)?;
             output.push_str(&source[copied..cursor]);
-            output.push_str(payload);
+            push_raw_payload(&mut output, payload);
+            let end = skip_whitespace_before_close(source, end);
             copied = end;
             cursor = end;
             scripts[index] = true;
@@ -171,4 +173,17 @@ pub(super) fn lift_embedded(
         return Err(ProjectionError::ScaffoldMismatch { index });
     }
     Ok(output)
+}
+
+fn push_raw_payload(output: &mut String, payload: &str) {
+    let trimmed = output.trim_end_matches(|c: char| c.is_ascii_whitespace()).len();
+    if output[..trimmed].ends_with('>') {
+        output.truncate(trimmed); // the marker is the only child, so this break is Oxfmt layout, not payload
+    }
+    output.push_str(payload);
+}
+
+fn skip_whitespace_before_close(source: &str, end: usize) -> usize {
+    let next = skip_ascii_whitespace(source, end);
+    if source[next..].starts_with("</") { next } else { end }
 }
