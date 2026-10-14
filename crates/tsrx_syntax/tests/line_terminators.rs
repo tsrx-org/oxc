@@ -204,6 +204,28 @@ fn unicode_line_terminators_remain_authored_jsx_content() {
 }
 
 #[test]
+fn jsx_text_line_comments_run_past_unicode_terminators_to_the_line_end() {
+    // `@tsrx/core` ends a `//` comment in JSX text at LF or CR only, so a tag after U+2028 or
+    // U+2029 on the same line is comment text, not an element.
+    for newline in ["\u{2028}", "\u{2029}"] {
+        let source = format!("export function App() @{{\n\t<p>a // e{newline}<b />\n\t</p>\n}}");
+        let overlay = scan_for_parser(&source).unwrap();
+        let comment_end = source.find("/>").unwrap() + 2;
+        assert_eq!(
+            overlay
+                .view()
+                .jsx_text_comments
+                .iter()
+                .map(|span| (span.start as usize, span.end as usize))
+                .collect::<Vec<_>>(),
+            [(source.find("//").unwrap(), comment_end)],
+            "{source:?}"
+        );
+        project_for_parser(&source, &overlay).unwrap();
+    }
+}
+
+#[test]
 fn raw_script_closing_tags_keep_html_whitespace_rules() {
     for newline in ["\u{2028}", "\u{2029}"] {
         let source =

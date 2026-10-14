@@ -419,6 +419,17 @@ impl Scanner<'_> {
         index
     }
 
+    /// A `//` comment in JSX text, which `@tsrx/core` runs to the next LF or CR only: U+2028 and
+    /// U+2029 stay inside it, unlike in a code line comment.
+    pub(super) fn skip_jsx_text_line_comment(&self, mut index: usize) -> usize {
+        let start = index;
+        while index < self.bytes.len() && !matches!(self.bytes[index], b'\n' | b'\r') {
+            index += 1;
+        }
+        self.mark_surrogates(start, index, OpaqueSurrogateContext::Comment);
+        index
+    }
+
     pub(super) fn skip_block_comment(&self, start: usize) -> Result<usize, ProjectionError> {
         let mut index = start + 2;
         while index + 1 < self.bytes.len() {

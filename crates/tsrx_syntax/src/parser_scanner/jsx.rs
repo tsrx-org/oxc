@@ -533,7 +533,7 @@ impl Scanner<'_> {
                     && (index == run_start
                         || matches!(self.bytes[index - 1], b' ' | b'\t' | b'\n' | b'\r')) =>
                 {
-                    let end = self.skip_line_comment(index + 2);
+                    let end = self.skip_jsx_text_line_comment(index + 2);
                     self.jsx_text_comments.push(ByteSpan::new(to_u32(index)?, to_u32(end)?));
                     has_comment = true;
                     index = end;
