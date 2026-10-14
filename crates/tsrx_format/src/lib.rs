@@ -967,6 +967,9 @@ mod tests {
         let second =
             format_text_with_options(Path::new("App.tsrx"), &first.code, Some(&options)).unwrap();
         assert_eq!(second.code, first.code);
+    }
+
+    #[test]
     fn a_space_before_a_jsx_text_comment_keeps_its_spacer_on_its_own_line() {
         // A space after an opening tag and before a comment is a text child. Oxfmt prints it as
         // `{" "}` on its own line, and the lift turned that into a plain space at the start of a
@@ -2040,6 +2043,9 @@ mod tests {
         );
         let second = format_text(Path::new("SelfClosing.tsrx"), &first.code).unwrap();
         assert_eq!(second.code, first.code);
+    }
+
+    #[test]
     fn imports_inside_a_module_block_format_as_the_tsrx_parser_accepts_them() {
         // TSRX `module server { … }` blocks import their own dependencies. Before tsrx-org/oxc#181
         // OXC's TS1147 for a namespace import refused the whole file.
@@ -2066,6 +2072,11 @@ mod tests {
         assert!(first.code.contains("import { placeOrder } from \"server\";"), "{}", first.code);
         assert_eq!(first.metadata.pass_count, 1, "{}", first.code);
         let second = format_text(Path::new("Server.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
     fn raw_elements_that_break_keep_their_payload_on_every_pass() {
         let source = concat!(
             "export function View() @{\n",
@@ -2079,6 +2090,11 @@ mod tests {
         assert!(first.code.contains(">const a = 1;</script>"), "{}", first.code);
         assert!(first.code.contains(">.a{color:red}</style>"), "{}", first.code);
         let second = format_text(Path::new("Raw.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
     fn block_comment_continuation_lines_keep_their_indent_inside_a_for_body() {
         let source = concat!(
             "export function View({ items }: { items: { id: number }[] }) @{\n",
