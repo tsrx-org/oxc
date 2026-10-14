@@ -7,8 +7,8 @@ use crate::{
 };
 
 use super::Scanner;
-use super::lexical::previous_significant_byte;
 use super::lexical::unsupported_at_construct;
+use super::lexical::{previous_significant_byte, trivia_whitespace_len};
 use super::stack::TinyStack;
 
 impl Scanner<'_> {
@@ -70,8 +70,9 @@ impl Scanner<'_> {
 
         while index < self.bytes.len() {
             let byte = self.bytes[index];
-            if byte.is_ascii_whitespace() {
-                index += 1;
+            let whitespace = trivia_whitespace_len(self.bytes, index);
+            if whitespace != 0 {
+                index += whitespace;
                 continue;
             }
             let comment = byte == b'/' && matches!(self.bytes.get(index + 1), Some(b'/' | b'*'));

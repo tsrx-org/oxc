@@ -58,3 +58,21 @@ fn an_expression_control_takes_no_subscript() {
         scan_for_parser(source).unwrap_or_else(|error| panic!("{source}: {error}"));
     }
 }
+
+#[test]
+fn a_not_expression_after_a_line_break_is_not_a_control_subscript() {
+    for newline in ["\n", "\r", "\r\n", "\u{2028}", "\u{2029}"] {
+        for trivia in
+            [newline.to_string(), format!(" /* note{newline} */ "), format!(" // note{newline} ")]
+        {
+            let source = format!("const a = @if (x) {{ 1 }}{trivia}!b;");
+            let overlay =
+                scan_for_parser(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
+            project_for_parser(&source, &overlay).unwrap();
+        }
+    }
+    for trivia in ["", " ", " /* 🚀 */ "] {
+        let source = format!("const a = @if (x) {{ 1 }}{trivia}!b;");
+        assert!(matches!(scan_for_parser(&source), Err(ProjectionError::MalformedSyntax { .. })));
+    }
+}

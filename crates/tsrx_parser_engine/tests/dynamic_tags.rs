@@ -773,3 +773,51 @@ fn bare_dynamic_statement_siblings_remain_linear_and_ordered() {
         require_type(tape, pair[1].as_object().expect("semicolon"), "EmptyStatement");
     }
 }
+
+#[test]
+fn jsx_attribute_line_terminators_preserve_authored_spans() {
+    for newline in ["\n", "\r", "\r\n", "\u{2028}", "\u{2029}"] {
+        for tag in ["div", "{Tag}"] {
+            let source = format!(
+                "const node = <{tag}{newline}title{newline}={newline}\"🚀\"{newline}other={{value}}{newline}/>;"
+            );
+            let units: Vec<u16> = source.encode_utf16().collect();
+            let result =
+                tsrx_parser_engine::parse_tsrx_utf16(&tsrx_parser_engine::TsrxUtf16ParseRequest {
+                    source: &units,
+                })
+                .unwrap();
+            let offset =
+                |byte: usize| u32::try_from(source[..byte].encode_utf16().count()).unwrap();
+            assert!(result.errors.is_empty(), "{source:?}: {:?}", result.errors);
+            let tape = result.program();
+            let element = initializer(tape);
+            require_type(tape, element, "JSXElement");
+            let opening = object_field(tape, element, "openingElement");
+            assert_eq!(
+                span(tape, opening),
+                (offset(source.find('<').unwrap()), offset(source.find("/>").unwrap() + 2))
+            );
+            let attributes = list_field(tape, opening, "attributes");
+            assert_eq!(attributes.len(), 2, "{source:?}");
+            for (attribute, name, end) in [
+                (attributes[0], "title", source.find("🚀\"").unwrap() + "🚀\"".len()),
+                (attributes[1], "other", source.find("{value}").unwrap() + "{value}".len()),
+            ] {
+                let attribute = attribute.as_object().unwrap();
+                require_type(tape, attribute, "JSXAttribute");
+                assert_eq!(
+                    span(tape, attribute),
+                    (offset(source.find(name).unwrap()), offset(end))
+                );
+                let name_node = object_field(tape, attribute, "name");
+                let start = offset(source.find(name).unwrap());
+                assert_eq!(
+                    span(tape, name_node),
+                    (start, start + u32::try_from(name.len()).unwrap())
+                );
+            }
+            assert_no_scaffold(tape);
+        }
+    }
+}

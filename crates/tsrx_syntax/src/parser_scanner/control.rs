@@ -346,7 +346,8 @@ impl Scanner<'_> {
         let next = self.skip_trivia(end)?;
         let byte = |offset: usize| self.bytes.get(next + offset).copied();
         let not_digit = |offset: usize| !byte(offset).is_some_and(|byte| byte.is_ascii_digit());
-        let same_line = !self.bytes[end..next].iter().any(|byte| matches!(byte, b'\n' | b'\r'));
+        let same_line = !(end..next)
+            .any(|position| super::lexical::line_terminator_len(self.bytes, position) != 0);
         let subscript = match byte(0) {
             Some(b'(' | b'[' | b'`') => true,
             Some(b'.') => not_digit(1),
@@ -388,8 +389,14 @@ impl Scanner<'_> {
         }
         let mut index = start;
         loop {
-            while index > 0 && self.bytes[index - 1].is_ascii_whitespace() {
-                index -= 1;
+            loop {
+                if index >= 3 && super::lexical::line_terminator_len(self.bytes, index - 3) == 3 {
+                    index -= 3;
+                } else if index > 0 && self.bytes[index - 1].is_ascii_whitespace() {
+                    index -= 1;
+                } else {
+                    break;
+                }
             }
             if index >= 2 && self.bytes.get(index - 2..index) == Some(b"*/") {
                 let Some(comment_start) =
@@ -400,10 +407,12 @@ impl Scanner<'_> {
                 index = comment_start;
                 continue;
             }
-            let line_start = self.bytes[..index]
-                .iter()
-                .rposition(|byte| matches!(byte, b'\n' | b'\r'))
-                .map_or(0, |position| position + 1);
+            let line_start = (0..index)
+                .rev()
+                .find(|&position| super::lexical::line_terminator_len(self.bytes, position) != 0)
+                .map_or(0, |position| {
+                    position + super::lexical::line_terminator_len(self.bytes, position)
+                });
             let line = &self.bytes[line_start..index];
             let first =
                 line.iter().position(|byte| !byte.is_ascii_whitespace()).unwrap_or(line.len());

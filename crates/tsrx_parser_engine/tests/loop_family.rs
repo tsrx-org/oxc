@@ -354,3 +354,132 @@ fn rejects_an_index_that_is_not_one_parenthesized_name() {
         assert_eq!(result.status, tsrx_tape_schema::ParseCompleteness::Failed, "{source}");
     }
 }
+
+#[test]
+fn annotated_for_line_terminators_preserve_index_and_key_spans() {
+    for newline in ["\n", "\r", "\r\n", "\u{2028}", "\u{2029}"] {
+        let source = format!(
+            "const value = @for(const item of items;{newline}index{newline}i{newline};{newline}key{newline}item.id{newline}) {{ <div/> }};"
+        );
+        let units: Vec<u16> = source.encode_utf16().collect();
+        let result =
+            tsrx_parser_engine::parse_tsrx_utf16(&tsrx_parser_engine::TsrxUtf16ParseRequest {
+                source: &units,
+            })
+            .unwrap();
+        assert!(result.errors.is_empty(), "{source:?}: {:?}", result.errors);
+        let tape = result.program();
+        let declaration = one_object(&program_body(tape));
+        let declarator = one_object(&list_field(tape, declaration, "declarations"));
+        let node = object_field(tape, declarator, "init");
+        require_type(tape, node, "JSXForExpression");
+        let index = object_field(tape, node, "index");
+        let key = object_field(tape, node, "key");
+        require_type(tape, index, "Identifier");
+        require_type(tape, key, "MemberExpression");
+        let offset = |byte: usize| u32::try_from(source[..byte].encode_utf16().count()).unwrap();
+        let index_start = source.find(&format!("{newline}i{newline};")).unwrap() + newline.len();
+        let key_start = source.find("item.id").unwrap();
+        assert_eq!(span(tape, index), (offset(index_start), offset(index_start + 1)));
+        assert_eq!(span(tape, key), (offset(key_start), offset(key_start + 7)));
+        assert_no_scaffold(tape);
+    }
+}
+
+#[test]
+fn destructured_for_index_accepts_every_line_terminator() {
+    for newline in ["\n", "\r", "\r\n", "\u{2028}", "\u{2029}"] {
+        let source =
+            format!("const value = @for({{id, label}} of items; {newline}index i) {{ <div/> }};");
+        let units: Vec<u16> = source.encode_utf16().collect();
+        let result =
+            tsrx_parser_engine::parse_tsrx_utf16(&tsrx_parser_engine::TsrxUtf16ParseRequest {
+                source: &units,
+            })
+            .unwrap();
+        assert!(result.errors.is_empty(), "{source:?}: {:?}", result.errors);
+        assert_no_scaffold(result.program());
+    }
+}
+
+#[test]
+fn header_of_line_terminators_preserve_engine_annotations() {
+    for left in ["const item", "item", "{id}"] {
+        for (before, after) in [("\n", " "), (" ", "\n"), ("\n", "\n")] {
+            for newline in ["\n", "\r", "\r\n", "\u{2028}", "\u{2029}"] {
+                let before = before.replace('\n', newline);
+                let after = after.replace('\n', newline);
+                let source = format!(
+                    "const value = @for({left}{before}of{after}items; index i; key id) {{ <div/> }};"
+                );
+                let units: Vec<u16> = source.encode_utf16().collect();
+                let result = tsrx_parser_engine::parse_tsrx_utf16(
+                    &tsrx_parser_engine::TsrxUtf16ParseRequest { source: &units },
+                )
+                .unwrap();
+                assert!(result.errors.is_empty(), "{source:?}: {:?}", result.errors);
+                let tape = result.program();
+                let declaration = one_object(&program_body(tape));
+                let declarator = one_object(&list_field(tape, declaration, "declarations"));
+                let node = object_field(tape, declarator, "init");
+                require_type(tape, node, "JSXForExpression");
+                for (field_name, text) in [("right", "items"), ("index", "i"), ("key", "id")] {
+                    let value = object_field(tape, node, field_name);
+                    require_type(tape, value, "Identifier");
+                    let start = match field_name {
+                        "index" => source.find("index i").unwrap() + 6,
+                        "key" => source.find("key id").unwrap() + 4,
+                        _ => source.find("items").unwrap(),
+                    };
+                    let offset =
+                        |byte: usize| u32::try_from(source[..byte].encode_utf16().count()).unwrap();
+                    assert_eq!(span(tape, value), (offset(start), offset(start + text.len())));
+                }
+                assert_no_scaffold(tape);
+            }
+        }
+    }
+}
+
+#[test]
+fn header_keyword_suffixes_are_rejected_by_engine() {
+    for left in ["const item", "item"] {
+        for tail in [
+            "key\\u0041.id",
+            "key\\u0041",
+            "index\\u0041",
+            "index\\u{41} i",
+            "keyA.id",
+            "keyName",
+            "indexA",
+            "indexName",
+        ] {
+            let source = format!("const value = @for({left} of items; {tail}) {{ <div/> }};");
+            let result = parse_tsrx(&TsrxParseRequest { source: &source }).unwrap();
+            assert!(!result.errors.is_empty(), "{source:?}");
+        }
+    }
+}
+
+#[test]
+fn parenthesized_for_annotations_accept_every_line_terminator() {
+    for newline in ["\n", "\r", "\r\n", "\u{2028}", "\u{2029}"] {
+        for annotations in [
+            "\nindex(i);\nkey(item.id)",
+            "\nkey(item.id)",
+            "\nindex/* note */(i);\nkey/* note */(item.id)",
+        ] {
+            let annotations = annotations.replace('\n', newline);
+            let source =
+                format!("const value = @for(const item of items;{annotations}) {{ <div/> }};");
+            let units: Vec<u16> = source.encode_utf16().collect();
+            let result =
+                tsrx_parser_engine::parse_tsrx_utf16(&tsrx_parser_engine::TsrxUtf16ParseRequest {
+                    source: &units,
+                })
+                .unwrap();
+            assert!(result.errors.is_empty(), "{source:?}: {:?}", result.errors);
+            assert_no_scaffold(result.program());
+        }
+    }
+}

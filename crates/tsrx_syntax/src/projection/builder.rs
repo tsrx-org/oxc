@@ -846,7 +846,9 @@ impl<'a> Builder<'a> {
             .ok_or(ProjectionError::SourceChanged { offset: attribute.identifier.start })?;
         self.copy_to(attribute.span.start as usize)?;
         // `<a{b} />` glues the shorthand to the tag name, which the scaffold name must not join.
-        if !self.output.ends_with(|character: char| character.is_ascii_whitespace()) {
+        if !self.output.ends_with(|character: char| {
+            character.is_ascii_whitespace() || matches!(character, '\u{2028}' | '\u{2029}')
+        }) {
             self.output.push(' ');
         }
         // The type lane names the attribute as the author did, so the checker sees `name={name}`.
@@ -1131,6 +1133,7 @@ fn index_name(source: &[u8], index: ByteSpan) -> Result<ByteSpan, ProjectionErro
         match source[start] {
             b'(' => start += 1,
             byte if byte.is_ascii_whitespace() => start += 1,
+            _ if unicode_line_terminator_at(source, start) => start += 3,
             b'/' if source.get(start + 1) == Some(&b'*') => {
                 start = source[start + 2..end]
                     .windows(2)
@@ -1138,19 +1141,29 @@ fn index_name(source: &[u8], index: ByteSpan) -> Result<ByteSpan, ProjectionErro
                     .map_or(end, |close| start + close + 4);
             }
             b'/' if source.get(start + 1) == Some(&b'/') => {
-                start = source[start..end]
-                    .iter()
-                    .position(|byte| matches!(byte, b'\n' | b'\r'))
-                    .map_or(end, |line| start + line);
+                start = (start..end)
+                    .find(|&at| {
+                        matches!(source[at], b'\n' | b'\r')
+                            || unicode_line_terminator_at(source, at)
+                    })
+                    .unwrap_or(end);
             }
             _ => break,
         }
     }
-    let name_end = source[start..end]
-        .iter()
-        .position(|byte| byte.is_ascii_whitespace() || matches!(byte, b'/' | b')'))
-        .map_or(end, |length| start + length);
+    let name_end = (start..end)
+        .find(|&at| {
+            source[at].is_ascii_whitespace()
+                || matches!(source[at], b'/' | b')')
+                || unicode_line_terminator_at(source, at)
+        })
+        .unwrap_or(end);
     Ok(ByteSpan::new(to_u32(start)?, to_u32(name_end)?))
+}
+
+/// U+2028 and U+2029, the line terminators the scanner skips as trivia beside LF and CR.
+fn unicode_line_terminator_at(source: &[u8], at: usize) -> bool {
+    matches!(source.get(at..at + 3), Some([0xe2, 0x80, 0xa8 | 0xa9]))
 }
 
 fn build_wrapper_actions(
