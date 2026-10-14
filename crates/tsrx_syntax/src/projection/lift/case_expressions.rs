@@ -48,8 +48,10 @@ pub(super) fn lift_case_expressions(
         } else {
             0
         };
-        let mut writer = LiftWriter::new(content.len());
-        writer.write(&lifted[content.clone()], dedent);
+        let attribute_strings =
+            crate::scanner::multiline_jsx_attribute_strings(&lifted).unwrap_or_default();
+        let mut writer = LiftWriter::new(content.len(), attribute_strings);
+        writer.write(&lifted[content.clone()], Some(content.start), dedent);
         let expression = writer.finish()?;
         lifted.replace_range(replace_start..replace_end, &expression);
     }

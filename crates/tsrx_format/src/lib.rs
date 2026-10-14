@@ -2121,6 +2121,124 @@ mod tests {
         let source = "module server {\n  import { x } from './x.ts';\n}\n";
         let error = format_text(Path::new("Server.tsx"), source).unwrap_err().to_string();
         assert!(error.contains("Import declarations in a namespace"), "{error}");
+    }
+
+    #[test]
+    fn repeated_dynamic_style_markers_converge_past_single_digit_ordinals() {
+        let mut source = String::from("export function View({Tag}:{Tag:string}) @{<main>");
+        for _ in 0..32 {
+            source
+                .push_str("<{Tag}><{Tag} /><style>/* raw {label} */ .x{color:red}</style></{Tag}>");
+        }
+        source.push_str("</main>}\n");
+        let first = format_text(Path::new("Repeated.tsrx"), &source).unwrap();
+        assert_eq!(first.metadata.style_count, 32);
+        assert_eq!(first.metadata.embedded_parse_count, 0);
+        assert_eq!(first.code.matches("<{Tag}>").count(), 32);
+        assert_eq!(first.code.matches("<{Tag} />").count(), 32);
+        assert_eq!(first.code.matches("/* raw {label} */").count(), 32);
+        let second = format_text(Path::new("Repeated.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn wide_keyed_header_survives_the_formatter_breaking_its_scaffold_call() {
+        // A `key` expression wide enough that the projected header call cannot fit the
+        // print width. The formatter then breaks that call across lines and writes a
+        // trailing comma after its last argument, which the checked lift has to read
+        // back. Before this was handled the whole file was refused with
+        // "Oxfmt changed TSRX scaffold 0" and left byte-identical.
+        let source = concat!(
+            "export function View({rows}:{rows:Row[]}) @{<ul>",
+            "@for(const row of rows;key row.aVeryLongPropertyNameSegment",
+            "aVeryLongPropertyNameSegmentaVeryLongPropertyNameSegment)",
+            "{<li>{row.label}</li>}</ul>}\n"
+        );
+        let first = format_text(Path::new("Wide.tsrx"), source).unwrap();
+        assert!(
+            first.code.contains(
+                "key row.aVeryLongPropertyNameSegmentaVeryLongPropertyNameSegment\
+                 aVeryLongPropertyNameSegment"
+            ),
+            "{}",
+            first.code
+        );
+        assert!(!first.code.contains("_t"), "{}", first.code);
+        let second = format_text(Path::new("Wide.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
+    fn wide_indexed_header_survives_the_formatter_breaking_its_scaffold_call() {
+        let source = concat!(
+            "export function View({rows}:{rows:Row[]}) @{<ul>",
+            "@for(const row of rows;index positionOfThisRowWithinTheCollection",
+            "ThatIsBeingIteratedOverHere)",
+            "{<li>{row.label}</li>}</ul>}\n"
+        );
+        let first = format_text(Path::new("Indexed.tsrx"), source).unwrap();
+        assert!(
+            first
+                .code
+                .contains("index positionOfThisRowWithinTheCollectionThatIsBeingIteratedOverHere"),
+            "{}",
+            first.code
+        );
+        let second = format_text(Path::new("Indexed.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn keyed_header_inside_a_try_arm_formats_at_a_wider_tab_width() {
+        // The shape three real files hit: a keyed `@for` two element levels inside a
+        // `@try` arm. At the default two-space indent the projected header still fits
+        // the print width; at four the same header runs long, the formatter breaks its
+        // scaffold call, and the lift has to read the break back. Indent width alone
+        // decided whether the file could be formatted at all.
+        let source = concat!(
+            "export default function Page({rows}:{rows:Row[]}) @{\n",
+            "\t<div data-page>\n",
+            "\t\t@try {\n",
+            "\t\t\t<ContextFrame>\n",
+            "\t\t\t\t<ul>\n",
+            "\t\t\t\t\t@for (const row of rows; key row.id) {\n",
+            "\t\t\t\t\t\t<li data-row>{row.label}</li>\n",
+            "\t\t\t\t\t}\n",
+            "\t\t\t\t</ul>\n",
+            "\t\t\t</ContextFrame>\n",
+            "\t\t} @pending {\n",
+            "\t\t\t<p>loading</p>\n",
+            "\t\t} @catch {\n",
+            "\t\t\t<p>failed</p>\n",
+            "\t\t}\n",
+            "\t</div>\n",
+            "}\n",
+        );
+        let options = FileFormatOptions {
+            engine: EngineFormatOptions {
+                use_tabs: Some(true),
+                tab_width: Some(4),
+                ..EngineFormatOptions::default()
+            },
+            insert_final_newline: None,
+        };
+        let first =
+            format_text_with_options(Path::new("Page.tsrx"), source, Some(&options)).unwrap();
+        assert_eq!(first.metadata.mode, FormatMode::Projected);
+        assert!(first.code.contains("@for (const row of rows; key row.id) {"), "{}", first.code);
+        assert!(first.code.contains("} @pending {"), "{}", first.code);
+        assert!(first.code.contains("} @catch {"), "{}", first.code);
+        assert!(first.code.contains("<ContextFrame>"), "{}", first.code);
+        assert!(!first.code.contains("_t"), "{}", first.code);
+
+        let second =
+            format_text_with_options(Path::new("Page.tsrx"), &first.code, Some(&options)).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
     fn multiline_attribute_strings_keep_their_text_inside_control_flow() {
         let source = concat!(
             "export function View({ ok }: { ok: boolean }) @{\n",
@@ -2262,121 +2380,6 @@ mod tests {
     }
 
     #[test]
-    fn repeated_dynamic_style_markers_converge_past_single_digit_ordinals() {
-        let mut source = String::from("export function View({Tag}:{Tag:string}) @{<main>");
-        for _ in 0..32 {
-            source
-                .push_str("<{Tag}><{Tag} /><style>/* raw {label} */ .x{color:red}</style></{Tag}>");
-        }
-        source.push_str("</main>}\n");
-        let first = format_text(Path::new("Repeated.tsrx"), &source).unwrap();
-        assert_eq!(first.metadata.style_count, 32);
-        assert_eq!(first.metadata.embedded_parse_count, 0);
-        assert_eq!(first.code.matches("<{Tag}>").count(), 32);
-        assert_eq!(first.code.matches("<{Tag} />").count(), 32);
-        assert_eq!(first.code.matches("/* raw {label} */").count(), 32);
-        let second = format_text(Path::new("Repeated.tsrx"), &first.code).unwrap();
-        assert_eq!(second.code, first.code);
-    }
-
-    #[test]
-    fn wide_keyed_header_survives_the_formatter_breaking_its_scaffold_call() {
-        // A `key` expression wide enough that the projected header call cannot fit the
-        // print width. The formatter then breaks that call across lines and writes a
-        // trailing comma after its last argument, which the checked lift has to read
-        // back. Before this was handled the whole file was refused with
-        // "Oxfmt changed TSRX scaffold 0" and left byte-identical.
-        let source = concat!(
-            "export function View({rows}:{rows:Row[]}) @{<ul>",
-            "@for(const row of rows;key row.aVeryLongPropertyNameSegment",
-            "aVeryLongPropertyNameSegmentaVeryLongPropertyNameSegment)",
-            "{<li>{row.label}</li>}</ul>}\n"
-        );
-        let first = format_text(Path::new("Wide.tsrx"), source).unwrap();
-        assert!(
-            first.code.contains(
-                "key row.aVeryLongPropertyNameSegmentaVeryLongPropertyNameSegment\
-                 aVeryLongPropertyNameSegment"
-            ),
-            "{}",
-            first.code
-        );
-        assert!(!first.code.contains("_t"), "{}", first.code);
-        let second = format_text(Path::new("Wide.tsrx"), &first.code).unwrap();
-        assert_eq!(second.code, first.code);
-        assert!(!second.changed);
-    }
-
-    #[test]
-    fn wide_indexed_header_survives_the_formatter_breaking_its_scaffold_call() {
-        let source = concat!(
-            "export function View({rows}:{rows:Row[]}) @{<ul>",
-            "@for(const row of rows;index positionOfThisRowWithinTheCollection",
-            "ThatIsBeingIteratedOverHere)",
-            "{<li>{row.label}</li>}</ul>}\n"
-        );
-        let first = format_text(Path::new("Indexed.tsrx"), source).unwrap();
-        assert!(
-            first
-                .code
-                .contains("index positionOfThisRowWithinTheCollectionThatIsBeingIteratedOverHere"),
-            "{}",
-            first.code
-        );
-        let second = format_text(Path::new("Indexed.tsrx"), &first.code).unwrap();
-        assert_eq!(second.code, first.code);
-    }
-
-    #[test]
-    fn keyed_header_inside_a_try_arm_formats_at_a_wider_tab_width() {
-        // The shape three real files hit: a keyed `@for` two element levels inside a
-        // `@try` arm. At the default two-space indent the projected header still fits
-        // the print width; at four the same header runs long, the formatter breaks its
-        // scaffold call, and the lift has to read the break back. Indent width alone
-        // decided whether the file could be formatted at all.
-        let source = concat!(
-            "export default function Page({rows}:{rows:Row[]}) @{\n",
-            "\t<div data-page>\n",
-            "\t\t@try {\n",
-            "\t\t\t<ContextFrame>\n",
-            "\t\t\t\t<ul>\n",
-            "\t\t\t\t\t@for (const row of rows; key row.id) {\n",
-            "\t\t\t\t\t\t<li data-row>{row.label}</li>\n",
-            "\t\t\t\t\t}\n",
-            "\t\t\t\t</ul>\n",
-            "\t\t\t</ContextFrame>\n",
-            "\t\t} @pending {\n",
-            "\t\t\t<p>loading</p>\n",
-            "\t\t} @catch {\n",
-            "\t\t\t<p>failed</p>\n",
-            "\t\t}\n",
-            "\t</div>\n",
-            "}\n",
-        );
-        let options = FileFormatOptions {
-            engine: EngineFormatOptions {
-                use_tabs: Some(true),
-                tab_width: Some(4),
-                ..EngineFormatOptions::default()
-            },
-            insert_final_newline: None,
-        };
-        let first =
-            format_text_with_options(Path::new("Page.tsrx"), source, Some(&options)).unwrap();
-        assert_eq!(first.metadata.mode, FormatMode::Projected);
-        assert!(first.code.contains("@for (const row of rows; key row.id) {"), "{}", first.code);
-        assert!(first.code.contains("} @pending {"), "{}", first.code);
-        assert!(first.code.contains("} @catch {"), "{}", first.code);
-        assert!(first.code.contains("<ContextFrame>"), "{}", first.code);
-        assert!(!first.code.contains("_t"), "{}", first.code);
-
-        let second =
-            format_text_with_options(Path::new("Page.tsrx"), &first.code, Some(&options)).unwrap();
-        assert_eq!(second.code, first.code);
-        assert!(!second.changed);
-    }
-
-    #[test]
     fn case_and_default_expression_containers_stay_containers() {
         // `@tsrx/core` reads a `{ … }` consequent of an `@case` or `@default` body as a
         // template expression container and rejects a `;` inside it (TSRX1007). The
@@ -2495,6 +2498,67 @@ mod tests {
                 format_text_with_options(Path::new("Asset.tsrx"), &first.code, Some(&options))
                     .unwrap();
             assert_eq!(second.code, first.code);
+        }
+    }
+
+    #[test]
+    fn a_comment_in_a_dynamic_tag_expression_stays_in_the_opening_tag() {
+        // The closing tag was written back from the formatted opening expression, comments and
+        // all, and the next pass moved the closing tag's copy into the children as `{/* c */}`.
+        for (source, expected) in [
+            (
+                "const a = <{Comp /* c */}>text</{Comp}>;\n",
+                "const a = (\n  <{Comp /* c */}>\n    text\n  </{Comp}>\n);\n",
+            ),
+            ("const a = <{/* c */ Comp}></{Comp}>;\n", "const a = <{/* c */ Comp}></{Comp}>;\n"),
+            (
+                "const a = <{a /* x */.b}>text</{a /* x */.b}>;\n",
+                "const a = (\n  <{a /* x */.b}>\n    text\n  </{a /* x */.b}>\n);\n",
+            ),
+            (
+                "const a = <{Comp /* a /* b */}>text</{Comp}>;\n",
+                "const a = (\n  <{Comp /* a /* b */}>\n    text\n  </{Comp}>\n);\n",
+            ),
+            (
+                "const a = <{// c\nComp}>text</{Comp}>;\n",
+                "const a = (\n  <{// c\n      Comp}\n  >\n    text\n  </{Comp}>\n);\n",
+            ),
+            (
+                "const a = <{Comp // c\n}>text</{Comp}>;\n",
+                "const a = (\n  <{Comp // c\n    }\n  >\n    text\n  </{Comp}>\n);\n",
+            ),
+            (
+                "const a = <{Comp /* a /* b */ /* c */}>text</{Comp}>;\n",
+                "const a = (\n  <{Comp /* a /* b */ /* c */}>\n    text\n  </{Comp}>\n);\n",
+            ),
+        ] {
+            let first = format_text(Path::new("App.tsrx"), source).unwrap();
+            assert_eq!(first.code, expected);
+            assert_eq!(format_text(Path::new("App.tsrx"), &first.code).unwrap().code, expected);
+        }
+    }
+
+    #[test]
+    fn comment_markers_inside_a_dynamic_tag_expression_are_not_comments() {
+        // Bugbot on tsrx-org/oxc#198: a `//` or `/*` in a regex, string, or template literal was
+        // read as a comment, which cut the expression written into the closing tag.
+        for (source, expected) in [
+            (
+                "const a = <{pick(typeof /\\//) /* c */}>text</{pick(typeof /\\//)}>;\n",
+                "const a = (\n  <{pick(typeof /\\//) /* c */}>\n    text\n  </{pick(typeof /\\//)}>\n);\n",
+            ),
+            (
+                "const a = <{tags[\"//\"] // c\n}>text</{tags[\"//\"]}>;\n",
+                "const a = (\n  <{tags[\"//\"] // c\n    }\n  >\n    text\n  </{tags[\"//\"]}>\n);\n",
+            ),
+            (
+                "const a = <{tags[`${\"`\"}/*`] /* c */}>text</{tags[`${\"`\"}/*`]}>;\n",
+                "const a = (\n  <{tags[`${\"`\"}/*`] /* c */}>\n    text\n  </{tags[`${\"`\"}/*`]}>\n);\n",
+            ),
+        ] {
+            let first = format_text(Path::new("App.tsrx"), source).unwrap();
+            assert_eq!(first.code, expected);
+            assert_eq!(format_text(Path::new("App.tsrx"), &first.code).unwrap().code, expected);
         }
     }
 }

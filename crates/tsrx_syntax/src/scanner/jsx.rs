@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use crate::{
     diagnostics::{ProjectionError, to_u32},
     model::{
@@ -587,6 +589,29 @@ impl Scanner<'_> {
             }
         }
         Ok(())
+    }
+}
+
+/// The range of `expression` from its first token to its last, so the comments at either edge
+/// fall outside it whole. Tokens come from the scanner's own dynamic tag lexer, so a `//` or `/*`
+/// inside a string, a template literal, or a regular expression is not taken for a comment. An
+/// expression the lexer cannot read is returned whole, and one with no tokens as `0..0`.
+pub(crate) fn dynamic_expression_token_range(expression: &str) -> Range<usize> {
+    let scanner = Scanner::new(expression);
+    let (mut index, mut can_start_expression) = (0, true);
+    let mut range: Option<Range<usize>> = None;
+    loop {
+        match scanner.next_dynamic_identity_token(
+            &mut index,
+            expression.len(),
+            &mut can_start_expression,
+        ) {
+            Ok(Some((start, end))) => {
+                range = Some(range.map_or(start, |range| range.start)..end);
+            }
+            Ok(None) => return range.unwrap_or(0..0),
+            Err(_) => return 0..expression.len(),
+        }
     }
 }
 

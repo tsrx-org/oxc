@@ -13,6 +13,7 @@ mod lexical;
 mod overlay;
 mod stack;
 
+pub(crate) use jsx::dynamic_expression_token_range;
 pub(crate) use lexical::is_identifier_continue;
 use lexical::{previous_significant_byte, unsupported_at_construct};
 use stack::TinyStack;
