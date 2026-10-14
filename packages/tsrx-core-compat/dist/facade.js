@@ -1158,6 +1158,49 @@ function looseRecovery(parser, filename, source) {
 	}
 	return null;
 }
+const NOT_SUBMODULE_NAMES = /* @__PURE__ */ new Set([
+	"from",
+	"as",
+	"of"
+]);
+const SPECIFIER_ATTRIBUTE_WORDS = /* @__PURE__ */ new Set(["with", "assert"]);
+const LINE_BREAK = /[\n\r\u2028\u2029]/u;
+function followsImportClause(source, start) {
+	let index = start - 1;
+	for (;;) {
+		while (index >= 0 && WHITESPACE.test(source[index])) index -= 1;
+		if (index >= 1 && source[index] === "/" && source[index - 1] === "*") {
+			const open = source.lastIndexOf("/*", index - 2);
+			if (open === -1) return false;
+			index = open - 1;
+			continue;
+		}
+		break;
+	}
+	if (index < 0) return false;
+	const character = source[index];
+	return character === "}" || character === "*" || IDENTIFIER_CONTINUE.test(character);
+}
+function endsModuleSpecifier(source, end) {
+	let index = end;
+	for (;;) {
+		while (index < source.length && WHITESPACE.test(source[index])) {
+			if (LINE_BREAK.test(source[index])) return true;
+			index += 1;
+		}
+		if (source[index] === "/" && source[index + 1] === "/") return true;
+		if (source[index] === "/" && source[index + 1] === "*") {
+			const close = source.indexOf("*/", index + 2);
+			if (close === -1 || LINE_BREAK.test(source.slice(index, close))) return true;
+			index = close + 2;
+			continue;
+		}
+		break;
+	}
+	if (index >= source.length || source[index] === ";" || source[index] === "}") return true;
+	const word = readIdentifier(source, index);
+	return word !== null && SPECIFIER_ATTRIBUTE_WORDS.has(word.name);
+}
 function findSubmoduleSources(source) {
 	const candidates = [];
 	let index = 0;
@@ -1184,11 +1227,14 @@ function findSubmoduleSources(source) {
 		}
 		index = identifier.end;
 		if (identifier.name !== "from") continue;
+		if (!followsImportClause(source, identifier.start)) continue;
 		const replaceStart = index;
 		while (index < source.length && WHITESPACE.test(source[index])) index += 1;
 		if (index === replaceStart) continue;
 		const moduleSource = readIdentifier(source, index);
 		if (moduleSource === null) continue;
+		if (NOT_SUBMODULE_NAMES.has(moduleSource.name) || ACORN_KEYWORDS.has(moduleSource.name)) continue;
+		if (!endsModuleSpecifier(source, moduleSource.end)) continue;
 		candidates.push({
 			replaceStart,
 			replaceEnd: moduleSource.end,
@@ -1200,11 +1246,12 @@ function findSubmoduleSources(source) {
 	}
 	return candidates;
 }
+const SUBMODULE_SOURCE_ERRORS = /* @__PURE__ */ new Set(["Unexpected token", "Expected `from` but found `Identifier`"]);
 function submoduleRecovery(source, errors) {
 	if (typeof source !== "string") return null;
 	const unexpectedStarts = /* @__PURE__ */ new Set();
 	for (const error of errors) {
-		if (error?.message !== "Unexpected token" || !Array.isArray(error?.labels)) continue;
+		if (!SUBMODULE_SOURCE_ERRORS.has(error?.message) || !Array.isArray(error?.labels)) continue;
 		for (const label of error.labels) if (Number.isInteger(label?.start)) unexpectedStarts.add(label.start);
 	}
 	if (unexpectedStarts.size === 0) return null;
