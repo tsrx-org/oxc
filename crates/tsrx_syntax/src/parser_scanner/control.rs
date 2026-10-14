@@ -178,7 +178,7 @@ impl Scanner<'_> {
                 let value_start = self.skip_trivia(Self::after_keyword(index, b"case"))?;
                 let (header, colon) = self.parse_case_header(value_start)?;
                 let body_start = self.skip_trivia(colon + 1)?;
-                let body = self.parse_body(node, body_start)?;
+                let body = self.parse_case_body(node, body_start)?;
                 self.add_clause(node, ClauseRole::Case, index, header, body, ForHeader::default())?;
                 index = body.end as usize;
                 continue;
@@ -200,7 +200,7 @@ impl Scanner<'_> {
                     });
                 }
                 let body_start = self.skip_trivia(colon + 1)?;
-                let body = self.parse_body(node, body_start)?;
+                let body = self.parse_case_body(node, body_start)?;
                 self.add_clause(
                     node,
                     ClauseRole::Default,

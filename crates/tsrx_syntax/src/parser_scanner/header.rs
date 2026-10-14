@@ -30,6 +30,23 @@ impl Scanner<'_> {
         node: u32,
         start: usize,
     ) -> Result<ByteSpan, ProjectionError> {
+        self.parse_body_with(node, start, false)
+    }
+
+    pub(super) fn parse_case_body(
+        &mut self,
+        node: u32,
+        start: usize,
+    ) -> Result<ByteSpan, ProjectionError> {
+        self.parse_body_with(node, start, true)
+    }
+
+    fn parse_body_with(
+        &mut self,
+        node: u32,
+        start: usize,
+        case_body: bool,
+    ) -> Result<ByteSpan, ProjectionError> {
         if self.bytes.get(start) != Some(&b'{') {
             return Err(ProjectionError::MalformedSyntax {
                 offset: to_u32(start)?,
@@ -37,7 +54,7 @@ impl Scanner<'_> {
             });
         }
         debug_assert_eq!(self.parents.last().copied(), Some(node));
-        let end = self.scan_region(start + 1, Some(b'}'))?;
+        let end = self.scan_region_with_root_context(start + 1, Some(b'}'), None, case_body)?;
         Ok(ByteSpan::new(to_u32(start)?, to_u32(end)?))
     }
 

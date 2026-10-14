@@ -3,7 +3,7 @@
 
 use crate::{
     diagnostics::{ProjectionError, to_u32},
-    model::{ControlContext, ParserCodeBlockKind, StructuralKind},
+    model::{ByteSpan, ControlContext, ParserCodeBlockKind, StructuralKind},
 };
 
 use super::Scanner;
@@ -17,7 +17,7 @@ impl Scanner<'_> {
         index: usize,
         closing: Option<u8>,
     ) -> Result<usize, ProjectionError> {
-        self.scan_region_with_root_context(index, closing, None)
+        self.scan_region_with_root_context(index, closing, None, false)
     }
 
     pub(super) fn scan_expression_region(
@@ -26,19 +26,26 @@ impl Scanner<'_> {
         closing: Option<u8>,
     ) -> Result<usize, ProjectionError> {
         let root_control_start = self.skip_trivia(index)?;
-        self.scan_region_with_root_context(index, closing, Some(root_control_start))
+        self.scan_region_with_root_context(index, closing, Some(root_control_start), false)
     }
 
     #[expect(
         clippy::too_many_lines,
         reason = "a byte-level scanner state machine whose arms only make sense read in source order"
     )]
-    fn scan_region_with_root_context(
+    /// `case_body` marks an `@case` or `@default` body, whose expression containers it records.
+    pub(super) fn scan_region_with_root_context(
         &mut self,
         mut index: usize,
         closing: Option<u8>,
         root_control_start: Option<usize>,
+        case_body: bool,
     ) -> Result<usize, ProjectionError> {
+        let region_start = index;
+        // The last markup element that closed directly in a case body, and the slot of the
+        // case-body expression container still open, if any.
+        let mut case_markup_end = None;
+        let mut open_case_expression = None;
         let mut delimiters = TinyStack::<(u8, bool), 16>::new();
         if let Some(closing) = closing {
             delimiters.push((closing, closing == b'}'));
@@ -59,6 +66,7 @@ impl Scanner<'_> {
         let mut pending_parameter_list = false;
         // The offset of a template body `@{` found right after a return type annotation.
         let mut return_type_body = None;
+        let mut token_end = region_start;
 
         while index < self.bytes.len() {
             let byte = self.bytes[index];
@@ -66,6 +74,8 @@ impl Scanner<'_> {
                 index += 1;
                 continue;
             }
+            let comment = byte == b'/' && matches!(self.bytes.get(index + 1), Some(b'/' | b'*'));
+            let previous_token_end = token_end;
 
             let follows_arrow = pending_arrow_body;
             pending_arrow_body = false;
@@ -142,6 +152,9 @@ impl Scanner<'_> {
                     }
                     match self.scan_jsx_element(index) {
                         Ok(end) => {
+                            if case_body && delimiters.len() == 1 {
+                                case_markup_end = Some(end);
+                            }
                             index = end;
                             can_start_expression = false;
                             can_start_jsx = true;
@@ -260,6 +273,19 @@ impl Scanner<'_> {
                         b'{' => b'}',
                         _ => unreachable!(),
                     };
+                    if byte == b'{'
+                        && case_body
+                        && delimiters.len() == 1
+                        && self.starts_case_consequent(
+                            index,
+                            previous_token_end,
+                            region_start,
+                            case_markup_end,
+                        )
+                    {
+                        open_case_expression = Some(self.case_expressions.len());
+                        self.case_expressions.push(ByteSpan::new(to_u32(index)?, to_u32(index)?));
+                    }
                     let previous = previous_significant_byte(self.bytes, index);
                     let block = byte == b'{'
                         && (!can_start_expression
@@ -286,6 +312,12 @@ impl Scanner<'_> {
                     if delimiters.last().is_some_and(|delimiter| delimiter.0 == byte) {
                         closed_block = delimiters.pop().is_some_and(|delimiter| delimiter.1);
                         index += 1;
+                        if byte == b'}'
+                            && delimiters.len() == 1
+                            && let Some(slot) = open_case_expression.take()
+                        {
+                            self.case_expressions[slot].end = to_u32(index)?;
+                        }
                         if delimiters.is_empty() && closing.is_some() {
                             return Ok(index);
                         }
@@ -402,6 +434,9 @@ impl Scanner<'_> {
                     pending_statement_body = false;
                 }
             }
+            if !comment {
+                token_end = index;
+            }
         }
 
         if closing.is_some() {
@@ -411,5 +446,44 @@ impl Scanner<'_> {
             });
         }
         Ok(index)
+    }
+
+    /// Whether the `{` at `index`, directly in an `@case` or `@default` body, begins a
+    /// consequent, which `@tsrx/core` reads as a template expression container: it opens the
+    /// body, follows a `;`, a `}`, or a markup element, or starts a line after a token that ends
+    /// a statement there by ASI. `token_end` is the end of the last token before it, comments
+    /// aside.
+    fn starts_case_consequent(
+        &self,
+        index: usize,
+        token_end: usize,
+        region_start: usize,
+        markup_end: Option<usize>,
+    ) -> bool {
+        if token_end == region_start || markup_end == Some(token_end) {
+            return true;
+        }
+        let Some(previous) = token_end.checked_sub(1) else {
+            return false;
+        };
+        if matches!(self.bytes[previous], b';' | b'}') {
+            return true;
+        }
+        if !self.bytes[token_end..index].iter().any(|byte| matches!(byte, b'\n' | b'\r')) {
+            return false;
+        }
+        match self.bytes[previous] {
+            b'\'' | b'"' | b'`' | b']' => true,
+            byte if byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$') => {
+                let word_start = self.bytes[..=previous]
+                    .iter()
+                    .rposition(|byte| {
+                        !(byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$'))
+                    })
+                    .map_or(0, |at| at + 1);
+                !matches!(&self.bytes[word_start..=previous], b"else" | b"try" | b"finally" | b"do")
+            }
+            _ => false,
+        }
     }
 }

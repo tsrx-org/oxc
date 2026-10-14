@@ -28,6 +28,8 @@ enum Action {
     Embedded(u32),
     ParserShorthand(u32),
     StatementBoundary(u32),
+    CaseExpressionStart(u32),
+    CaseExpressionEnd(u32),
 }
 
 impl Action {
@@ -51,6 +53,12 @@ impl Action {
             // The boundary precedes everything else written at the same markup opening.
             Self::StatementBoundary(boundary) => {
                 (overlay.statement_boundaries[boundary as usize], 0)
+            }
+            Self::CaseExpressionStart(expression) => {
+                (overlay.case_expressions[expression as usize].start, 0)
+            }
+            Self::CaseExpressionEnd(expression) => {
+                (overlay.case_expressions[expression as usize].end.saturating_sub(1), 0)
             }
         }
     }
@@ -597,6 +605,40 @@ impl<'a> Builder<'a> {
     /// opening so the authored `<` is still copied verbatim and every authored byte keeps its
     /// segment. Used for line-leading markup and for a sibling JSX statement after another JSX
     /// tree.
+    /// Writes an `@case` or `@default` consequent `{ … }` as the only child of a marked element,
+    /// so Oxfmt prints it as the expression container `@tsrx/core` reads, not as a block.
+    fn case_expression_start(&mut self, expression: u32) -> Result<(), ProjectionError> {
+        let span = self.case_expression(expression)?;
+        self.copy_to(span.start as usize)?;
+        write!(self.output, ";<{}Q{expression}>", self.prefix)
+            .expect("writing to a String cannot fail");
+        Ok(())
+    }
+
+    fn case_expression_end(&mut self, expression: u32) -> Result<(), ProjectionError> {
+        let span = self.case_expression(expression)?;
+        self.copy_to(span.end as usize)?;
+        write!(self.output, "</{}Q{expression}>;", self.prefix)
+            .expect("writing to a String cannot fail");
+        Ok(())
+    }
+
+    fn case_expression(&self, expression: u32) -> Result<ByteSpan, ProjectionError> {
+        let span = *self
+            .overlay
+            .case_expressions
+            .get(expression as usize)
+            .ok_or(ProjectionError::StructuralMismatch)?;
+        let bytes = self.source.as_bytes();
+        if span.end <= span.start
+            || bytes.get(span.start as usize) != Some(&b'{')
+            || bytes.get(span.end as usize - 1) != Some(&b'}')
+        {
+            return Err(ProjectionError::SourceChanged { offset: span.start });
+        }
+        Ok(span)
+    }
+
     fn statement_boundary(&mut self, boundary: u32) -> Result<(), ProjectionError> {
         let offset = *self
             .overlay
@@ -855,6 +897,8 @@ struct PendingActions<'a> {
     try_ends: &'a [Action],
     code_block_ends: &'a [Action],
     headers: &'a [Action],
+    case_expression_ends: &'a [Action],
+    case_expressions: usize,
     wrapper: usize,
     try_end: usize,
     code_block_end: usize,
@@ -863,6 +907,8 @@ struct PendingActions<'a> {
     embedded: usize,
     shorthand: usize,
     statement_boundary: usize,
+    case_expression_start: usize,
+    case_expression_end: usize,
 }
 
 impl<'a> PendingActions<'a> {
@@ -872,6 +918,7 @@ impl<'a> PendingActions<'a> {
         try_ends: &'a [Action],
         code_block_ends: &'a [Action],
         headers: &'a [Action],
+        case_expression_ends: &'a [Action],
     ) -> Self {
         Self {
             overlay,
@@ -879,6 +926,8 @@ impl<'a> PendingActions<'a> {
             try_ends,
             code_block_ends,
             headers,
+            case_expression_ends,
+            case_expressions: case_expression_ends.len(),
             wrapper: 0,
             try_end: 0,
             code_block_end: 0,
@@ -887,6 +936,8 @@ impl<'a> PendingActions<'a> {
             embedded: 0,
             shorthand: 0,
             statement_boundary: 0,
+            case_expression_start: 0,
+            case_expression_end: 0,
         }
     }
 
@@ -904,7 +955,12 @@ impl<'a> PendingActions<'a> {
             < self.overlay.statement_boundaries.len())
         .then(|| to_u32(self.statement_boundary).map(Action::StatementBoundary))
         .transpose()?;
+        let case_expression_start = (self.case_expression_start < self.case_expressions)
+            .then(|| to_u32(self.case_expression_start).map(Action::CaseExpressionStart))
+            .transpose()?;
         Ok([
+            self.case_expression_ends.get(self.case_expression_end).copied(),
+            case_expression_start,
             self.wrappers.get(self.wrapper).copied(),
             self.try_ends.get(self.try_end).copied(),
             self.code_block_ends.get(self.code_block_end).copied(),
@@ -929,6 +985,8 @@ impl<'a> PendingActions<'a> {
             Action::Embedded(_) => self.embedded += 1,
             Action::ParserShorthand(_) => self.shorthand += 1,
             Action::StatementBoundary(_) => self.statement_boundary += 1,
+            Action::CaseExpressionStart(_) => self.case_expression_start += 1,
+            Action::CaseExpressionEnd(_) => self.case_expression_end += 1,
         }
         let (position, _) = action.key(self.overlay);
         if builder.consumed.start <= position && position < builder.consumed.end {
@@ -948,6 +1006,8 @@ impl<'a> PendingActions<'a> {
             }
             Action::ParserShorthand(attribute) => builder.parser_shorthand(attribute),
             Action::StatementBoundary(boundary) => builder.statement_boundary(boundary),
+            Action::CaseExpressionStart(expression) => builder.case_expression_start(expression),
+            Action::CaseExpressionEnd(expression) => builder.case_expression_end(expression),
         }
     }
 }
@@ -985,6 +1045,16 @@ pub(super) fn build_projection_with_purpose(
         .map(|(index, _)| to_u32(index).map(Action::ParserCodeBlockEnd))
         .collect::<Result<Vec<_>, _>>()?;
     parser_code_block_end_actions.sort_unstable_by_key(|action| action.key(overlay));
+    // Only the formatter lane: the other lanes read the braces as a block, which types and lints
+    // the expression inside the same way.
+    let mut case_expression_end_actions = if record_segments {
+        Vec::new()
+    } else {
+        (0..overlay.case_expressions.len())
+            .map(|index| to_u32(index).map(Action::CaseExpressionEnd))
+            .collect::<Result<Vec<_>, _>>()?
+    };
+    case_expression_end_actions.sort_unstable_by_key(|action| action.key(overlay));
 
     let mut builder = Builder::new(
         source,
@@ -1013,6 +1083,7 @@ pub(super) fn build_projection_with_purpose(
         &try_end_actions,
         &parser_code_block_end_actions,
         &header_actions,
+        &case_expression_end_actions,
     );
     while let Some(action) = pending.next()? {
         pending.apply(&mut builder, action)?;

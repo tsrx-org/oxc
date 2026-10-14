@@ -40,6 +40,8 @@ pub(crate) struct Scanner<'a> {
     pub(super) jsx_text_comments: Vec<ByteSpan>,
     /// Offsets of each `>` in JSX text, in source order; see [`Overlay`].
     pub(super) jsx_text_gts: Vec<u32>,
+    /// See [`Overlay`].
+    pub(super) case_expressions: Vec<ByteSpan>,
     pub(super) implicit_closes: Vec<ImplicitClose>,
     pub(super) first_root: u32,
     pub(super) last_root: u32,
@@ -68,6 +70,7 @@ impl<'a> Scanner<'a> {
             markup_statements: Vec::new(),
             jsx_text_comments: Vec::new(),
             jsx_text_gts: Vec::new(),
+            case_expressions: Vec::new(),
             implicit_closes: Vec::new(),
             first_root: NONE,
             last_root: NONE,

@@ -2375,4 +2375,126 @@ mod tests {
         assert_eq!(second.code, first.code);
         assert!(!second.changed);
     }
+
+    #[test]
+    fn case_and_default_expression_containers_stay_containers() {
+        // `@tsrx/core` reads a `{ … }` consequent of an `@case` or `@default` body as a
+        // template expression container and rejects a `;` inside it (TSRX1007). The
+        // formatter printed each one as a block statement, ending the expression with `;`.
+        let source = concat!(
+            "export function Asset(props: Props) @{\n",
+            "  @switch (props.tag) {\n",
+            "    @case 'style': {\n",
+            "      {createElement('style', {\n",
+            "        ...props.attrs,\n",
+            "        dangerouslySetInnerHTML: { __html: props.children ?? '' },\n",
+            "      })}\n",
+            "    }\n",
+            "    @case 'title': { {props.title} }\n",
+            "    @default: {\n",
+            "      <i />\n",
+            "      {props.fallback}\n",
+            "    }\n",
+            "  }\n",
+            "}\n",
+        );
+        for options in [root_options(&json!({})), root_options(&json!({ "semi": false }))] {
+            let first =
+                format_text_with_options(Path::new("Asset.tsrx"), source, Some(&options)).unwrap();
+            assert_eq!(first.metadata.mode, FormatMode::Projected);
+            assert!(first.code.contains("      {createElement(\"style\", {\n"), "{}", first.code);
+            assert!(first.code.contains("\n      })}\n"), "{}", first.code);
+            assert!(first.code.contains("\n      {props.title}\n"), "{}", first.code);
+            assert!(first.code.contains("\n      {props.fallback}\n"), "{}", first.code);
+            assert!(!first.code.contains("_t"), "{}", first.code);
+            let second =
+                format_text_with_options(Path::new("Asset.tsrx"), &first.code, Some(&options))
+                    .unwrap();
+            assert_eq!(second.code, first.code);
+        }
+    }
+
+    #[test]
+    fn a_comment_before_a_case_body_expression_container_keeps_it_a_container() {
+        // The consequent check looked back only past whitespace, so a comment before the `{`
+        // hid it and the container was printed as a block ending in `;` again.
+        let source = concat!(
+            "export function Asset(props: Props) @{\n",
+            "  @switch (props.tag) {\n",
+            "    @case 'title': {\n",
+            "      /* title */\n",
+            "      {props.title}\n",
+            "    }\n",
+            "    @default: {\n",
+            "      <i />\n",
+            "      // fallback\n",
+            "      {props.fallback}\n",
+            "    }\n",
+            "  }\n",
+            "}\n",
+        );
+        let options = root_options(&json!({}));
+        let first =
+            format_text_with_options(Path::new("Asset.tsrx"), source, Some(&options)).unwrap();
+        assert!(first.code.contains("/* title */\n      {props.title}\n"), "{}", first.code);
+        assert!(first.code.contains("// fallback\n      {props.fallback}\n"), "{}", first.code);
+        let second =
+            format_text_with_options(Path::new("Asset.tsrx"), &first.code, Some(&options)).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn line_and_block_comments_before_case_body_expression_containers_keep_them_containers() {
+        // Each position that starts a consequent (the body opening, a `;`, a `}`, a markup
+        // element), followed by a line or block comment on the same line and then the `{`.
+        let source = concat!(
+            "export function Asset(props: Props) @{\n",
+            "  @switch (props.tag) {\n",
+            "    @case 'a': { // open line\n",
+            "      {props.a}\n",
+            "    }\n",
+            "    @case 'b': { /* open block */ {props.b} }\n",
+            "    @case 'c': {\n",
+            "      const cc = props.c; /* after semi */ {cc}\n",
+            "    }\n",
+            "    @case 'd': {\n",
+            "      const dd = props.d; // after semi\n",
+            "      {dd}\n",
+            "    }\n",
+            "    @case 'e': {\n",
+            "      if (props.e) { log(); } /* after brace */ {props.e}\n",
+            "    }\n",
+            "    @default: {\n",
+            "      <i /> /* after markup */ {props.fallback}\n",
+            "      <b /> // after markup\n",
+            "      {props.other}\n",
+            "    }\n",
+            "  }\n",
+            "}\n",
+        );
+        for options in [root_options(&json!({})), root_options(&json!({ "semi": false }))] {
+            let first =
+                format_text_with_options(Path::new("Asset.tsrx"), source, Some(&options)).unwrap();
+            assert_eq!(first.metadata.mode, FormatMode::Projected);
+            for expression in
+                ["props.a", "props.b", "cc", "dd", "props.e", "props.fallback", "props.other"]
+            {
+                assert!(
+                    first.code.contains(&format!("{{{expression}}}")),
+                    "{expression}: {}",
+                    first.code
+                );
+                assert!(
+                    !first.code.contains(&format!("{expression};")),
+                    "{expression}: {}",
+                    first.code
+                );
+            }
+            assert!(!first.code.contains("_t"), "{}", first.code);
+            let second =
+                format_text_with_options(Path::new("Asset.tsrx"), &first.code, Some(&options))
+                    .unwrap();
+            assert_eq!(second.code, first.code);
+        }
+    }
 }
