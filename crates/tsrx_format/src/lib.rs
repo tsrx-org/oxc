@@ -2266,6 +2266,35 @@ mod tests {
     }
 
     #[test]
+    fn multiline_attribute_strings_keep_their_text_under_every_end_of_line() {
+        // Bugbot on tsrx-org/oxc#210: under `endOfLine: "cr"` a multi-line attribute string holds
+        // only `\r`, and its continuation lines must keep their indent as under LF.
+        let source = concat!(
+            "export function View({ ok }: { ok: boolean }) @{\n",
+            "  <main>\n",
+            "    @if (ok) {\n",
+            "      <b\n",
+            "        title=\"one\n",
+            "          two\"\n",
+            "      />\n",
+            "    }\n",
+            "  </main>\n",
+            "}\n",
+        );
+        let lf = format_text(Path::new("Attr.tsrx"), source).unwrap().code;
+        for (end_of_line, newline) in [("crlf", "\r\n"), ("cr", "\r")] {
+            let options = root_options(&json!({ "endOfLine": end_of_line }));
+            let first =
+                format_text_with_options(Path::new("Attr.tsrx"), source, Some(&options)).unwrap();
+            assert_eq!(first.code, lf.replace('\n', newline), "{end_of_line}");
+            let second =
+                format_text_with_options(Path::new("Attr.tsrx"), &first.code, Some(&options))
+                    .unwrap();
+            assert_eq!(second.code, first.code, "{end_of_line}");
+        }
+    }
+
+    #[test]
     fn multiline_attribute_strings_on_generic_elements_keep_their_text_inside_control_flow() {
         // The `>` closing the type arguments, and the `=>` inside them, do not end the tag.
         let source = concat!(

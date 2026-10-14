@@ -91,7 +91,10 @@ impl Scanner<'_> {
                     b'\'' | b'"' => {
                         let quote_start = index;
                         index = self.skip_jsx_quote(index, byte)?;
-                        if self.bytes[quote_start..index].contains(&b'\n') {
+                        if self.bytes[quote_start..index]
+                            .iter()
+                            .any(|byte| matches!(byte, b'\n' | b'\r'))
+                        {
                             self.multiline_attribute_strings
                                 .push(ByteSpan::new(to_u32(quote_start)?, to_u32(index)?));
                         }
