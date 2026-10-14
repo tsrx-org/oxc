@@ -87,7 +87,12 @@ impl Scanner<'_> {
                         expecting_attribute_value = false;
                     }
                     b'\'' | b'"' => {
+                        let quote_start = index;
                         index = self.skip_jsx_quote(index, byte)?;
+                        if self.bytes[quote_start..index].contains(&b'\n') {
+                            self.multiline_attribute_strings
+                                .push(ByteSpan::new(to_u32(quote_start)?, to_u32(index)?));
+                        }
                         expecting_attribute_value = false;
                     }
                     b'{' => {

@@ -803,7 +803,13 @@ fn render_scaffolds(
     wrappers: &[WrapperEdit],
     edits: &[ScaffoldEdit],
 ) -> Result<String, ProjectionError> {
-    let mut writer = LiftWriter::new(source.len());
+    // The scanner, not a byte heuristic, says which quotes are JSX attribute values: type
+    // arguments, arrows, and text all look alike byte by byte. Oxfmt output always scans; if it
+    // ever did not, every line takes the dedent, which is the behavior before attribute strings
+    // were tracked.
+    let attribute_strings =
+        crate::scanner::multiline_jsx_attribute_strings(source).unwrap_or_default();
+    let mut writer = LiftWriter::new(source.len(), attribute_strings);
     let mut active: Vec<usize> = Vec::with_capacity(8);
     let mut active_dedent = 0usize;
     let mut wrapper_cursor = 0usize;
@@ -833,7 +839,7 @@ fn render_scaffolds(
             if source_cursor > next_end {
                 return Err(ProjectionError::StructuralMismatch);
             }
-            writer.write(&source[source_cursor..next_end], active_dedent);
+            writer.write(&source[source_cursor..next_end], Some(source_cursor), active_dedent);
             let wrapper_index = active.pop().ok_or(ProjectionError::StructuralMismatch)?;
             let wrapper = wrappers[wrapper_index];
             source_cursor = wrapper.replace_end;
@@ -847,7 +853,7 @@ fn render_scaffolds(
             if !active.is_empty() {
                 return Err(ProjectionError::StructuralMismatch);
             }
-            writer.write(&source[source_cursor..], active_dedent);
+            writer.write(&source[source_cursor..], Some(source_cursor), active_dedent);
             break;
         }
 
@@ -858,8 +864,8 @@ fn render_scaffolds(
             {
                 return Err(ProjectionError::ScaffoldMismatch { index: edit.index });
             }
-            writer.write(&source[source_cursor..edit.start], active_dedent);
-            writer.write(edit.replacement.text(), active_dedent);
+            writer.write(&source[source_cursor..edit.start], Some(source_cursor), active_dedent);
+            writer.write(edit.replacement.text(), None, active_dedent);
             source_cursor = edit.end;
             edit_cursor += 1;
         } else {
@@ -873,8 +879,12 @@ fn render_scaffolds(
             {
                 return Err(ProjectionError::ScaffoldMismatch { index: wrapper.index });
             }
-            writer.write(&source[source_cursor..wrapper.replace_start], active_dedent);
-            writer.write(wrapper.replacement.text(), active_dedent);
+            writer.write(
+                &source[source_cursor..wrapper.replace_start],
+                Some(source_cursor),
+                active_dedent,
+            );
+            writer.write(wrapper.replacement.text(), None, active_dedent);
             source_cursor = wrapper.content_start;
             active_dedent =
                 active_dedent.checked_add(wrapper.dedent).ok_or(ProjectionError::SourceTooLarge)?;

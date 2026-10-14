@@ -30,6 +30,23 @@ pub(crate) struct Scanner<'a> {
     first_root: u32,
     last_root: u32,
     parents: Vec<u32>,
+    /// Quoted JSX attribute values that span lines, quotes included. Only the format lift reads
+    /// these, and the common single-line case never allocates.
+    multiline_attribute_strings: Vec<ByteSpan>,
+}
+
+/// Returns the span of every quoted JSX attribute value in `source` that spans lines, quotes
+/// included, in source order.
+///
+/// # Errors
+///
+/// Returns an error if `source` does not scan as TSRX.
+pub(crate) fn multiline_jsx_attribute_strings(
+    source: &str,
+) -> Result<Vec<ByteSpan>, ProjectionError> {
+    let mut scanner = Scanner::new(source);
+    scanner.scan_region(0, None)?;
+    Ok(scanner.multiline_attribute_strings)
 }
 
 pub(crate) fn source_fingerprint(bytes: &[u8]) -> u128 {
@@ -64,6 +81,7 @@ impl<'a> Scanner<'a> {
             first_root: NONE,
             last_root: NONE,
             parents: Vec::with_capacity(8),
+            multiline_attribute_strings: Vec::new(),
         }
     }
 
