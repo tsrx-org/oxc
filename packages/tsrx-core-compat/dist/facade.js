@@ -79,6 +79,17 @@ const TYPESCRIPT_REACT_PARSER_OPTIONS = Object.freeze({
 	astType: "ts"
 });
 const TYPESCRIPT_DEFINITION_PARSER_OPTIONS = ordinaryParserOptions("dts");
+const PRESERVED_PARENS_PARSER_OPTIONS = new Map([
+	TYPESCRIPT_PARSER_OPTIONS,
+	TYPESCRIPT_REACT_PARSER_OPTIONS,
+	TYPESCRIPT_DEFINITION_PARSER_OPTIONS
+].map((options) => [options, Object.freeze({
+	...options,
+	preserveParens: true
+})]));
+function nativeParserOptions(options, preserveParens) {
+	return preserveParens ? PRESERVED_PARENS_PARSER_OPTIONS.get(options) ?? options : options;
+}
 function parserOptions(filename, eagerTsrx = false) {
 	let pathname = filename;
 	const query = pathname.indexOf("?");
@@ -1551,7 +1562,7 @@ function narrowTemplateElements(value, positionAt) {
 		};
 	}
 }
-function materializeCompatibilityProgram(program, source, filename, loose, positionAt, restoresLoneSurrogates = false) {
+function materializeCompatibilityProgram(program, source, filename, loose, positionAt, restoresLoneSurrogates = false, preserveParens = false) {
 	if (typeof source !== "string") return;
 	const decodesJsx = source.includes("&") || source.includes("\r");
 	restoresLoneSurrogates &&= LONE_SURROGATE.test(source);
@@ -1669,13 +1680,13 @@ function materializeCompatibilityProgram(program, source, filename, loose, posit
 			let child = value[key];
 			if (key === "parent" || key === "loc" || key === "metadata" || key.endsWith("Keyword") || child === null || typeof child !== "object") continue;
 			if (Array.isArray(child)) for (let index = child.length - 1; index >= 0; index -= 1) {
-				const unwrapped = unwrapParenthesizedExpression(child[index]);
+				const unwrapped = preserveParens ? child[index] : unwrapParenthesizedExpression(child[index]);
 				if (unwrapped !== child[index]) child[index] = unwrapped;
 				stack.push(unwrapped);
 				insideHeadStack.push(childInsideHead);
 			}
 			else {
-				const unwrapped = unwrapParenthesizedExpression(child);
+				const unwrapped = preserveParens ? child : unwrapParenthesizedExpression(child);
 				if (unwrapped !== child) {
 					value[key] = unwrapped;
 					child = unwrapped;
@@ -2433,14 +2444,15 @@ function createTsrxCoreCompat(parser) {
 			const resolvedFilename = filename || "module.tsrx";
 			const collecting = Boolean(options?.collect || options?.loose);
 			const wantsComments = Array.isArray(options?.comments);
-			const eagerTsrx = !options?.loose && !wantsComments;
+			const preserveParens = options?.preserveParens === true;
+			const eagerTsrx = !options?.loose && !wantsComments && !preserveParens;
 			let selectedParserOptions = parserOptions(resolvedFilename, eagerTsrx);
 			let positionAt;
 			const positions = () => positionAt ??= positionLookup(source);
 			let result;
 			try {
 				try {
-					result = parser.parseSync(resolvedFilename, source, selectedParserOptions);
+					result = parser.parseSync(resolvedFilename, source, nativeParserOptions(selectedParserOptions, preserveParens));
 				} catch (ordinaryError) {
 					if (selectedParserOptions !== TYPESCRIPT_REACT_PARSER_OPTIONS || typeof source !== "string" || !(source.includes("@{") || TEXT_COMMENT.test(source) || rejectsJsxTextGt([ordinaryError, ...ordinaryError?.errors ?? []]) || rejectsShorthandAttribute([ordinaryError, ...ordinaryError?.errors ?? []]))) throw ordinaryError;
 					let retry = null;
@@ -2506,7 +2518,7 @@ function createTsrxCoreCompat(parser) {
 				if (program === null) {
 					const recovery = submoduleRecovery(source, nativeErrors);
 					if (recovery !== null) {
-						result = parser.parseSync(resolvedFilename, recovery.source, selectedParserOptions);
+						result = parser.parseSync(resolvedFilename, recovery.source, nativeParserOptions(selectedParserOptions, preserveParens));
 						program = parserResultProgram(result);
 						nativeErrors = parserResultErrors(result);
 						if (program !== null) restoreSubmoduleSources(program, recovery.candidates);
@@ -2555,7 +2567,7 @@ function createTsrxCoreCompat(parser) {
 				throw missingProgramError(resolvedFilename);
 			}
 			const ordinaryLane = selectedParserOptions !== PARSER_OPTIONS && selectedParserOptions !== EAGER_PARSER_OPTIONS;
-			materializeCompatibilityProgram(program, source, resolvedFilename, Boolean(options?.loose), positions(), ordinaryLane);
+			materializeCompatibilityProgram(program, source, resolvedFilename, Boolean(options?.loose), positions(), ordinaryLane, preserveParens);
 			if (wantsComments) {
 				const restores = ordinaryLane && typeof source === "string" && LONE_SURROGATE.test(source);
 				for (const comment of comments) options.comments.push(compatibleComment(comment, positions(), restores ? source : null));

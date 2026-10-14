@@ -13,6 +13,11 @@ export interface CompileError extends Error {
 export interface ParseOptions {
   collect?: boolean;
   loose?: boolean;
+  /**
+   * Keep each parenthesized expression as a `ParenthesizedExpression` node, as `@tsrx/core`
+   * does. By default the parentheses are removed and the inner expression is returned.
+   */
+  preserveParens?: boolean;
   errors?: CompileError[];
   comments?: CommentWithLocation[];
 }

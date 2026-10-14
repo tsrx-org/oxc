@@ -126,6 +126,20 @@ const TYPESCRIPT_REACT_PARSER_OPTIONS = Object.freeze({
 });
 const TYPESCRIPT_DEFINITION_PARSER_OPTIONS = ordinaryParserOptions("dts");
 
+// `@tsrx/core` keeps each parenthesized expression as a `ParenthesizedExpression` node when the
+// caller passes `preserveParens: true`, whatever the file's extension (tsrx-org/oxc#200). The TSRX
+// lane always parses with parentheses kept; an ordinary lane parses with this copy of its options.
+// The lane's own options object stays the selected one, so the identity checks below still hold.
+const PRESERVED_PARENS_PARSER_OPTIONS = new Map(
+  [TYPESCRIPT_PARSER_OPTIONS, TYPESCRIPT_REACT_PARSER_OPTIONS, TYPESCRIPT_DEFINITION_PARSER_OPTIONS].map(
+    (options) => [options, Object.freeze({ ...options, preserveParens: true })],
+  ),
+);
+
+function nativeParserOptions(options, preserveParens) {
+  return preserveParens ? (PRESERVED_PARENS_PARSER_OPTIONS.get(options) ?? options) : options;
+}
+
 function parserOptions(filename, eagerTsrx = false) {
   let pathname = filename;
   const query = pathname.indexOf("?");
@@ -2030,6 +2044,7 @@ function materializeCompatibilityProgram(
   loose,
   positionAt,
   restoresLoneSurrogates = false,
+  preserveParens = false,
 ) {
   if (typeof source !== "string") return;
   const decodesJsx = source.includes("&") || source.includes("\r");
@@ -2237,13 +2252,13 @@ function materializeCompatibilityProgram(
       }
       if (Array.isArray(child)) {
         for (let index = child.length - 1; index >= 0; index -= 1) {
-          const unwrapped = unwrapParenthesizedExpression(child[index]);
+          const unwrapped = preserveParens ? child[index] : unwrapParenthesizedExpression(child[index]);
           if (unwrapped !== child[index]) child[index] = unwrapped;
           stack.push(unwrapped);
           insideHeadStack.push(childInsideHead);
         }
       } else {
-        const unwrapped = unwrapParenthesizedExpression(child);
+        const unwrapped = preserveParens ? child : unwrapParenthesizedExpression(child);
         if (unwrapped !== child) {
           value[key] = unwrapped;
           child = unwrapped;
@@ -3105,7 +3120,10 @@ export function createTsrxCoreCompat(parser) {
       const resolvedFilename = filename || "module.tsrx";
       const collecting = Boolean(options?.collect || options?.loose);
       const wantsComments = Array.isArray(options?.comments);
-      const eagerTsrx = !options?.loose && !wantsComments;
+      const preserveParens = options?.preserveParens === true;
+      // The eager TSRX route removes parentheses natively, so a parse that keeps them takes the
+      // lazy route, whose tree has each `ParenthesizedExpression` (tsrx-org/oxc#200).
+      const eagerTsrx = !options?.loose && !wantsComments && !preserveParens;
       let selectedParserOptions = parserOptions(resolvedFilename, eagerTsrx);
       let positionAt;
       const positions = () => (positionAt ??= positionLookup(source));
@@ -3113,7 +3131,11 @@ export function createTsrxCoreCompat(parser) {
 
       try {
         try {
-          result = parser.parseSync(resolvedFilename, source, selectedParserOptions);
+          result = parser.parseSync(
+            resolvedFilename,
+            source,
+            nativeParserOptions(selectedParserOptions, preserveParens),
+          );
         } catch (ordinaryError) {
           if (
             selectedParserOptions !== TYPESCRIPT_REACT_PARSER_OPTIONS ||
@@ -3223,7 +3245,11 @@ export function createTsrxCoreCompat(parser) {
         if (program === null) {
           const recovery = submoduleRecovery(source, nativeErrors);
           if (recovery !== null) {
-            result = parser.parseSync(resolvedFilename, recovery.source, selectedParserOptions);
+            result = parser.parseSync(
+              resolvedFilename,
+              recovery.source,
+              nativeParserOptions(selectedParserOptions, preserveParens),
+            );
             program = parserResultProgram(result);
             nativeErrors = parserResultErrors(result);
             if (program !== null) restoreSubmoduleSources(program, recovery.candidates);
@@ -3326,6 +3352,7 @@ export function createTsrxCoreCompat(parser) {
         Boolean(options?.loose),
         positions(),
         ordinaryLane,
+        preserveParens,
       );
 
       if (wantsComments) {
