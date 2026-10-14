@@ -1189,11 +1189,12 @@ function findSubmoduleSources(source) {
 	}
 	return candidates;
 }
+const SUBMODULE_SOURCE_ERRORS = /* @__PURE__ */ new Set(["Unexpected token", "Expected `from` but found `Identifier`"]);
 function submoduleRecovery(source, errors) {
 	if (typeof source !== "string") return null;
 	const unexpectedStarts = /* @__PURE__ */ new Set();
 	for (const error of errors) {
-		if (error?.message !== "Unexpected token" || !Array.isArray(error?.labels)) continue;
+		if (!SUBMODULE_SOURCE_ERRORS.has(error?.message) || !Array.isArray(error?.labels)) continue;
 		for (const label of error.labels) if (Number.isInteger(label?.start)) unexpectedStarts.add(label.start);
 	}
 	if (unexpectedStarts.size === 0) return null;

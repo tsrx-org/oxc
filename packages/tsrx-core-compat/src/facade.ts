@@ -1475,11 +1475,17 @@ function findSubmoduleSources(source) {
   return candidates;
 }
 
+// The parser errors that can point at an unquoted submodule source. `import source from server;`
+// reads `source` as the source phase keyword and `from` as the binding, so the parser then
+// expects a second `from` where `server` is (tsrx-org/oxc#201). Quoting `server` makes it the
+// default import `source` again, as in TypeScript and @tsrx/core.
+const SUBMODULE_SOURCE_ERRORS = new Set(["Unexpected token", "Expected `from` but found `Identifier`"]);
+
 function submoduleRecovery(source, errors) {
   if (typeof source !== "string") return null;
   const unexpectedStarts = new Set();
   for (const error of errors) {
-    if (error?.message !== "Unexpected token" || !Array.isArray(error?.labels)) continue;
+    if (!SUBMODULE_SOURCE_ERRORS.has(error?.message) || !Array.isArray(error?.labels)) continue;
     for (const label of error.labels) {
       if (Number.isInteger(label?.start)) unexpectedStarts.add(label.start);
     }
