@@ -59,7 +59,12 @@ pub(super) fn lift_text_comments(
         let kept = prefix.trim_end();
         match (before, prefix[kept.len()..].contains(['\n', '\r'])) {
             (Gap::Glued, true) => output.push_str(kept),
-            (Gap::Spaced, true) if kept.ends_with(SPACER) => {
+            // A spacer on its own line stays: a space at the start of a line is layout.
+            (Gap::Spaced, true)
+                if kept.strip_suffix(SPACER).is_some_and(|stem| {
+                    !stem.trim_end_matches([' ', '\t']).ends_with(['\n', '\r'])
+                }) =>
+            {
                 output.push_str(&kept[..kept.len() - SPACER.len()]);
                 output.push(' ');
             }
@@ -77,6 +82,12 @@ pub(super) fn lift_text_comments(
             output.push_str(indent);
         }
         copied = close + 1;
+        // Text glued to a block comment that starts with `//` would become a comment on a line of
+        // its own, so the line break Oxfmt put between them goes.
+        let rest = source[copied..].trim_start();
+        if !line && after == Gap::Glued && rest.starts_with("//") {
+            copied = source.len() - rest.len();
+        }
         // A line break the author wrote after a block comment, which Oxfmt dropped, is layout.
         if !line
             && after == Gap::Layout

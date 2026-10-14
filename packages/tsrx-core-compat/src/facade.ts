@@ -126,6 +126,20 @@ const TYPESCRIPT_REACT_PARSER_OPTIONS = Object.freeze({
 });
 const TYPESCRIPT_DEFINITION_PARSER_OPTIONS = ordinaryParserOptions("dts");
 
+// `@tsrx/core` keeps each parenthesized expression as a `ParenthesizedExpression` node when the
+// caller passes `preserveParens: true`, whatever the file's extension (tsrx-org/oxc#200). The TSRX
+// lane always parses with parentheses kept; an ordinary lane parses with this copy of its options.
+// The lane's own options object stays the selected one, so the identity checks below still hold.
+const PRESERVED_PARENS_PARSER_OPTIONS = new Map(
+  [TYPESCRIPT_PARSER_OPTIONS, TYPESCRIPT_REACT_PARSER_OPTIONS, TYPESCRIPT_DEFINITION_PARSER_OPTIONS].map(
+    (options) => [options, Object.freeze({ ...options, preserveParens: true })],
+  ),
+);
+
+function nativeParserOptions(options, preserveParens) {
+  return preserveParens ? (PRESERVED_PARENS_PARSER_OPTIONS.get(options) ?? options) : options;
+}
+
 function parserOptions(filename, eagerTsrx = false) {
   let pathname = filename;
   const query = pathname.indexOf("?");
@@ -1430,6 +1444,52 @@ function looseRecovery(parser, filename, source) {
   return null;
 }
 
+const NOT_SUBMODULE_NAMES = new Set(["from", "as", "of"]);
+const SPECIFIER_ATTRIBUTE_WORDS = new Set(["with", "assert"]);
+const LINE_BREAK = /[\n\r\u2028\u2029]/u;
+
+// Whether the `from` at `start` can be an import's or export's `from` keyword: the token before
+// it ends an import or export clause, so it is `}`, `*`, or a name, not an operator or a `(`.
+function followsImportClause(source, start) {
+  let index = start - 1;
+  for (;;) {
+    while (index >= 0 && WHITESPACE.test(source[index])) index -= 1;
+    if (index >= 1 && source[index] === "/" && source[index - 1] === "*") {
+      const open = source.lastIndexOf("/*", index - 2);
+      if (open === -1) return false;
+      index = open - 1;
+      continue;
+    }
+    break;
+  }
+  if (index < 0) return false;
+  const character = source[index];
+  return character === "}" || character === "*" || IDENTIFIER_CONTINUE.test(character);
+}
+
+// Whether a module specifier can end at `end`: the statement ends there (a `;`, a `}`, a line
+// break, or the end of the file), or import attributes follow.
+function endsModuleSpecifier(source, end) {
+  let index = end;
+  for (;;) {
+    while (index < source.length && WHITESPACE.test(source[index])) {
+      if (LINE_BREAK.test(source[index])) return true;
+      index += 1;
+    }
+    if (source[index] === "/" && source[index + 1] === "/") return true;
+    if (source[index] === "/" && source[index + 1] === "*") {
+      const close = source.indexOf("*/", index + 2);
+      if (close === -1 || LINE_BREAK.test(source.slice(index, close))) return true;
+      index = close + 2;
+      continue;
+    }
+    break;
+  }
+  if (index >= source.length || source[index] === ";" || source[index] === "}") return true;
+  const word = readIdentifier(source, index);
+  return word !== null && SPECIFIER_ATTRIBUTE_WORDS.has(word.name);
+}
+
 function findSubmoduleSources(source) {
   const candidates = [];
   let index = 0;
@@ -1457,12 +1517,18 @@ function findSubmoduleSources(source) {
     }
     index = identifier.end;
     if (identifier.name !== "from") continue;
+    if (!followsImportClause(source, identifier.start)) continue;
 
     const replaceStart = index;
     while (index < source.length && WHITESPACE.test(source[index])) index += 1;
     if (index === replaceStart) continue;
     const moduleSource = readIdentifier(source, index);
     if (moduleSource === null) continue;
+    // `from from` is a binding named `from` and then the `from` keyword, as in
+    // `import source from from './m.wasm'`, so the second `from` is read again as the keyword
+    // (Bugbot on tsrx-org/oxc#207). No keyword, and not `as` or `of`, is a module name here.
+    if (NOT_SUBMODULE_NAMES.has(moduleSource.name) || ACORN_KEYWORDS.has(moduleSource.name)) continue;
+    if (!endsModuleSpecifier(source, moduleSource.end)) continue;
     candidates.push({
       replaceStart,
       replaceEnd: moduleSource.end,
@@ -1475,11 +1541,17 @@ function findSubmoduleSources(source) {
   return candidates;
 }
 
+// The parser errors that can point at an unquoted submodule source. `import source from server;`
+// reads `source` as the source phase keyword and `from` as the binding, so the parser then
+// expects a second `from` where `server` is (tsrx-org/oxc#201). Quoting `server` makes it the
+// default import `source` again, as in TypeScript and @tsrx/core.
+const SUBMODULE_SOURCE_ERRORS = new Set(["Unexpected token", "Expected `from` but found `Identifier`"]);
+
 function submoduleRecovery(source, errors) {
   if (typeof source !== "string") return null;
   const unexpectedStarts = new Set();
   for (const error of errors) {
-    if (error?.message !== "Unexpected token" || !Array.isArray(error?.labels)) continue;
+    if (!SUBMODULE_SOURCE_ERRORS.has(error?.message) || !Array.isArray(error?.labels)) continue;
     for (const label of error.labels) {
       if (Number.isInteger(label?.start)) unexpectedStarts.add(label.start);
     }
@@ -2030,6 +2102,7 @@ function materializeCompatibilityProgram(
   loose,
   positionAt,
   restoresLoneSurrogates = false,
+  preserveParens = false,
 ) {
   if (typeof source !== "string") return;
   const decodesJsx = source.includes("&") || source.includes("\r");
@@ -2237,13 +2310,13 @@ function materializeCompatibilityProgram(
       }
       if (Array.isArray(child)) {
         for (let index = child.length - 1; index >= 0; index -= 1) {
-          const unwrapped = unwrapParenthesizedExpression(child[index]);
+          const unwrapped = preserveParens ? child[index] : unwrapParenthesizedExpression(child[index]);
           if (unwrapped !== child[index]) child[index] = unwrapped;
           stack.push(unwrapped);
           insideHeadStack.push(childInsideHead);
         }
       } else {
-        const unwrapped = unwrapParenthesizedExpression(child);
+        const unwrapped = preserveParens ? child : unwrapParenthesizedExpression(child);
         if (unwrapped !== child) {
           value[key] = unwrapped;
           child = unwrapped;
@@ -3105,7 +3178,10 @@ export function createTsrxCoreCompat(parser) {
       const resolvedFilename = filename || "module.tsrx";
       const collecting = Boolean(options?.collect || options?.loose);
       const wantsComments = Array.isArray(options?.comments);
-      const eagerTsrx = !options?.loose && !wantsComments;
+      const preserveParens = options?.preserveParens === true;
+      // The eager TSRX route removes parentheses natively, so a parse that keeps them takes the
+      // lazy route, whose tree has each `ParenthesizedExpression` (tsrx-org/oxc#200).
+      const eagerTsrx = !options?.loose && !wantsComments && !preserveParens;
       let selectedParserOptions = parserOptions(resolvedFilename, eagerTsrx);
       let positionAt;
       const positions = () => (positionAt ??= positionLookup(source));
@@ -3113,7 +3189,11 @@ export function createTsrxCoreCompat(parser) {
 
       try {
         try {
-          result = parser.parseSync(resolvedFilename, source, selectedParserOptions);
+          result = parser.parseSync(
+            resolvedFilename,
+            source,
+            nativeParserOptions(selectedParserOptions, preserveParens),
+          );
         } catch (ordinaryError) {
           if (
             selectedParserOptions !== TYPESCRIPT_REACT_PARSER_OPTIONS ||
@@ -3223,7 +3303,11 @@ export function createTsrxCoreCompat(parser) {
         if (program === null) {
           const recovery = submoduleRecovery(source, nativeErrors);
           if (recovery !== null) {
-            result = parser.parseSync(resolvedFilename, recovery.source, selectedParserOptions);
+            result = parser.parseSync(
+              resolvedFilename,
+              recovery.source,
+              nativeParserOptions(selectedParserOptions, preserveParens),
+            );
             program = parserResultProgram(result);
             nativeErrors = parserResultErrors(result);
             if (program !== null) restoreSubmoduleSources(program, recovery.candidates);
@@ -3326,6 +3410,7 @@ export function createTsrxCoreCompat(parser) {
         Boolean(options?.loose),
         positions(),
         ordinaryLane,
+        preserveParens,
       );
 
       if (wantsComments) {

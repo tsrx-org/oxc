@@ -1,4 +1,4 @@
-use crate::diagnostics::ProjectionError;
+use crate::{diagnostics::ProjectionError, model::ByteSpan};
 
 use super::text::TextState;
 
@@ -9,10 +9,14 @@ pub(super) struct LiftWriter {
     template_interpolations: Vec<usize>,
     line_start: bool,
     previous_byte: Option<u8>,
+    /// Multi-line quoted JSX attribute values in the formatted text, as the scanner found them.
+    /// Oxfmt prints these verbatim, so their continuation lines keep their indent.
+    attribute_strings: Vec<ByteSpan>,
+    next_attribute_string: usize,
 }
 
 impl LiftWriter {
-    pub(super) fn new(capacity: usize) -> Self {
+    pub(super) fn new(capacity: usize, attribute_strings: Vec<ByteSpan>) -> Self {
         Self {
             output: Vec::with_capacity(capacity),
             state: TextState::Code,
@@ -20,14 +24,22 @@ impl LiftWriter {
             template_interpolations: Vec::with_capacity(4),
             line_start: true,
             previous_byte: None,
+            attribute_strings,
+            next_attribute_string: 0,
         }
     }
 
-    pub(super) fn write(&mut self, source: &str, dedent: usize) {
+    /// Writes `source`, dropping up to `dedent` columns of indent from each line it starts.
+    /// `origin` is the offset of `source` in the formatted text, or `None` for scaffold
+    /// replacements, which never sit inside an attribute string.
+    pub(super) fn write(&mut self, source: &str, origin: Option<usize>, dedent: usize) {
         let bytes = source.as_bytes();
         let mut index = 0usize;
         while index < bytes.len() {
-            if self.line_start && self.state != TextState::Template {
+            if self.line_start
+                && !matches!(self.state, TextState::Template | TextState::BlockComment)
+                && !origin.is_some_and(|origin| self.inside_attribute_string(origin + index))
+            {
                 let mut removed = 0usize;
                 while removed < dedent
                     && bytes.get(index).is_some_and(|byte| matches!(byte, b' ' | b'\t'))
@@ -43,10 +55,26 @@ impl LiftWriter {
             let byte = bytes[index];
             self.output.push(byte);
             self.update_text_state(byte, bytes.get(index + 1).copied());
-            self.line_start = byte == b'\n';
+            // CR alone ends a line under `endOfLine: "cr"`.
+            self.line_start = matches!(byte, b'\n' | b'\r');
             self.previous_byte = Some(byte);
             index += 1;
         }
+    }
+
+    /// Whether `position`, the first byte of a line, continues a multi-line attribute string.
+    /// Lines are visited in increasing order, so the cursor only moves forward.
+    fn inside_attribute_string(&mut self, position: usize) -> bool {
+        while self
+            .attribute_strings
+            .get(self.next_attribute_string)
+            .is_some_and(|span| span.end as usize <= position)
+        {
+            self.next_attribute_string += 1;
+        }
+        self.attribute_strings
+            .get(self.next_attribute_string)
+            .is_some_and(|span| (span.start as usize) < position)
     }
 
     fn update_text_state(&mut self, byte: u8, next: Option<u8>) {
@@ -109,7 +137,7 @@ impl LiftWriter {
                 }
             }
             TextState::LineComment => {
-                if byte == b'\n' {
+                if matches!(byte, b'\n' | b'\r') {
                     self.state = TextState::Code;
                 }
             }

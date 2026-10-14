@@ -42,6 +42,7 @@ pub(super) struct DynamicManifest {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct StyleManifest {
     pub(super) payload: ByteSpan,
+    pub(super) self_closing: bool,
 }
 
 /// What separates a comment in JSX text from its neighbour on one side, as authored.
@@ -109,6 +110,9 @@ pub struct FormatProjection {
     pub(super) text_comments: Vec<[Gap; 2]>,
     /// How many `>` in JSX text the projection wrote as [`Self::gt_stand_in`].
     pub(super) text_gts: usize,
+    /// How many `@case` and `@default` expression containers the projection wrote in marked
+    /// elements.
+    pub(super) case_expressions: usize,
     /// The private-use character written for each `>` in JSX text, which the source never holds.
     pub(super) gt_stand_in: char,
     pub(super) parser_code_blocks: Vec<ParserCodeBlock>,
@@ -129,17 +133,18 @@ impl FormatProjection {
         self.tokens.len()
             + self.dynamics.len()
             + self.dynamic_comments.len()
-            + self.styles.len()
+            + self.style_count()
             + self.scripts.len()
             + self.text_comments.len()
             + self.text_gts
+            + self.case_expressions
             + self.parser_code_blocks.len()
             + self.parser_shorthand_attributes.len()
     }
 
     #[must_use]
     pub fn style_count(&self) -> usize {
-        self.styles.len()
+        self.styles.iter().filter(|style| !style.self_closing).count()
     }
 
     /// Returns the collision-free synthetic dynamic-tag namespace and expected tag count.
@@ -173,8 +178,11 @@ pub fn project_for_format(
     for (slot, manifest) in built.tries.iter().enumerate() {
         try_slots[manifest.node as usize] = to_u32(slot)?;
     }
-    let styles =
-        overlay.style_blocks.iter().map(|style| StyleManifest { payload: style.content }).collect();
+    let styles = overlay
+        .style_blocks
+        .iter()
+        .map(|style| StyleManifest { payload: style.content, self_closing: style.self_closing })
+        .collect();
     let scripts = overlay
         .script_blocks
         .iter()
@@ -218,6 +226,7 @@ pub fn project_for_format(
             })
             .collect(),
         text_gts: overlay.jsx_text_gts.len(),
+        case_expressions: overlay.case_expressions.len(),
         gt_stand_in: built.gt_stand_in,
         parser_code_blocks: overlay.parser_code_blocks.clone(),
         parser_shorthand_attributes: overlay.parser_shorthand_attributes.clone(),
@@ -251,7 +260,7 @@ mod layout_tests {
         assert_eq!(size_of::<TokenManifest>(), 8);
         assert_eq!(size_of::<TryManifest>(), 8);
         assert_eq!(size_of::<DynamicManifest>(), 1);
-        assert_eq!(size_of::<StyleManifest>(), 8);
+        assert_eq!(size_of::<StyleManifest>(), 12);
         assert_eq!(size_of::<ScriptManifest>(), 8);
     }
 }

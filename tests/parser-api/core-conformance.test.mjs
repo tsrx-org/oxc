@@ -7,7 +7,8 @@ import { parseModule } from "../../packages/tsrx-core-compat/dist/index.js";
 // #114, #115, #116, #117, #118, #125, #127, and #128. Every expected value below is what @tsrx/core 0.5.0 (tsrx main at
 // f78fada) returns for the same source, so a difference here is a difference from the reference
 // parser. The #111, #145, #146, #147, #148, #149, #150, #151, #152, and #153 tests, and the shape
-// tests at the end, take theirs from @tsrx/core 0.5.2.
+// tests at the end, take theirs from @tsrx/core 0.5.2. The #200 test takes its from @tsrx/core 0.5.2
+// and 0.5.4, which agree on it. The #201 test takes its from @tsrx/core 0.5.4.
 
 function findAll(root, predicate) {
   const found = [];
@@ -2027,4 +2028,165 @@ test("#150: a template body after a comparison is still an expression code block
   assert.deepEqual(comparisons("x = (a <<= b, c > @{ <div /> });"), [[14, 30, "JSXCodeBlock", 18, 30]]);
   assert.deepEqual(comparisons("x <<= y > @{ <div /> };"), [[6, 22, "JSXCodeBlock", 10, 22]]);
   assert.deepEqual(comparisons("y = c ? f(a) : b > @{ <div /> };"), [[15, 31, "JSXCodeBlock", 19, 31]]);
+});
+
+test("#200: preserveParens: true keeps each ParenthesizedExpression, as core does", () => {
+  const initializers = (source, filename, options) =>
+    parseModule(source, filename, options).body.map(({ declarations: [{ init }] }) => [
+      init.type,
+      init.start,
+      init.end,
+      init.loc.start.line,
+      init.loc.start.column,
+      init.loc.end.line,
+      init.loc.end.column,
+      init.expression?.type,
+      init.expression?.start,
+      init.expression?.end,
+    ]);
+  const source = "const a = (1 + 2);\nconst b = (<div />);\nconst c = ((x));\n";
+  // Core reads every file with its TSRX grammar, so `.tsx` keeps the parentheses as `.tsrx` does.
+  for (const filename of ["App.tsrx", "App.tsx"]) {
+    assert.deepEqual(
+      initializers(source, filename, { preserveParens: true }),
+      [
+        ["ParenthesizedExpression", 10, 17, 1, 10, 1, 17, "BinaryExpression", 11, 16],
+        ["ParenthesizedExpression", 29, 38, 2, 10, 2, 19, "JSXElement", 30, 37],
+        ["ParenthesizedExpression", 50, 55, 3, 10, 3, 15, "ParenthesizedExpression", 51, 54],
+      ],
+      filename,
+    );
+    const removed = [
+      ["BinaryExpression", 11, 16, 1, 11, 1, 16, undefined, undefined, undefined],
+      ["JSXElement", 30, 37, 2, 11, 2, 18, undefined, undefined, undefined],
+      ["Identifier", 52, 53, 3, 12, 3, 13, undefined, undefined, undefined],
+    ];
+    assert.deepEqual(initializers(source, filename), removed, filename);
+    assert.deepEqual(initializers(source, filename, { preserveParens: false }), removed, filename);
+  }
+  assert.deepEqual(
+    initializers("const a = (1 + 2);\nconst c = ((x));\n", "App.ts", { preserveParens: true }),
+    [
+      ["ParenthesizedExpression", 10, 17, 1, 10, 1, 17, "BinaryExpression", 11, 16],
+      ["ParenthesizedExpression", 29, 34, 2, 10, 2, 15, "ParenthesizedExpression", 30, 33],
+    ],
+  );
+  // The option holds in the loose and comment-collecting parses too, which take the lazy lane.
+  for (const options of [{ loose: true }, { comments: [] }]) {
+    assert.deepEqual(
+      initializers(source, "App.tsrx", { ...options, preserveParens: true }).map(([type]) => type),
+      ["ParenthesizedExpression", "ParenthesizedExpression", "ParenthesizedExpression"],
+    );
+  }
+});
+
+test("#201: a default import named source from an inline module is a default import", () => {
+  const imports = (source) =>
+    parseModule(source, "App.tsrx").body.map((declaration) => ({
+      type: declaration.type,
+      phase: declaration.phase ?? null,
+      specifiers: declaration.specifiers.map(({ type, local }) => [type, local.name, local.start, local.end]),
+      source: [
+        declaration.source.type,
+        declaration.source.name ?? declaration.source.value,
+        declaration.source.start,
+        declaration.source.end,
+      ],
+    }));
+  // `source` before `from <identifier>` is a binding, not the source phase keyword.
+  assert.deepEqual(imports("import source from server;"), [
+    {
+      type: "ImportDeclaration",
+      phase: null,
+      specifiers: [["ImportDefaultSpecifier", "source", 7, 13]],
+      source: ["Identifier", "server", 19, 25],
+    },
+  ]);
+  // The same import named `defer` already parsed this way.
+  assert.deepEqual(imports("import defer from server;"), [
+    {
+      type: "ImportDeclaration",
+      phase: null,
+      specifiers: [["ImportDefaultSpecifier", "defer", 7, 12]],
+      source: ["Identifier", "server", 18, 24],
+    },
+  ]);
+  // With a string source, `source` is a default import too.
+  assert.deepEqual(imports("import source from './m.js';"), [
+    {
+      type: "ImportDeclaration",
+      phase: null,
+      specifiers: [["ImportDefaultSpecifier", "source", 7, 13]],
+      source: ["Literal", "./m.js", 19, 27],
+    },
+  ]);
+  // A second `from` still makes `source` the phase and `from` the binding.
+  assert.deepEqual(imports("import source from from './m.wasm';"), [
+    {
+      type: "ImportDeclaration",
+      phase: "source",
+      specifiers: [["ImportDefaultSpecifier", "from", 14, 18]],
+      source: ["Literal", "./m.wasm", 24, 34],
+    },
+  ]);
+  // Next to an inline module declaration, the import keeps its identifier source.
+  const [, declaration] = parseModule(
+    "module server { export const value = 1; }\nimport source from server;",
+    "App.tsrx",
+  ).body;
+  assert.deepEqual(
+    [declaration.type, declaration.phase ?? null, declaration.specifiers[0].local.name, declaration.source.type],
+    ["ImportDeclaration", null, "source", "Identifier"],
+  );
+
+  // A binding named `from` elsewhere in the file is never read as an inline module name, so a
+  // source phase import next to the inline module import keeps its phase (Bugbot on #207).
+  const shapes = (source) =>
+    parseModule(source, "App.tsrx").body.map((node) => [
+      node.type,
+      node.phase ?? null,
+      node.specifiers?.map(({ local, exported }) => (exported ?? local).name) ?? null,
+      node.source ? [node.source.type, node.source.name ?? node.source.value, node.source.start, node.source.end] : null,
+    ]);
+  assert.deepEqual(shapes("import source from server;\nimport source from from './m.wasm';"), [
+    ["ImportDeclaration", null, ["source"], ["Identifier", "server", 19, 25]],
+    ["ImportDeclaration", "source", ["from"], ["Literal", "./m.wasm", 51, 61]],
+  ]);
+  assert.deepEqual(shapes("import source from from './m.wasm';\nimport source from server;"), [
+    ["ImportDeclaration", "source", ["from"], ["Literal", "./m.wasm", 24, 34]],
+    ["ImportDeclaration", null, ["source"], ["Identifier", "server", 55, 61]],
+  ]);
+  assert.deepEqual(shapes("export { from } from server;\nimport source from from './m.wasm';"), [
+    ["ExportNamedDeclaration", null, ["from"], ["Identifier", "server", 21, 27]],
+    ["ImportDeclaration", "source", ["from"], ["Literal", "./m.wasm", 53, 63]],
+  ]);
+  // A source phase import of `from` from an inline module.
+  assert.deepEqual(shapes("import source from from server;"), [
+    ["ImportDeclaration", "source", ["from"], ["Identifier", "server", 24, 30]],
+  ]);
+  // `from as`, and a `from` that is a value, are not module sources.
+  assert.deepEqual(
+    shapes(
+      "import source from server;\nexport { from as alias } from './m.js';\nimport { from as x } from server;",
+    ),
+    [
+      ["ImportDeclaration", null, ["source"], ["Identifier", "server", 19, 25]],
+      ["ExportNamedDeclaration", null, ["alias"], ["Literal", "./m.js", 57, 65]],
+      ["ImportDeclaration", null, ["x"], ["Identifier", "server", 93, 99]],
+    ],
+  );
+  assert.deepEqual(shapes("const from = 1;\nconst found = from in {};\nimport source from server;"), [
+    ["VariableDeclaration", null, null, null],
+    ["VariableDeclaration", null, null, null],
+    ["ImportDeclaration", null, ["source"], ["Identifier", "server", 61, 67]],
+  ]);
+  // Comments after the name, and a last statement without a `;`, still end the specifier.
+  assert.deepEqual(
+    shapes("import source from server /* c */;\nimport defer from server // c\nexport * from server"),
+    [
+      ["ImportDeclaration", null, ["source"], ["Identifier", "server", 19, 25]],
+      ["ImportDeclaration", null, ["defer"], ["Identifier", "server", 53, 59]],
+      ["ExportAllDeclaration", null, null, ["Identifier", "server", 79, 85]],
+    ],
+  );
 });

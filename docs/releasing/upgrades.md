@@ -29,12 +29,14 @@ Every Vite+ release up to and including 0.3.1 carries the critical advisory
 clean-install consumer fail on any high or critical `npm audit` finding, which
 keeps an advisory like this one from passing quietly.
 
-Vite+ 1.x is not a supported lane yet. Vite+ 1.2.0 stopped passing the project's
-`vite.config` to Oxlint with `-c`, and the canonical Oxlint this package delegates
-ordinary files to only discovers `vite.config.ts` on its own. In a project with a
-`vite.config.mjs` that uses `overrides`, `extends`, or `ignorePatterns`, the
-ordinary half of `vp lint` would lose those settings. It also requires Node
-22.18 or later, above this package's Node 20.19 floor.
+Vite+ 1.x is not a supported lane yet. It requires Node 22.18 or later, above
+this package's Node 20.19 floor. Vite+ 1.x also stopped passing the project's
+`vite.config` to Oxlint with `-c`, and the canonical Oxlint this package
+delegates ordinary files to only discovers `vite.config.ts` on its own. The lint
+command now finds the Vite config itself when no `-c` arrives and hands it to
+canonical Oxlint, so a `vite.config.mjs` with `overrides`, `extends`, or
+`ignorePatterns` still applies to ordinary files. A test drives the command the
+way Vite+ 1.x does to keep that true.
 
 Vite+ 0.1.20 is retained only as an isolated non-blocking Markless compatibility
 control. It has published dependency advisories addressed in later Vite+

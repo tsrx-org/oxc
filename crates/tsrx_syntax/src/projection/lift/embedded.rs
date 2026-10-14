@@ -1,4 +1,4 @@
-use crate::diagnostics::ProjectionError;
+use crate::{diagnostics::ProjectionError, scanner::dynamic_expression_token_range};
 
 use super::{
     super::format::FormatProjection,
@@ -22,7 +22,7 @@ pub(super) fn lift_embedded(
     let mut expressions = vec![ScaffoldSpan::MISSING; projection.dynamics.len()];
     let mut opened = vec![false; projection.dynamics.len()];
     let mut closed = vec![false; projection.dynamics.len()];
-    let mut styles = vec![false; projection.styles.len()];
+    let mut styles: Vec<bool> = projection.styles.iter().map(|style| style.self_closing).collect();
     let mut scripts = vec![false; projection.scripts.len()];
     let restored_bytes = projection
         .styles
@@ -52,7 +52,7 @@ pub(super) fn lift_embedded(
             output.push_str(&source[copied..cursor]);
             output.push_str("</{");
             let expression = expressions[index];
-            output.push_str(&source[expression.start..expression.end]);
+            output.push_str(without_edge_comments(&source[expression.start..expression.end]));
             output.push_str("}>");
             copied = end;
             cursor = end;
@@ -102,6 +102,12 @@ pub(super) fn lift_embedded(
             output.push_str(&source[copied..cursor]);
             output.push_str("<{");
             output.push_str(&source[expression.clone()]);
+            // A trailing `//` comment needs the line break the engine printed after it, or it
+            // comments out the `}`.
+            if ends_in_line_comment(&source[expression.clone()]) {
+                let gap = &source[expression.end..expression_close];
+                output.push_str(if gap.contains(['\n', '\r']) { gap } else { "\n" });
+            }
             output.push('}');
             copied = sentinel_end;
             cursor = copied;
@@ -125,7 +131,8 @@ pub(super) fn lift_embedded(
                 .get(manifest.payload.start as usize..manifest.payload.end as usize)
                 .ok_or(ProjectionError::StructuralMismatch)?;
             output.push_str(&source[copied..cursor]);
-            output.push_str(payload);
+            push_raw_payload(&mut output, payload);
+            let end = skip_whitespace_before_close(source, end);
             copied = end;
             cursor = end;
             styles[index] = true;
@@ -147,7 +154,8 @@ pub(super) fn lift_embedded(
                 .get(manifest.payload.start as usize..manifest.payload.end as usize)
                 .ok_or(ProjectionError::StructuralMismatch)?;
             output.push_str(&source[copied..cursor]);
-            output.push_str(payload);
+            push_raw_payload(&mut output, payload);
+            let end = skip_whitespace_before_close(source, end);
             copied = end;
             cursor = end;
             scripts[index] = true;
@@ -171,4 +179,90 @@ pub(super) fn lift_embedded(
         return Err(ProjectionError::ScaffoldMismatch { index });
     }
     Ok(output)
+}
+
+fn push_raw_payload(output: &mut String, payload: &str) {
+    let trimmed = output.trim_end_matches(|c: char| c.is_ascii_whitespace()).len();
+    if output[..trimmed].ends_with('>') {
+        output.truncate(trimmed); // the marker is the only child, so this break is Oxfmt layout, not payload
+    }
+    output.push_str(payload);
+}
+
+fn skip_whitespace_before_close(source: &str, end: usize) -> usize {
+    let next = skip_ascii_whitespace(source, end);
+    if source[next..].starts_with("</") { next } else { end }
+}
+
+/// The dynamic tag expression without its leading and trailing comments, which stay in the
+/// opening tag only: copied into the closing tag, the next pass moves them into the children.
+fn without_edge_comments(expression: &str) -> &str {
+    &expression[dynamic_expression_token_range(expression)]
+}
+
+/// Whether the trimmed `expression` ends inside a `//` comment, which would comment out the `}`
+/// written straight after it.
+fn ends_in_line_comment(expression: &str) -> bool {
+    let bytes = expression.as_bytes();
+    let mut index = dynamic_expression_token_range(expression).end;
+    let mut in_line_comment = false;
+    while index < bytes.len() {
+        if bytes[index].is_ascii_whitespace() {
+            index += 1;
+        } else if bytes[index..].starts_with(b"//") {
+            index = expression[index..].find(['\n', '\r']).map_or(bytes.len(), |at| index + at);
+            in_line_comment = index == bytes.len();
+        } else if bytes[index..].starts_with(b"/*") {
+            index = expression[index + 2..].find("*/").map_or(bytes.len(), |at| index + at + 4);
+            in_line_comment = false;
+        } else {
+            return false;
+        }
+    }
+    in_line_comment
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ends_in_line_comment, without_edge_comments};
+
+    #[test]
+    fn only_a_trailing_line_comment_needs_a_line_break_before_the_brace() {
+        for (expression, expected) in [
+            ("Comp // c", true),
+            ("Comp /* a */ // c", true),
+            ("Comp // c\n/* d */", false),
+            ("Comp /* // c */", false),
+            ("tags[\"//\"]", false),
+            ("pick(/\\//)", false),
+            ("// c\nComp", false),
+        ] {
+            assert_eq!(ends_in_line_comment(expression), expected, "{expression:?}");
+        }
+    }
+
+    #[test]
+    fn edge_comments_come_off_whole_and_inner_text_stays() {
+        // Bugbot on tsrx-org/oxc#198: a `/*` inside a trailing comment cut the closing tag at it,
+        // and a trailing `//` copied into `</{…}>` would comment out the `}>`.
+        for (expression, expected) in [
+            ("Comp /* c */", "Comp"),
+            ("/* c */ Comp", "Comp"),
+            ("Comp /* a /* b */", "Comp"),
+            ("Comp // c\n", "Comp"),
+            ("// c\nComp // d", "Comp"),
+            ("a /* x */.b", "a /* x */.b"),
+            ("tags['/*'] /* c */", "tags['/*']"),
+            // Bugbot on tsrx-org/oxc#198: a regex body is not a comment.
+            ("(/a\\/*b/.test(x) ? A : B) /* c */", "(/a\\/*b/.test(x) ? A : B)"),
+            ("pick(x, /[//]/g) // c\n", "pick(x, /[//]/g)"),
+            ("a / b / c /* c */", "a / b / c"),
+            // A regex after a keyword, and a backtick inside a template substitution.
+            ("pick(typeof /\\//) /* c */", "pick(typeof /\\//)"),
+            ("tags[`${\"`\"}`] /* c */", "tags[`${\"`\"}`]"),
+            ("tags[\"//\"] // c\n", "tags[\"//\"]"),
+        ] {
+            assert_eq!(without_edge_comments(expression), expected, "{expression:?}");
+        }
+    }
 }

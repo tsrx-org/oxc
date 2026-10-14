@@ -21,6 +21,12 @@ pub use dynamic_tags::{
 #[cfg(feature = "parser")]
 pub(crate) use dynamic_tags::validate_dynamic_tags_with_synthetic_calls;
 
+#[cfg(any(feature = "parser", feature = "toolchain"))]
+mod tsrx_grammar;
+
+#[cfg(any(feature = "parser", feature = "toolchain"))]
+pub(crate) use tsrx_grammar::is_tsrx_compatible_grammar_diagnostic;
+
 #[cfg(feature = "toolchain")]
 pub(crate) use dynamic_tags::find_invalid_dynamic_tags;
 

@@ -662,6 +662,7 @@ fn settle_format(
 struct DriftProbe {
     formatted: String,
     source_kind: SourceKind,
+    tsrx: bool,
     expanded_before: u32,
 }
 
@@ -669,7 +670,7 @@ impl DriftProbe {
     /// One parse of the formatted text. Text that does not parse back is treated as drifting so
     /// the next pass surfaces the real error.
     fn may_drift(&self) -> bool {
-        match oxc_adapter::count_expanded_objects(&self.formatted, self.source_kind) {
+        match oxc_adapter::count_expanded_objects(&self.formatted, self.source_kind, self.tsrx) {
             Ok(after) => after > self.expanded_before,
             Err(_) => true,
         }
@@ -711,6 +712,7 @@ fn format_once(
             DynamicTagContract { prefix, count, original_offsets }
         }),
         options: options.map(|options| &options.engine),
+        tsrx: true,
     })?;
     timings.parse_ns = engine.timings.parse_ns;
     timings.format_ns = engine.timings.format_ns;
@@ -744,6 +746,7 @@ fn format_once(
     let probe = DriftProbe {
         formatted: engine.code,
         source_kind: SourceKind::TypeScriptReact,
+        tsrx: true,
         expanded_before: engine.expanded_objects,
     };
     Ok((output, probe))
@@ -760,6 +763,7 @@ fn format_direct(
         source_kind,
         dynamic_tags: None,
         options: options.map(|options| &options.engine),
+        tsrx: false,
     })?;
     let code = apply_final_newline(engine.code, options);
     let output = FormatOutput {
@@ -788,6 +792,7 @@ fn format_direct(
     let probe = DriftProbe {
         formatted: output.code.clone(),
         source_kind,
+        tsrx: false,
         expanded_before: engine.expanded_objects,
     };
     Ok((output, probe))
@@ -942,6 +947,41 @@ mod tests {
             (
                 "export function App() @{\r\t<p>\r\t\ta // c\r\t\tb\r\t</p>\r}\r",
                 "export function App() @{\n  <p>\n    a // c\n    b\n  </p>;\n}\n",
+            ),
+        ] {
+            let first = format_text(Path::new("App.tsrx"), source).unwrap();
+            assert_eq!(first.code, expected);
+            assert_eq!(format_text(Path::new("App.tsrx"), &first.code).unwrap().code, expected);
+        }
+    }
+
+    #[test]
+    fn slashes_glued_to_a_jsx_text_block_comment_stay_text() {
+        // `@tsrx/core` reads `//` right after `*/` as text. Where Oxfmt broke the line between
+        // them, the `//` started a line and became a comment, so `// two three` stopped rendering.
+        let source = "export function App() @{\n  <p>one /* x */// two three</p>\n}\n";
+        let options = root_options(&json!({ "printWidth": 18 }));
+        let first =
+            format_text_with_options(Path::new("App.tsrx"), source, Some(&options)).unwrap();
+        assert!(first.code.contains("/* x */// two"), "{}", first.code);
+        let second =
+            format_text_with_options(Path::new("App.tsrx"), &first.code, Some(&options)).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn a_space_before_a_jsx_text_comment_keeps_its_spacer_on_its_own_line() {
+        // A space after an opening tag and before a comment is a text child. Oxfmt prints it as
+        // `{" "}` on its own line, and the lift turned that into a plain space at the start of a
+        // line, which JSX drops, so `<div> /* c */<b />` lost its space.
+        for (source, expected) in [
+            (
+                "export function App() @{\n  <div> /* c */\n    <b />\n  </div>\n}\n",
+                "export function App() @{\n  <div>\n    {\" \"}\n    /* c */\n    <b />\n  </div>;\n}\n",
+            ),
+            (
+                "export function App() @{\n  <div> // c\n    <b />\n  </div>\n}\n",
+                "export function App() @{\n  <div>\n    {\" \"}\n    // c\n    <b />\n  </div>;\n}\n",
             ),
         ] {
             let first = format_text(Path::new("App.tsrx"), source).unwrap();
@@ -1982,6 +2022,108 @@ mod tests {
     }
 
     #[test]
+    fn self_closing_style_elements_format_beside_raw_style_payloads() {
+        // A self-closing `<style />` has no payload and no projection marker. Before tsrx-org/oxc#180
+        // the lift still waited for one, so the file was refused with "Oxfmt changed TSRX scaffold 0".
+        let source = concat!(
+            "export const bundle = <style apply={[a, b]} />;\n",
+            "export function View() @{<><style apply={theme} /><style>.x{color:red}</style>",
+            "<div><style children={STYLES} /></div></>}\n",
+            "export function Plain() { return <div><style dangerouslySetInnerHTML={{ __html: css }} /></div>; }\n"
+        );
+        let first = format_text(Path::new("SelfClosing.tsrx"), source).unwrap();
+        assert!(first.code.contains("<style apply={[a, b]} />"), "{}", first.code);
+        assert!(first.code.contains("<style apply={theme} />"), "{}", first.code);
+        assert!(first.code.contains("<style>.x{color:red}</style>"), "{}", first.code);
+        assert!(first.code.contains("<style children={STYLES} />"), "{}", first.code);
+        assert!(
+            first.code.contains("<style dangerouslySetInnerHTML={{ __html: css }} />"),
+            "{}",
+            first.code
+        );
+        let second = format_text(Path::new("SelfClosing.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn imports_inside_a_module_block_format_as_the_tsrx_parser_accepts_them() {
+        // TSRX `module server { … }` blocks import their own dependencies. Before tsrx-org/oxc#181
+        // OXC's TS1147 for a namespace import refused the whole file.
+        let source = concat!(
+            "module server {\n",
+            "import { commitOrder } from './server-domain.ts';\n",
+            "import   type { Order } from './domain.ts';\n",
+            "export async function placeOrder(request: Order) { return commitOrder(request) }\n",
+            "}\n\n",
+            "import { placeOrder } from 'server';\n",
+            "export function App() @{ <button onClick={() => placeOrder({})}>Order</button> }\n"
+        );
+        let first = format_text(Path::new("Server.tsrx"), source).unwrap();
+        assert!(
+            first.code.contains("  import { commitOrder } from \"./server-domain.ts\";\n"),
+            "{}",
+            first.code
+        );
+        assert!(
+            first.code.contains("  import type { Order } from \"./domain.ts\";\n"),
+            "{}",
+            first.code
+        );
+        assert!(first.code.contains("import { placeOrder } from \"server\";"), "{}", first.code);
+        assert_eq!(first.metadata.pass_count, 1, "{}", first.code);
+        let second = format_text(Path::new("Server.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
+    fn raw_elements_that_break_keep_their_payload_on_every_pass() {
+        let source = concat!(
+            "export function View() @{\n",
+            "  <div>\n",
+            "    <script type=\"text/plain\" data-kind=\"static\">const a = 1;</script>\n",
+            "    <style data-a=\"1\" data-b=\"2\">.a{color:red}</style>\n",
+            "  </div>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Raw.tsrx"), source).unwrap();
+        assert!(first.code.contains(">const a = 1;</script>"), "{}", first.code);
+        assert!(first.code.contains(">.a{color:red}</style>"), "{}", first.code);
+        let second = format_text(Path::new("Raw.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
+    fn block_comment_continuation_lines_keep_their_indent_inside_a_for_body() {
+        let source = concat!(
+            "export function View({ items }: { items: { id: number }[] }) @{\n",
+            "  <ul>\n",
+            "    @for (const item of items; key item.id) {\n",
+            "      {\n",
+            "        /* first line\n",
+            "    second line */\n",
+            "      }\n",
+            "      <li />\n",
+            "    }\n",
+            "  </ul>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Comment.tsrx"), source).unwrap();
+        assert!(first.code.contains("\n    second line */"), "{}", first.code);
+        let second = format_text(Path::new("Comment.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+        assert!(!second.changed);
+    }
+
+    #[test]
+    fn module_block_imports_stay_a_parse_error_outside_tsrx() {
+        let source = "module server {\n  import { x } from './x.ts';\n}\n";
+        let error = format_text(Path::new("Server.tsx"), source).unwrap_err().to_string();
+        assert!(error.contains("Import declarations in a namespace"), "{error}");
+    }
+
+    #[test]
     fn repeated_dynamic_style_markers_converge_past_single_digit_ordinals() {
         let mut source = String::from("export function View({Tag}:{Tag:string}) @{<main>");
         for _ in 0..32 {
@@ -2094,5 +2236,423 @@ mod tests {
             format_text_with_options(Path::new("Page.tsrx"), &first.code, Some(&options)).unwrap();
         assert_eq!(second.code, first.code);
         assert!(!second.changed);
+    }
+
+    #[test]
+    fn multiline_attribute_strings_keep_their_text_inside_control_flow() {
+        let source = concat!(
+            "export function View({ ok }: { ok: boolean }) @{\n",
+            "  <main>\n",
+            "    @if (ok) {\n",
+            "      <b\n",
+            "        title=\"one\n",
+            "          two\"\n",
+            "      />\n",
+            "    }\n",
+            "    @try {\n",
+            "      <b title='three\n",
+            "          four' />\n",
+            "    } @pending {\n",
+            "      <i />\n",
+            "    }\n",
+            "  </main>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Attr.tsrx"), source).unwrap();
+        assert!(first.code.contains("\"one\n          two\""), "{}", first.code);
+        assert!(first.code.contains("\"three\n          four\""), "{}", first.code);
+        let second = format_text(Path::new("Attr.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn multiline_attribute_strings_keep_their_text_under_every_end_of_line() {
+        // Bugbot on tsrx-org/oxc#210: under `endOfLine: "cr"` a multi-line attribute string holds
+        // only `\r`, and its continuation lines must keep their indent as under LF.
+        let source = concat!(
+            "export function View({ ok }: { ok: boolean }) @{\n",
+            "  <main>\n",
+            "    @if (ok) {\n",
+            "      <b\n",
+            "        title=\"one\n",
+            "          two\"\n",
+            "      />\n",
+            "    }\n",
+            "  </main>\n",
+            "}\n",
+        );
+        let lf = format_text(Path::new("Attr.tsrx"), source).unwrap().code;
+        for (end_of_line, newline) in [("crlf", "\r\n"), ("cr", "\r")] {
+            let options = root_options(&json!({ "endOfLine": end_of_line }));
+            let first =
+                format_text_with_options(Path::new("Attr.tsrx"), source, Some(&options)).unwrap();
+            assert_eq!(first.code, lf.replace('\n', newline), "{end_of_line}");
+            let second =
+                format_text_with_options(Path::new("Attr.tsrx"), &first.code, Some(&options))
+                    .unwrap();
+            assert_eq!(second.code, first.code, "{end_of_line}");
+        }
+    }
+
+    #[test]
+    fn multiline_attribute_strings_on_generic_elements_keep_their_text_inside_control_flow() {
+        // The `>` closing the type arguments, and the `=>` inside them, do not end the tag.
+        let source = concat!(
+            "export function View({ ok }: { ok: boolean }) @{\n",
+            "  <main>\n",
+            "    @if (ok) {\n",
+            "      <List<string>\n",
+            "        title=\"one\n",
+            "          two\"\n",
+            "      />\n",
+            "      <Run<() => void>\n",
+            "        label=\"three\n",
+            "          four\"\n",
+            "      />\n",
+            "    }\n",
+            "  </main>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Generic.tsrx"), source).unwrap();
+        assert!(first.code.contains("\"one\n          two\""), "{}", first.code);
+        assert!(first.code.contains("\"three\n          four\""), "{}", first.code);
+        let second = format_text(Path::new("Generic.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn a_less_than_then_name_equals_quote_in_jsx_text_still_dedents() {
+        // Text cannot hold a raw `<`, so `a <b c="x` reaches the formatter as `{"<"}` or `&lt;`.
+        // Neither opens a tag, so the wrapped `c="…` line is text and takes the dedent.
+        for less_than in ["{\"<\"}", "&lt;"] {
+            let source = format!(
+                concat!(
+                    "export function View({{ ok }}: {{ ok: boolean }}) @{{\n",
+                    "  <main>\n",
+                    "    @if (ok) {{\n",
+                    "      <p>\n",
+                    "        a {}b c=\"x some quoted value that is long enough to wrap the line here and more words follow\" then\n",
+                    "        continue\n",
+                    "      </p>\n",
+                    "    }}\n",
+                    "  </main>\n",
+                    "}}\n",
+                ),
+                less_than
+            );
+            let first = format_text(Path::new("Text.tsrx"), &source).unwrap();
+            let wrapped = first.code.lines().find(|line| line.contains("words follow")).unwrap();
+            assert!(
+                wrapped.starts_with("        ") && !wrapped.starts_with("         "),
+                "{}",
+                first.code
+            );
+            let second = format_text(Path::new("Text.tsrx"), &first.code).unwrap();
+            assert_eq!(second.code, first.code);
+        }
+    }
+
+    #[test]
+    fn a_quote_after_an_equals_sign_in_jsx_text_still_dedents() {
+        // JSX text reading `x = "…"` is not an attribute string: once Oxfmt wraps it, the next
+        // line takes the control-flow dedent like any other text line.
+        let source = concat!(
+            "export function View({ ok }: { ok: boolean }) @{\n",
+            "  <main>\n",
+            "    @if (ok) {\n",
+            "      <p>\n",
+            "        Set the option to x = \"some quoted value that is long enough to wrap the line here and more words follow\" then\n",
+            "        continue\n",
+            "      </p>\n",
+            "    }\n",
+            "  </main>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Text.tsrx"), source).unwrap();
+        let wrapped = first.code.lines().find(|line| line.contains("words follow")).unwrap();
+        assert!(
+            wrapped.starts_with("        ") && !wrapped.starts_with("         "),
+            "{}",
+            first.code
+        );
+        let second = format_text(Path::new("Text.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn a_glued_name_equals_quote_in_jsx_text_still_dedents() {
+        // JSX text reading `x="…"` looks like an attribute but is text: once Oxfmt wraps it, the
+        // next line takes the control-flow dedent like any other text line.
+        let source = concat!(
+            "export function View({ ok }: { ok: boolean }) @{\n",
+            "  <main>\n",
+            "    @if (ok) {\n",
+            "      <p>\n",
+            "        Set the option to x=\"some quoted value that is long enough to wrap the line here and more words follow\" then\n",
+            "        continue\n",
+            "      </p>\n",
+            "    }\n",
+            "  </main>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Text.tsrx"), source).unwrap();
+        for needle in ["words follow", "continue"] {
+            let line = first.code.lines().find(|line| line.contains(needle)).unwrap();
+            assert!(
+                line.starts_with("        ") && !line.starts_with("         "),
+                "{}",
+                first.code
+            );
+        }
+        let second = format_text(Path::new("Text.tsrx"), &first.code).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn case_and_default_expression_containers_stay_containers() {
+        // `@tsrx/core` reads a `{ … }` consequent of an `@case` or `@default` body as a
+        // template expression container and rejects a `;` inside it (TSRX1007). The
+        // formatter printed each one as a block statement, ending the expression with `;`.
+        let source = concat!(
+            "export function Asset(props: Props) @{\n",
+            "  @switch (props.tag) {\n",
+            "    @case 'style': {\n",
+            "      {createElement('style', {\n",
+            "        ...props.attrs,\n",
+            "        dangerouslySetInnerHTML: { __html: props.children ?? '' },\n",
+            "      })}\n",
+            "    }\n",
+            "    @case 'title': { {props.title} }\n",
+            "    @default: {\n",
+            "      <i />\n",
+            "      {props.fallback}\n",
+            "    }\n",
+            "  }\n",
+            "}\n",
+        );
+        for options in [root_options(&json!({})), root_options(&json!({ "semi": false }))] {
+            let first =
+                format_text_with_options(Path::new("Asset.tsrx"), source, Some(&options)).unwrap();
+            assert_eq!(first.metadata.mode, FormatMode::Projected);
+            assert!(first.code.contains("      {createElement(\"style\", {\n"), "{}", first.code);
+            assert!(first.code.contains("\n      })}\n"), "{}", first.code);
+            assert!(first.code.contains("\n      {props.title}\n"), "{}", first.code);
+            assert!(first.code.contains("\n      {props.fallback}\n"), "{}", first.code);
+            assert!(!first.code.contains("_t"), "{}", first.code);
+            let second =
+                format_text_with_options(Path::new("Asset.tsrx"), &first.code, Some(&options))
+                    .unwrap();
+            assert_eq!(second.code, first.code);
+        }
+    }
+
+    #[test]
+    fn a_comment_before_a_case_body_expression_container_keeps_it_a_container() {
+        // The consequent check looked back only past whitespace, so a comment before the `{`
+        // hid it and the container was printed as a block ending in `;` again.
+        let source = concat!(
+            "export function Asset(props: Props) @{\n",
+            "  @switch (props.tag) {\n",
+            "    @case 'title': {\n",
+            "      /* title */\n",
+            "      {props.title}\n",
+            "    }\n",
+            "    @default: {\n",
+            "      <i />\n",
+            "      // fallback\n",
+            "      {props.fallback}\n",
+            "    }\n",
+            "  }\n",
+            "}\n",
+        );
+        let options = root_options(&json!({}));
+        let first =
+            format_text_with_options(Path::new("Asset.tsrx"), source, Some(&options)).unwrap();
+        assert!(first.code.contains("/* title */\n      {props.title}\n"), "{}", first.code);
+        assert!(first.code.contains("// fallback\n      {props.fallback}\n"), "{}", first.code);
+        let second =
+            format_text_with_options(Path::new("Asset.tsrx"), &first.code, Some(&options)).unwrap();
+        assert_eq!(second.code, first.code);
+    }
+
+    #[test]
+    fn line_and_block_comments_before_case_body_expression_containers_keep_them_containers() {
+        // Each position that starts a consequent (the body opening, a `;`, a `}`, a markup
+        // element), followed by a line or block comment on the same line and then the `{`.
+        let source = concat!(
+            "export function Asset(props: Props) @{\n",
+            "  @switch (props.tag) {\n",
+            "    @case 'a': { // open line\n",
+            "      {props.a}\n",
+            "    }\n",
+            "    @case 'b': { /* open block */ {props.b} }\n",
+            "    @case 'c': {\n",
+            "      const cc = props.c; /* after semi */ {cc}\n",
+            "    }\n",
+            "    @case 'd': {\n",
+            "      const dd = props.d; // after semi\n",
+            "      {dd}\n",
+            "    }\n",
+            "    @case 'e': {\n",
+            "      if (props.e) { log(); } /* after brace */ {props.e}\n",
+            "    }\n",
+            "    @default: {\n",
+            "      <i /> /* after markup */ {props.fallback}\n",
+            "      <b /> // after markup\n",
+            "      {props.other}\n",
+            "    }\n",
+            "  }\n",
+            "}\n",
+        );
+        for options in [root_options(&json!({})), root_options(&json!({ "semi": false }))] {
+            let first =
+                format_text_with_options(Path::new("Asset.tsrx"), source, Some(&options)).unwrap();
+            assert_eq!(first.metadata.mode, FormatMode::Projected);
+            for expression in
+                ["props.a", "props.b", "cc", "dd", "props.e", "props.fallback", "props.other"]
+            {
+                assert!(
+                    first.code.contains(&format!("{{{expression}}}")),
+                    "{expression}: {}",
+                    first.code
+                );
+                assert!(
+                    !first.code.contains(&format!("{expression};")),
+                    "{expression}: {}",
+                    first.code
+                );
+            }
+            assert!(!first.code.contains("_t"), "{}", first.code);
+            let second =
+                format_text_with_options(Path::new("Asset.tsrx"), &first.code, Some(&options))
+                    .unwrap();
+            assert_eq!(second.code, first.code);
+        }
+    }
+
+    #[test]
+    fn a_unicode_line_terminator_before_a_case_body_expression_container_keeps_it_a_container() {
+        // U+2028 and U+2029 end a line for ASI just like LF, so the `{` after them starts a
+        // consequent, which `@tsrx/core` reads as an expression container.
+        for terminator in ['\u{2028}', '\u{2029}'] {
+            let source = format!(
+                "export function Asset(props: Props) @{{\n  @switch (props.tag) {{\n    @case 'a': {{\n      const aa = props.a{terminator}{{aa}}\n    }}\n  }}\n}}\n"
+            );
+            for options in [root_options(&json!({})), root_options(&json!({ "semi": false }))] {
+                let first =
+                    format_text_with_options(Path::new("Asset.tsrx"), &source, Some(&options))
+                        .unwrap();
+                assert_eq!(first.metadata.mode, FormatMode::Projected);
+                assert!(first.code.contains("{aa}"), "{}", first.code);
+                assert!(!first.code.contains("aa;"), "{}", first.code);
+                assert!(!first.code.contains("_t"), "{}", first.code);
+                let second =
+                    format_text_with_options(Path::new("Asset.tsrx"), &first.code, Some(&options))
+                        .unwrap();
+                assert_eq!(second.code, first.code);
+            }
+        }
+    }
+
+    #[test]
+    fn case_body_expression_containers_lift_the_same_under_every_end_of_line() {
+        // The lift finds Oxfmt's ASI guard, the container's line, and its indent by line breaks,
+        // which are CR alone under `endOfLine: "cr"`.
+        let source = concat!(
+            "export function Asset(props: Props) @{\n",
+            "  @switch (props.tag) {\n",
+            "    @case 'style': {\n",
+            "      const aa = props.a\n",
+            "      {createElement('style', {\n",
+            "        ...props.attrs,\n",
+            "        dangerouslySetInnerHTML: { __html: props.children ?? '' },\n",
+            "      })}\n",
+            "    }\n",
+            "    @default: {\n",
+            "      <i />\n",
+            "      {[props.fallback]}\n",
+            "    }\n",
+            "  }\n",
+            "}\n",
+        );
+        for semi in [true, false] {
+            let lf = root_options(&json!({ "semi": semi }));
+            let expected =
+                format_text_with_options(Path::new("Asset.tsrx"), source, Some(&lf)).unwrap().code;
+            assert!(expected.contains("\n      })}\n"), "{expected}");
+            assert!(expected.contains("\n      {[props.fallback]}\n"), "{expected}");
+            for (end_of_line, terminator) in [("crlf", "\r\n"), ("cr", "\r")] {
+                let options = root_options(&json!({ "semi": semi, "endOfLine": end_of_line }));
+                let first =
+                    format_text_with_options(Path::new("Asset.tsrx"), source, Some(&options))
+                        .unwrap();
+                assert_eq!(first.code, expected.replace('\n', terminator), "{end_of_line}");
+                let second =
+                    format_text_with_options(Path::new("Asset.tsrx"), &first.code, Some(&options))
+                        .unwrap();
+                assert_eq!(second.code, first.code, "{end_of_line}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_comment_in_a_dynamic_tag_expression_stays_in_the_opening_tag() {
+        // The closing tag was written back from the formatted opening expression, comments and
+        // all, and the next pass moved the closing tag's copy into the children as `{/* c */}`.
+        for (source, expected) in [
+            (
+                "const a = <{Comp /* c */}>text</{Comp}>;\n",
+                "const a = (\n  <{Comp /* c */}>\n    text\n  </{Comp}>\n);\n",
+            ),
+            ("const a = <{/* c */ Comp}></{Comp}>;\n", "const a = <{/* c */ Comp}></{Comp}>;\n"),
+            (
+                "const a = <{a /* x */.b}>text</{a /* x */.b}>;\n",
+                "const a = (\n  <{a /* x */.b}>\n    text\n  </{a /* x */.b}>\n);\n",
+            ),
+            (
+                "const a = <{Comp /* a /* b */}>text</{Comp}>;\n",
+                "const a = (\n  <{Comp /* a /* b */}>\n    text\n  </{Comp}>\n);\n",
+            ),
+            (
+                "const a = <{// c\nComp}>text</{Comp}>;\n",
+                "const a = (\n  <{// c\n      Comp}\n  >\n    text\n  </{Comp}>\n);\n",
+            ),
+            (
+                "const a = <{Comp // c\n}>text</{Comp}>;\n",
+                "const a = (\n  <{Comp // c\n    }\n  >\n    text\n  </{Comp}>\n);\n",
+            ),
+            (
+                "const a = <{Comp /* a /* b */ /* c */}>text</{Comp}>;\n",
+                "const a = (\n  <{Comp /* a /* b */ /* c */}>\n    text\n  </{Comp}>\n);\n",
+            ),
+        ] {
+            let first = format_text(Path::new("App.tsrx"), source).unwrap();
+            assert_eq!(first.code, expected);
+            assert_eq!(format_text(Path::new("App.tsrx"), &first.code).unwrap().code, expected);
+        }
+    }
+
+    #[test]
+    fn comment_markers_inside_a_dynamic_tag_expression_are_not_comments() {
+        // Bugbot on tsrx-org/oxc#198: a `//` or `/*` in a regex, string, or template literal was
+        // read as a comment, which cut the expression written into the closing tag.
+        for (source, expected) in [
+            (
+                "const a = <{pick(typeof /\\//) /* c */}>text</{pick(typeof /\\//)}>;\n",
+                "const a = (\n  <{pick(typeof /\\//) /* c */}>\n    text\n  </{pick(typeof /\\//)}>\n);\n",
+            ),
+            (
+                "const a = <{tags[\"//\"] // c\n}>text</{tags[\"//\"]}>;\n",
+                "const a = (\n  <{tags[\"//\"] // c\n    }\n  >\n    text\n  </{tags[\"//\"]}>\n);\n",
+            ),
+            (
+                "const a = <{tags[`${\"`\"}/*`] /* c */}>text</{tags[`${\"`\"}/*`]}>;\n",
+                "const a = (\n  <{tags[`${\"`\"}/*`] /* c */}>\n    text\n  </{tags[`${\"`\"}/*`]}>\n);\n",
+            ),
+        ] {
+            let first = format_text(Path::new("App.tsrx"), source).unwrap();
+            assert_eq!(first.code, expected);
+            assert_eq!(format_text(Path::new("App.tsrx"), &first.code).unwrap().code, expected);
+        }
     }
 }

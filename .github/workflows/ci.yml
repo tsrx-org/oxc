@@ -70,6 +70,7 @@ jobs:
           cargo fmt --all -- --check
           pnpm run licenses:check
           node --test tests/packaging/boundary.test.mjs
+          pnpm run test:release
 
       - name: Lint and test the Rust workspace
         shell: bash
