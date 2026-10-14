@@ -1430,6 +1430,52 @@ function looseRecovery(parser, filename, source) {
   return null;
 }
 
+const NOT_SUBMODULE_NAMES = new Set(["from", "as", "of"]);
+const SPECIFIER_ATTRIBUTE_WORDS = new Set(["with", "assert"]);
+const LINE_BREAK = /[\n\r\u2028\u2029]/u;
+
+// Whether the `from` at `start` can be an import's or export's `from` keyword: the token before
+// it ends an import or export clause, so it is `}`, `*`, or a name, not an operator or a `(`.
+function followsImportClause(source, start) {
+  let index = start - 1;
+  for (;;) {
+    while (index >= 0 && WHITESPACE.test(source[index])) index -= 1;
+    if (index >= 1 && source[index] === "/" && source[index - 1] === "*") {
+      const open = source.lastIndexOf("/*", index - 2);
+      if (open === -1) return false;
+      index = open - 1;
+      continue;
+    }
+    break;
+  }
+  if (index < 0) return false;
+  const character = source[index];
+  return character === "}" || character === "*" || IDENTIFIER_CONTINUE.test(character);
+}
+
+// Whether a module specifier can end at `end`: the statement ends there (a `;`, a `}`, a line
+// break, or the end of the file), or import attributes follow.
+function endsModuleSpecifier(source, end) {
+  let index = end;
+  for (;;) {
+    while (index < source.length && WHITESPACE.test(source[index])) {
+      if (LINE_BREAK.test(source[index])) return true;
+      index += 1;
+    }
+    if (source[index] === "/" && source[index + 1] === "/") return true;
+    if (source[index] === "/" && source[index + 1] === "*") {
+      const close = source.indexOf("*/", index + 2);
+      if (close === -1 || LINE_BREAK.test(source.slice(index, close))) return true;
+      index = close + 2;
+      continue;
+    }
+    break;
+  }
+  if (index >= source.length || source[index] === ";" || source[index] === "}") return true;
+  const word = readIdentifier(source, index);
+  return word !== null && SPECIFIER_ATTRIBUTE_WORDS.has(word.name);
+}
+
 function findSubmoduleSources(source) {
   const candidates = [];
   let index = 0;
@@ -1457,12 +1503,18 @@ function findSubmoduleSources(source) {
     }
     index = identifier.end;
     if (identifier.name !== "from") continue;
+    if (!followsImportClause(source, identifier.start)) continue;
 
     const replaceStart = index;
     while (index < source.length && WHITESPACE.test(source[index])) index += 1;
     if (index === replaceStart) continue;
     const moduleSource = readIdentifier(source, index);
     if (moduleSource === null) continue;
+    // `from from` is a binding named `from` and then the `from` keyword, as in
+    // `import source from from './m.wasm'`, so the second `from` is read again as the keyword
+    // (Bugbot on tsrx-org/oxc#207). No keyword, and not `as` or `of`, is a module name here.
+    if (NOT_SUBMODULE_NAMES.has(moduleSource.name) || ACORN_KEYWORDS.has(moduleSource.name)) continue;
+    if (!endsModuleSpecifier(source, moduleSource.end)) continue;
     candidates.push({
       replaceStart,
       replaceEnd: moduleSource.end,

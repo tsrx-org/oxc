@@ -2087,4 +2087,55 @@ test("#201: a default import named source from an inline module is a default imp
     [declaration.type, declaration.phase ?? null, declaration.specifiers[0].local.name, declaration.source.type],
     ["ImportDeclaration", null, "source", "Identifier"],
   );
+
+  // A binding named `from` elsewhere in the file is never read as an inline module name, so a
+  // source phase import next to the inline module import keeps its phase (Bugbot on #207).
+  const shapes = (source) =>
+    parseModule(source, "App.tsrx").body.map((node) => [
+      node.type,
+      node.phase ?? null,
+      node.specifiers?.map(({ local, exported }) => (exported ?? local).name) ?? null,
+      node.source ? [node.source.type, node.source.name ?? node.source.value, node.source.start, node.source.end] : null,
+    ]);
+  assert.deepEqual(shapes("import source from server;\nimport source from from './m.wasm';"), [
+    ["ImportDeclaration", null, ["source"], ["Identifier", "server", 19, 25]],
+    ["ImportDeclaration", "source", ["from"], ["Literal", "./m.wasm", 51, 61]],
+  ]);
+  assert.deepEqual(shapes("import source from from './m.wasm';\nimport source from server;"), [
+    ["ImportDeclaration", "source", ["from"], ["Literal", "./m.wasm", 24, 34]],
+    ["ImportDeclaration", null, ["source"], ["Identifier", "server", 55, 61]],
+  ]);
+  assert.deepEqual(shapes("export { from } from server;\nimport source from from './m.wasm';"), [
+    ["ExportNamedDeclaration", null, ["from"], ["Identifier", "server", 21, 27]],
+    ["ImportDeclaration", "source", ["from"], ["Literal", "./m.wasm", 53, 63]],
+  ]);
+  // A source phase import of `from` from an inline module.
+  assert.deepEqual(shapes("import source from from server;"), [
+    ["ImportDeclaration", "source", ["from"], ["Identifier", "server", 24, 30]],
+  ]);
+  // `from as`, and a `from` that is a value, are not module sources.
+  assert.deepEqual(
+    shapes(
+      "import source from server;\nexport { from as alias } from './m.js';\nimport { from as x } from server;",
+    ),
+    [
+      ["ImportDeclaration", null, ["source"], ["Identifier", "server", 19, 25]],
+      ["ExportNamedDeclaration", null, ["alias"], ["Literal", "./m.js", 57, 65]],
+      ["ImportDeclaration", null, ["x"], ["Identifier", "server", 93, 99]],
+    ],
+  );
+  assert.deepEqual(shapes("const from = 1;\nconst found = from in {};\nimport source from server;"), [
+    ["VariableDeclaration", null, null, null],
+    ["VariableDeclaration", null, null, null],
+    ["ImportDeclaration", null, ["source"], ["Identifier", "server", 61, 67]],
+  ]);
+  // Comments after the name, and a last statement without a `;`, still end the specifier.
+  assert.deepEqual(
+    shapes("import source from server /* c */;\nimport defer from server // c\nexport * from server"),
+    [
+      ["ImportDeclaration", null, ["source"], ["Identifier", "server", 19, 25]],
+      ["ImportDeclaration", null, ["defer"], ["Identifier", "server", 53, 59]],
+      ["ExportAllDeclaration", null, null, ["Identifier", "server", 79, 85]],
+    ],
+  );
 });
