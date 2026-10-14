@@ -967,6 +967,24 @@ mod tests {
         let second =
             format_text_with_options(Path::new("App.tsrx"), &first.code, Some(&options)).unwrap();
         assert_eq!(second.code, first.code);
+    fn a_space_before_a_jsx_text_comment_keeps_its_spacer_on_its_own_line() {
+        // A space after an opening tag and before a comment is a text child. Oxfmt prints it as
+        // `{" "}` on its own line, and the lift turned that into a plain space at the start of a
+        // line, which JSX drops, so `<div> /* c */<b />` lost its space.
+        for (source, expected) in [
+            (
+                "export function App() @{\n  <div> /* c */\n    <b />\n  </div>\n}\n",
+                "export function App() @{\n  <div>\n    {\" \"}\n    /* c */\n    <b />\n  </div>;\n}\n",
+            ),
+            (
+                "export function App() @{\n  <div> // c\n    <b />\n  </div>\n}\n",
+                "export function App() @{\n  <div>\n    {\" \"}\n    // c\n    <b />\n  </div>;\n}\n",
+            ),
+        ] {
+            let first = format_text(Path::new("App.tsrx"), source).unwrap();
+            assert_eq!(first.code, expected);
+            assert_eq!(format_text(Path::new("App.tsrx"), &first.code).unwrap().code, expected);
+        }
     }
 
     #[test]
