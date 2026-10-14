@@ -2061,6 +2061,23 @@ mod tests {
         assert!(first.code.contains(">const a = 1;</script>"), "{}", first.code);
         assert!(first.code.contains(">.a{color:red}</style>"), "{}", first.code);
         let second = format_text(Path::new("Raw.tsrx"), &first.code).unwrap();
+    fn block_comment_continuation_lines_keep_their_indent_inside_a_for_body() {
+        let source = concat!(
+            "export function View({ items }: { items: { id: number }[] }) @{\n",
+            "  <ul>\n",
+            "    @for (const item of items; key item.id) {\n",
+            "      {\n",
+            "        /* first line\n",
+            "    second line */\n",
+            "      }\n",
+            "      <li />\n",
+            "    }\n",
+            "  </ul>\n",
+            "}\n",
+        );
+        let first = format_text(Path::new("Comment.tsrx"), source).unwrap();
+        assert!(first.code.contains("\n    second line */"), "{}", first.code);
+        let second = format_text(Path::new("Comment.tsrx"), &first.code).unwrap();
         assert_eq!(second.code, first.code);
         assert!(!second.changed);
     }
