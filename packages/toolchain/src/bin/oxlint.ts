@@ -50,20 +50,27 @@ try {
     const {
       canRunCanonicalOxlint,
       importCanonicalOxlint,
+      parseOxlintInvocation,
       planCanonicalOxlintComposition,
+      withDiscoveredViteConfig,
     } = await import("../lint-invocation.js");
+    const vitePlusHost = Boolean(
+      process.env.VP_VERSION ||
+      process.env.VP_COMMAND ||
+      process.env.NODE_PACKAGE_MANAGER === "vite-plus"
+    );
     if (canRunCanonicalOxlint(args)) {
       // This invocation cannot select TSRX. Execute the exact binary declared
       // by the pinned Oxlint package in this process, preserving canonical
       // output, plugins, config loading, fixes, LSP streams, and
-      // cross-platform behavior.
+      // cross-platform behavior. Vite+ 1.x stopped passing `-c` for its
+      // config, so under a Vite+ host the config canonical Oxlint would not
+      // find on its own is handed over the way Vite+ 0.x handed it.
+      if (vitePlusHost && !parseOxlintInvocation(args).delegateOnly) {
+        process.argv = [...process.argv.slice(0, 2), ...withDiscoveredViteConfig(args)];
+      }
       await importCanonicalOxlint(import.meta.url);
     } else {
-      const vitePlusHost = Boolean(
-        process.env.VP_VERSION ||
-        process.env.VP_COMMAND ||
-        process.env.NODE_PACKAGE_MANAGER === "vite-plus"
-      );
       const plan = vitePlusHost ? null : planCanonicalOxlintComposition(args);
       const prestart = plan === null
         ? Promise.resolve(null)
