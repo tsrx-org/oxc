@@ -55,7 +55,8 @@ impl LiftWriter {
             let byte = bytes[index];
             self.output.push(byte);
             self.update_text_state(byte, bytes.get(index + 1).copied());
-            self.line_start = byte == b'\n';
+            // CR alone ends a line under `endOfLine: "cr"`.
+            self.line_start = matches!(byte, b'\n' | b'\r');
             self.previous_byte = Some(byte);
             index += 1;
         }
@@ -136,7 +137,7 @@ impl LiftWriter {
                 }
             }
             TextState::LineComment => {
-                if byte == b'\n' {
+                if matches!(byte, b'\n' | b'\r') {
                     self.state = TextState::Code;
                 }
             }

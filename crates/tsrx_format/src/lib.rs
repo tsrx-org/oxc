@@ -2502,6 +2502,71 @@ mod tests {
     }
 
     #[test]
+    fn a_unicode_line_terminator_before_a_case_body_expression_container_keeps_it_a_container() {
+        // U+2028 and U+2029 end a line for ASI just like LF, so the `{` after them starts a
+        // consequent, which `@tsrx/core` reads as an expression container.
+        for terminator in ['\u{2028}', '\u{2029}'] {
+            let source = format!(
+                "export function Asset(props: Props) @{{\n  @switch (props.tag) {{\n    @case 'a': {{\n      const aa = props.a{terminator}{{aa}}\n    }}\n  }}\n}}\n"
+            );
+            for options in [root_options(&json!({})), root_options(&json!({ "semi": false }))] {
+                let first =
+                    format_text_with_options(Path::new("Asset.tsrx"), &source, Some(&options))
+                        .unwrap();
+                assert_eq!(first.metadata.mode, FormatMode::Projected);
+                assert!(first.code.contains("{aa}"), "{}", first.code);
+                assert!(!first.code.contains("aa;"), "{}", first.code);
+                assert!(!first.code.contains("_t"), "{}", first.code);
+                let second =
+                    format_text_with_options(Path::new("Asset.tsrx"), &first.code, Some(&options))
+                        .unwrap();
+                assert_eq!(second.code, first.code);
+            }
+        }
+    }
+
+    #[test]
+    fn case_body_expression_containers_lift_the_same_under_every_end_of_line() {
+        // The lift finds Oxfmt's ASI guard, the container's line, and its indent by line breaks,
+        // which are CR alone under `endOfLine: "cr"`.
+        let source = concat!(
+            "export function Asset(props: Props) @{\n",
+            "  @switch (props.tag) {\n",
+            "    @case 'style': {\n",
+            "      const aa = props.a\n",
+            "      {createElement('style', {\n",
+            "        ...props.attrs,\n",
+            "        dangerouslySetInnerHTML: { __html: props.children ?? '' },\n",
+            "      })}\n",
+            "    }\n",
+            "    @default: {\n",
+            "      <i />\n",
+            "      {[props.fallback]}\n",
+            "    }\n",
+            "  }\n",
+            "}\n",
+        );
+        for semi in [true, false] {
+            let lf = root_options(&json!({ "semi": semi }));
+            let expected =
+                format_text_with_options(Path::new("Asset.tsrx"), source, Some(&lf)).unwrap().code;
+            assert!(expected.contains("\n      })}\n"), "{expected}");
+            assert!(expected.contains("\n      {[props.fallback]}\n"), "{expected}");
+            for (end_of_line, terminator) in [("crlf", "\r\n"), ("cr", "\r")] {
+                let options = root_options(&json!({ "semi": semi, "endOfLine": end_of_line }));
+                let first =
+                    format_text_with_options(Path::new("Asset.tsrx"), source, Some(&options))
+                        .unwrap();
+                assert_eq!(first.code, expected.replace('\n', terminator), "{end_of_line}");
+                let second =
+                    format_text_with_options(Path::new("Asset.tsrx"), &first.code, Some(&options))
+                        .unwrap();
+                assert_eq!(second.code, first.code, "{end_of_line}");
+            }
+        }
+    }
+
+    #[test]
     fn a_comment_in_a_dynamic_tag_expression_stays_in_the_opening_tag() {
         // The closing tag was written back from the formatted opening expression, comments and
         // all, and the next pass moved the closing tag's copy into the children as `{/* c */}`.

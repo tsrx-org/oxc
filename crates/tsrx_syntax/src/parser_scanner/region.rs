@@ -8,7 +8,7 @@ use crate::{
 
 use super::Scanner;
 use super::lexical::unsupported_at_construct;
-use super::lexical::{previous_significant_byte, trivia_whitespace_len};
+use super::lexical::{line_terminator_len, previous_significant_byte, trivia_whitespace_len};
 use super::stack::TinyStack;
 
 impl Scanner<'_> {
@@ -470,7 +470,7 @@ impl Scanner<'_> {
         if matches!(self.bytes[previous], b';' | b'}') {
             return true;
         }
-        if !self.bytes[token_end..index].iter().any(|byte| matches!(byte, b'\n' | b'\r')) {
+        if !(token_end..index).any(|at| line_terminator_len(self.bytes, at) > 0) {
             return false;
         }
         match self.bytes[previous] {

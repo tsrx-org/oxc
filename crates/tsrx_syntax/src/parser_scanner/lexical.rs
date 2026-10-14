@@ -622,7 +622,8 @@ pub(super) fn identifier_continue_width(bytes: &[u8], index: usize) -> Option<us
     if is_identifier_continue(byte) {
         return Some(1);
     }
-    if byte.is_ascii() {
+    // U+2028 and U+2029 end the line, as LF does, rather than continuing the identifier.
+    if byte.is_ascii() || line_terminator_len(bytes, index) != 0 {
         return None;
     }
     decode_non_ascii_utf8(bytes, index).map(|(_, width)| width)

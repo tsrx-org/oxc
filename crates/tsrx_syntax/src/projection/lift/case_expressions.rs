@@ -43,11 +43,12 @@ pub(super) fn lift_case_expressions(
         if bytes.get(replace_end) == Some(&b';') {
             replace_end += 1;
         }
-        let dedent = if bytes[open_end..content.start].contains(&b'\n') {
-            line_indent(&lifted, content.start).saturating_sub(line_indent(&lifted, open_start))
-        } else {
-            0
-        };
+        let dedent =
+            if bytes[open_end..content.start].iter().any(|byte| matches!(byte, b'\n' | b'\r')) {
+                line_indent(&lifted, content.start).saturating_sub(line_indent(&lifted, open_start))
+            } else {
+                0
+            };
         let attribute_strings =
             crate::scanner::multiline_jsx_attribute_strings(&lifted).unwrap_or_default();
         let mut writer = LiftWriter::new(content.len(), attribute_strings);

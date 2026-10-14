@@ -90,7 +90,7 @@ pub(super) fn skip_ascii_whitespace(source: &str, mut index: usize) -> usize {
 pub(super) fn line_indent(source: &str, position: usize) -> usize {
     let line_start = source.as_bytes()[..position]
         .iter()
-        .rposition(|byte| *byte == b'\n')
+        .rposition(|byte| matches!(byte, b'\n' | b'\r'))
         .map_or(0, |index| index + 1);
     source.as_bytes()[line_start..position]
         .iter()
