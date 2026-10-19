@@ -50,6 +50,7 @@ pub enum SourceKind {
     JavaScript,
     JavaScriptReact,
     TypeScript,
+    TypeScriptDefinition,
     TypeScriptReact,
 }
 
@@ -89,7 +90,13 @@ impl SourceKind {
         match path.extension().and_then(|extension| extension.to_str()) {
             Some("js" | "mjs" | "cjs") => Ok(Self::JavaScript),
             Some("jsx") => Ok(Self::JavaScriptReact),
-            Some("ts" | "mts" | "cts") => Ok(Self::TypeScript),
+            Some("ts" | "mts" | "cts") => {
+                if SourceType::from_path(path).is_ok_and(SourceType::is_typescript_definition) {
+                    Ok(Self::TypeScriptDefinition)
+                } else {
+                    Ok(Self::TypeScript)
+                }
+            }
             Some("tsx") => Ok(Self::TypeScriptReact),
             extension => Err(SourceKindError { extension: extension.map(ToString::to_string) }),
         }
@@ -100,6 +107,7 @@ impl SourceKind {
             Self::JavaScript => SourceType::unambiguous(),
             Self::JavaScriptReact => SourceType::jsx(),
             Self::TypeScript => SourceType::ts(),
+            Self::TypeScriptDefinition => SourceType::d_ts(),
             Self::TypeScriptReact => SourceType::tsx(),
         }
     }
