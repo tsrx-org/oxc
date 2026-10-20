@@ -24,7 +24,7 @@ fn ambient_exports_survive_linting_and_safe_fix_validation() {
             &action.replacement,
         );
         assert_eq!(fixed, "export const value: string\nexport let mutable: string\n");
-        assert!(editor.code_actions(path, &fixed).unwrap().is_empty());
+        assert_eq!(editor.code_actions(path, &fixed).unwrap(), []);
         assert!(lint.lint_text(path, &fixed).unwrap().diagnostics.is_empty());
     }
 }
