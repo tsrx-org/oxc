@@ -949,6 +949,8 @@ dependencies = [
 name = "oxc_adapter"
 version = "0.22.0"
 dependencies = [
+ "globset",
+ "json-strip-comments",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",

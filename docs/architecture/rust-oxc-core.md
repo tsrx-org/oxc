@@ -79,9 +79,13 @@ official OXC parse and no TypeScript-Go process starts. `--type-aware` and
 - Rules resolve against your file name, and the whole mixed project
   goes to the type checker over stdin in one request. Nothing is written
   into your project.
-- The adapter verifies the official binary from `oxlint-tsgolint` 7.0.2002. A
-  missing or mismatched binary fails with an actionable error instead of
-  silently downgrading.
+- The adapter verifies the official binary from `oxlint-tsgolint` 7.0.2002 or a
+  later 7.0 release, whose protocol is unchanged. A missing or older binary
+  fails with an actionable error instead of silently downgrading.
+- The type checker only finds a tsconfig's files by listing directories, which
+  never shows an in-memory `.tsrx.tsx` copy. So the request also carries an
+  in-memory copy of each owning tsconfig whose `files` lists those copies. That
+  puts each one in its real project, with its real `compilerOptions`.
 - Fixes obey the same safety rule as the native path. Everything else stays
   visible as a non-applicable diagnostic.
 

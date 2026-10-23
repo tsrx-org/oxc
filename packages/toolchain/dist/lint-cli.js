@@ -17,7 +17,8 @@ const NATIVE_VALUE_OPTIONS = /* @__PURE__ */ new Map([
 	["-W", "--warn"],
 	["--warn", "--warn"],
 	["-D", "--deny"],
-	["--deny", "--deny"]
+	["--deny", "--deny"],
+	["--tsconfig", "--tsconfig"]
 ]);
 const UNMATCHED_PATTERN_MESSAGE = "No files found to lint. Please check your paths and ignore patterns.";
 function unknownOptionMessage(name) {

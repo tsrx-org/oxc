@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "custom-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "paths": { "custom-jsx/jsx-runtime": ["../shared/jsx-runtime.d.ts"] },
+    "strict": true,
+    "target": "ESNext",
+    "types": []
+  },
+  "include": ["./src/"]
+}

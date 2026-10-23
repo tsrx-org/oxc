@@ -53,8 +53,8 @@ TSRX, and neither is code a bundler can consume.
   - [Custom JavaScript plugins](/integrations/custom-js-plugins) has the details
     and the measurements.
 - **Type-aware rules need an explicit `--type-aware` or `--type-check`** and the
-  exact supported `oxlint-tsgolint` executable. Any other version fails rather
-  than guess at the protocol, which is what a fresh Vite+ scaffold runs into when
+  supported `oxlint-tsgolint` executable, 7.0.2002 or a later 7.0 release. Any
+  other version fails rather than guess at the protocol, which is what a fresh Vite+ scaffold runs into when
   it resolves Vite+'s own runner instead. See [the type-aware template
   default](/guide/getting-started#if-something-goes-wrong).
 - **`vp lint` and your editor read different config files.** Vite+ owns lint

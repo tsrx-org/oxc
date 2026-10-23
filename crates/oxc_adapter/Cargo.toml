@@ -21,6 +21,8 @@ toolchain = [
   "dep:oxc_diagnostics",
   "dep:oxc_formatter",
   "dep:oxc_formatter_core",
+  "dep:globset",
+  "dep:json-strip-comments",
   "dep:oxc_linter",
   "dep:serde",
   "dep:serde_json",
@@ -37,6 +39,8 @@ editor = [
 ]
 
 [dependencies]
+globset = { version = "0.4.16", optional = true }
+json-strip-comments = { version = "3.1.1", optional = true }
 oxc_allocator = { git = "https://github.com/oxc-project/oxc", rev = "5a6e37e5cf895143a5b34050c50109c46e2ae96a" }
 oxc_ast = { git = "https://github.com/oxc-project/oxc", rev = "5a6e37e5cf895143a5b34050c50109c46e2ae96a" }
 oxc_ast_visit = { git = "https://github.com/oxc-project/oxc", rev = "5a6e37e5cf895143a5b34050c50109c46e2ae96a" }

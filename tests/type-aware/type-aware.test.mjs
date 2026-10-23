@@ -6,10 +6,11 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { installPhysicalToolPackages } from "../vite/physical-consumer.mjs";
@@ -445,5 +446,106 @@ test("the projection request is exempt from the type-aware opt-in, a lint run is
   assert.match(
     linting.stderr,
     /type-aware tsgolint\/type-check mode requires the explicit --type-aware or --type-check opt-in/u,
+  );
+});
+
+// Issue #218. A `.tsrx` projection reaches tsgolint as an in-memory
+// `View.tsrx.tsx`, and tsgolint expands `include` by listing directories, which
+// never shows it. Every projection was checked in tsgolint's inferred project
+// instead: React JSX, no `paths`, no `types`. Each fixture's tsconfig points JSX
+// at a runtime that is not React, so a projection outside its project reports
+// TS2875/TS7016 for `react/jsx-runtime` next to the one planted TS2322.
+const ownerRoot = join(root, "tests/fixtures/type-aware/tsconfig-owner");
+
+async function typeCheckCodes(cwd, extra = []) {
+  const result = await run(
+    cwd,
+    ["--format=json", "--type-check", "-c", join(ownerRoot, ".oxlintrc.json"), ...extra, "src/View.tsrx"],
+    { ...process.env, OXLINT_TSGOLINT_PATH: tsgolint },
+  );
+  assert.equal(result.code, 1, result.stderr || result.stdout);
+  return parseJson(result).diagnostics.map((diagnostic) => diagnostic.code);
+}
+
+for (const [fixture, shape] of [
+  ["include-directory", `"include": ["./src/"]`],
+  ["extends", "an include inherited through extends"],
+  ["solution", "a solution tsconfig whose reference includes **/*.tsrx"],
+]) {
+  test(`--type-check applies the owning tsconfig: ${shape}`, async () => {
+    assert.deepEqual(await typeCheckCodes(join(ownerRoot, fixture)), ["typescript(TS2322)"]);
+  });
+}
+
+test("--tsconfig names the project every .tsrx file is type-checked in", async () => {
+  const cwd = join(ownerRoot, "explicit");
+  // The nearest tsconfig includes only `other/`, so without the flag the file has no project.
+  assert.ok((await typeCheckCodes(cwd)).length > 1);
+  assert.deepEqual(await typeCheckCodes(cwd, ["--tsconfig", "tsconfig.tsrx.json"]), [
+    "typescript(TS2322)",
+  ]);
+});
+
+// A project on current Oxlint installs a later 7.0 tsgolint, and under pnpm its
+// platform binary lives in the store beside `oxlint-tsgolint`, not in the
+// project's `node_modules`. Discovery follows the package link to it, and the
+// version check accepts every later 7.0 release.
+test("a later 7.0 tsgolint in a pnpm store layout is found and accepted", async () => {
+  const project = await mkdtemp(join(tmpdir(), "oxc-tsrx-pnpm-tsgolint-"));
+  const store = join(project, "node_modules/.pnpm/oxlint-tsgolint@7.0.2099/node_modules");
+  const platform = basename(dirname(tsgolint));
+  const nativeDirectory = join(store, "@oxlint-tsgolint", platform);
+  const executable = join(nativeDirectory, basename(tsgolint));
+  await mkdir(join(store, "oxlint-tsgolint"), { recursive: true });
+  await mkdir(nativeDirectory, { recursive: true });
+  await writeFile(
+    join(store, "oxlint-tsgolint/package.json"),
+    JSON.stringify({ name: "oxlint-tsgolint", version: "7.0.2099" }),
+  );
+  await writeFile(
+    join(nativeDirectory, "package.json"),
+    JSON.stringify({ name: `@oxlint-tsgolint/${platform}`, version: "7.0.2099" }),
+  );
+  await copyFile(tsgolint, executable);
+  await chmod(executable, 0o755);
+  await symlink(
+    join(store, "oxlint-tsgolint"),
+    join(project, "node_modules/oxlint-tsgolint"),
+    "junction",
+  );
+  const source = join(project, "View.tsrx");
+  await copyFile(singleSource, source);
+  await copyFile(join(singleRoot, ".oxlintrc.json"), join(project, ".oxlintrc.json"));
+  await copyFile(join(singleRoot, "tsconfig.json"), join(project, "tsconfig.json"));
+  const environment = { ...process.env };
+  delete environment.OXLINT_TSGOLINT_PATH;
+  delete environment.OXC_TSRX_BUNDLED_TSGOLINT;
+  const result = await run(project, ["--format=json", "--type-aware", source], environment);
+  assert.equal(result.code, 1, result.stderr || result.stdout);
+  assert.ok(
+    parseJson(result).diagnostics.some((item) => item.rule === "no-floating-promises"),
+    result.stdout,
+  );
+});
+
+test("the drop-in oxlint passes --tsconfig to the .tsrx lane", async () => {
+  const result = await run(
+    join(ownerRoot, "explicit"),
+    [
+      "--format=json",
+      "--type-check",
+      "-c",
+      join(ownerRoot, ".oxlintrc.json"),
+      "--tsconfig",
+      "tsconfig.tsrx.json",
+      "src/View.tsrx",
+    ],
+    { ...process.env, OXC_TSRX_LINT_BIN: binary, OXLINT_TSGOLINT_PATH: tsgolint },
+    join(root, "packages/toolchain/bin/oxlint"),
+  );
+  assert.equal(result.code, 1, result.stderr || result.stdout);
+  assert.deepEqual(
+    parseJson(result).diagnostics.map((diagnostic) => diagnostic.code),
+    ["typescript(TS2322)"],
   );
 });

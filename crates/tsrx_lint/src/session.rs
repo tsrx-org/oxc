@@ -111,6 +111,14 @@ impl LintSession {
         Ok(Self { engine, fix })
     }
 
+    /// Name the tsconfig whose project every type-aware `.tsrx` projection joins, as `--tsconfig`
+    /// does. Without one, each projection joins the project that owns its authored file.
+    #[must_use]
+    pub fn with_tsconfig(mut self, tsconfig: Option<PathBuf>) -> Self {
+        self.engine = self.engine.with_tsconfig(tsconfig);
+        self
+    }
+
     #[must_use]
     pub fn should_ignore(&self, path: &Path) -> bool {
         self.engine.should_ignore(path)

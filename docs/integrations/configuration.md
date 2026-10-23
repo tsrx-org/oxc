@@ -107,21 +107,30 @@ and one type-checker process covers the whole run.
 - A fix is applied only when the text it changes appears exactly as-is in your
   file and the result still parses as valid TSRX
   ([the full contract](/architecture/rust-oxc-core#opt-in-type-aware-lint-path)).
+- Each `.tsrx` file is checked with the `compilerOptions` of the tsconfig that
+  owns it, found the way TypeScript finds the owner of a `.ts` file: the
+  nearest `tsconfig.json`, the projects it references, then the directories
+  above. An `include` entry such as `src`, `src/**/*`, or `src/**/*.tsrx`
+  counts. `--tsconfig PATH` names one tsconfig for every `.tsrx` file instead,
+  whatever its `include` says. Your tsconfig files are never edited: the
+  checker gets an in-memory copy that lists the `.tsrx` files.
 - TypeScript's own errors from `--type-check` use the same JSON shape as lint
   diagnostics. They have no rule name, so `rule` reads `parse-error` and `code`
   carries the compiler code, such as `typescript(TS2322)`.
 
 #### Troubleshooting tsgolint discovery
 
-Type-aware runs need exactly `oxlint-tsgolint` 7.0.2002, pinned through
-`@tsrx/oxc`'s lint implementation dependency. When `--type-aware` or
-`--type-check` fails to start:
+Type-aware runs need `oxlint-tsgolint` 7.0.2002 or a later 7.0 release.
+`@tsrx/oxc` depends on 7.0.2002 and uses that copy first, so a project on a
+newer Oxlint can keep its own newer `oxlint-tsgolint` without a conflict. When
+`--type-aware` or `--type-check` fails to start:
 
-- Native discovery checks the project installation and `PATH`.
+- Native discovery checks the copy `@tsrx/oxc` installed, then the project
+  installation (following pnpm's store layout), then `PATH`.
 - `OXLINT_TSGOLINT_PATH` names an executable or its directory explicitly.
 - A standalone executable with no package metadata also needs
-  `OXC_TSRX_TSGOLINT_VERSION=7.0.2002`.
-- A missing, unverifiable, or version-mismatched binary exits 2 rather than
+  `OXC_TSRX_TSGOLINT_VERSION`, set to its version (7.0.2002 or later).
+- A missing, unverifiable, or too-old binary exits 2 rather than
   quietly dropping the type rules or writing source.
 
 ### `jsPlugins` and the two lanes

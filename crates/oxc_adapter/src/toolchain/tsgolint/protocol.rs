@@ -1,6 +1,7 @@
 //! The documented tsgolint protocol-v2 wire shapes, its frame reader, and the headless child run.
 
 use std::{
+    borrow::Cow,
     io::{Read, Write},
     path::Path,
     process::{Command, Stdio},
@@ -84,12 +85,13 @@ pub(crate) struct ProtocolConfigGroup {
 }
 
 /// The payload borrows each projected source rather than copying it: `serde_json` writes the same
-/// bytes from a `&str`, and the batch that owns those projections outlives this encode.
+/// bytes from a `&str`, and the batch that owns those projections outlives this encode. Only the
+/// rewritten tsconfigs that place those projections in their projects are owned.
 #[derive(Debug, Serialize)]
 pub(crate) struct ProtocolPayload<'a> {
     pub(super) version: u8,
     pub(crate) configs: Vec<ProtocolConfigGroup>,
-    pub(super) source_overrides: FxHashMap<String, &'a str>,
+    pub(super) source_overrides: FxHashMap<String, Cow<'a, str>>,
     pub(super) report_syntactic: bool,
     pub(super) report_semantic: bool,
 }
