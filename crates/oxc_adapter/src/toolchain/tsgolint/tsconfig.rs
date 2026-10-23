@@ -19,6 +19,8 @@ use globset::GlobBuilder;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde_json::Value;
 
+use super::TsgolintError;
+
 /// The configs tsgolint looks for in each directory, in its own order.
 const CONFIG_NAMES: [&str; 2] = ["tsconfig.json", "jsconfig.json"];
 /// TypeScript's `exclude` when a config chain names none.
@@ -34,22 +36,30 @@ pub(crate) struct ProjectedFile<'a> {
 /// absolute config path. `explicit` names one tsconfig that owns every projection, the way
 /// `--tsconfig` does; without it each file's owner is found the way tsgolint finds a `.ts` file's.
 /// A projection that no config owns is left out, and tsgolint checks it in its inferred project.
+///
+/// A named tsconfig that cannot be read is an error rather than a silent fallback to that inferred
+/// project, which would report the very errors the flag was passed to avoid.
 pub(crate) fn tsconfig_overrides(
     cwd: &Path,
     explicit: Option<&Path>,
     files: &[ProjectedFile<'_>],
-) -> FxHashMap<String, String> {
+) -> Result<FxHashMap<String, String>, TsgolintError> {
     let mut configs = ConfigCache::default();
     let mut by_owner = FxHashMap::<PathBuf, Vec<PathBuf>>::default();
     // tsgolint starts every search at the config nearest the file and only follows references
     // from there, so a named tsconfig is reached by referencing it from that config.
     let mut entries = FxHashSet::<PathBuf>::default();
     let explicit = explicit.map(|path| absolute(cwd, path));
+    if let Some(path) = &explicit
+        && configs.load(path).is_none()
+    {
+        return Err(TsgolintError::TsconfigUnreadable { path: path.clone() });
+    }
     for file in files {
         let authored = absolute(cwd, file.authored);
         let virtual_path = absolute(cwd, file.virtual_path);
         let owner = match &explicit {
-            Some(path) if configs.load(path).is_some() => {
+            Some(path) => {
                 let entry = nearest_config(&authored)
                     .or_else(|| Some(authored.parent()?.join(CONFIG_NAMES[0])));
                 if let Some(entry) = entry.filter(|entry| entry != path) {
@@ -57,7 +67,6 @@ pub(crate) fn tsconfig_overrides(
                 }
                 Some(path.clone())
             }
-            Some(_) => None,
             None => find_owner(&mut configs, &authored, &virtual_path),
         };
         if let Some(owner) = owner {
@@ -78,7 +87,7 @@ pub(crate) fn tsconfig_overrides(
             }
         }
     }
-    overrides
+    Ok(overrides)
 }
 
 /// The config tsgolint begins its search at: the first `tsconfig.json` or `jsconfig.json` in the

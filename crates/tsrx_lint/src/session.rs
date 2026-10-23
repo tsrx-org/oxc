@@ -15,7 +15,7 @@ use crate::{
     fixes::collect_editor_fixes,
     pipeline::{
         PendingBatchFile, finish_lint, lint_loaded_file, lint_loaded_source, run_syntax_lint,
-        run_type_lint, virtual_type_path,
+        run_type_lint, type_lane_path,
     },
     report::{
         EditorFix, Output, aggregate_outputs, parse_failure_output, projection_failure_output,
@@ -192,13 +192,7 @@ impl LintSession {
         }
         let virtual_paths = pending
             .iter()
-            .map(|file| {
-                if file.prepared.is_tsrx {
-                    virtual_type_path(&file.path)
-                } else {
-                    file.path.clone()
-                }
-            })
+            .map(|file| type_lane_path(&file.path, file.prepared.is_tsrx))
             .collect::<Vec<_>>();
         let batch_files = pending
             .iter()

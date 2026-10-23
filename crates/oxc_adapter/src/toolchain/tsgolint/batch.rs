@@ -60,7 +60,7 @@ pub(crate) fn prepare_type_batch<'a>(
                 virtual_path: file.virtual_path,
             })
             .collect::<Vec<_>>();
-        for (config, source) in tsconfig_overrides(&engine.cwd, engine.tsconfig(), &projected) {
+        for (config, source) in tsconfig_overrides(&engine.cwd, engine.tsconfig(), &projected)? {
             source_overrides.insert(config, Cow::Owned(source));
         }
     }

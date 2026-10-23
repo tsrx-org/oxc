@@ -457,10 +457,10 @@ test("the projection request is exempt from the type-aware opt-in, a lint run is
 // TS2875/TS7016 for `react/jsx-runtime` next to the one planted TS2322.
 const ownerRoot = join(root, "tests/fixtures/type-aware/tsconfig-owner");
 
-async function typeCheckCodes(cwd, extra = []) {
+async function typeCheckCodes(cwd, extra = [], file = "src/View.tsrx") {
   const result = await run(
     cwd,
-    ["--format=json", "--type-check", "-c", join(ownerRoot, ".oxlintrc.json"), ...extra, "src/View.tsrx"],
+    ["--format=json", "--type-check", "-c", join(ownerRoot, ".oxlintrc.json"), ...extra, file],
     { ...process.env, OXLINT_TSGOLINT_PATH: tsgolint },
   );
   assert.equal(result.code, 1, result.stderr || result.stdout);
@@ -484,6 +484,26 @@ test("--tsconfig names the project every .tsrx file is type-checked in", async (
   assert.deepEqual(await typeCheckCodes(cwd, ["--tsconfig", "tsconfig.tsrx.json"]), [
     "typescript(TS2322)",
   ]);
+});
+
+// tsgolint panics on a config path it derives from an unnormalized file path,
+// and `./src/View.tsrx` is how a shell completion or a script names a file.
+test("a ./ or ../ path still reaches the owning tsconfig", async () => {
+  const cwd = join(ownerRoot, "include-directory");
+  for (const file of ["./src/View.tsrx", "src/../src/View.tsrx"]) {
+    assert.deepEqual(await typeCheckCodes(cwd, [], file), ["typescript(TS2322)"], file);
+  }
+});
+
+test("an unreadable --tsconfig fails instead of falling back to defaults", async () => {
+  const result = await run(
+    join(ownerRoot, "explicit"),
+    ["--format=json", "--type-check", "--tsconfig", "missing.json", "src/View.tsrx"],
+    { ...process.env, OXLINT_TSGOLINT_PATH: tsgolint },
+  );
+  assert.equal(result.code, 2, result.stdout);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /--tsconfig does not name a readable tsconfig: .*missing\.json/u);
 });
 
 // A project on current Oxlint installs a later 7.0 tsgolint, and under pnpm its

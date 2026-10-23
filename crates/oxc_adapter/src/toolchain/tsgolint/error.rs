@@ -45,6 +45,8 @@ pub enum TsgolintError {
     UnsupportedVersion { version: String },
     /// A standalone binary's version could not be established at all.
     UnverifiableVersion { executable: PathBuf },
+    /// `--tsconfig` names a file that cannot be read as a JSON/JSONC tsconfig object.
+    TsconfigUnreadable { path: PathBuf },
     /// The resolved rule set could not be grouped into protocol config groups.
     UngroupableRules { detail: String },
     /// One type-aware rule's options could not be serialized.
@@ -113,6 +115,11 @@ impl fmt::Display for TsgolintError {
                 formatter,
                 "unable to verify tsgolint version for {}; use the oxlint-tsgolint npm package ({SUPPORTED_TSGOLINT_VERSION} or a later 7.0 release) or set OXC_TSRX_TSGOLINT_VERSION={SUPPORTED_TSGOLINT_VERSION} for a verified standalone binary",
                 executable.display()
+            ),
+            Self::TsconfigUnreadable { path } => write!(
+                formatter,
+                "--tsconfig does not name a readable tsconfig: {}",
+                path.display()
             ),
             Self::UngroupableRules { detail } => {
                 write!(formatter, "unable to group type-aware rules: {detail}")
