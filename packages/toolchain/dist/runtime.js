@@ -72,9 +72,42 @@ function validateNativeManifest(manifest, packageName, executable) {
 	if (metadata.oxcRevision !== OXC_REVISION) throw new Error(`OXC for TSRX native package ${packageName} pins OXC ${metadata.oxcRevision}; runtime ${runtimeManifest.version} requires ${OXC_REVISION}`);
 	if (!Array.isArray(metadata.binaries) || !metadata.binaries.includes(executable)) throw new Error(`OXC for TSRX native package ${packageName} does not declare ${executable}`);
 }
+const TSGOLINT_PLATFORM_PACKAGES = {
+	"darwin:arm64": "darwin-arm64",
+	"darwin:x64": "darwin-x64",
+	"linux:arm64": "linux-arm64",
+	"linux:x64": "linux-x64",
+	"win32:arm64": "win32-arm64",
+	"win32:x64": "win32-x64"
+};
+/**
+* The tsgolint executable from the `oxlint-tsgolint` this package depends on,
+* or null when it is not installed for this host. A project on a newer Oxlint
+* keeps its own tsgolint in `node_modules/.bin`, and under pnpm that entry is a
+* shell shim whose version cannot be verified, so the native linter is told
+* where the copy this release was built against lives and tries it first.
+*/
+function bundledTsgolintExecutable() {
+	const platformPackage = TSGOLINT_PLATFORM_PACKAGES[`${process.platform}:${process.arch}`];
+	if (!platformPackage) return null;
+	try {
+		const tsgolintManifest = require.resolve("oxlint-tsgolint/package.json");
+		const manifest = createRequire(tsgolintManifest).resolve(`@oxlint-tsgolint/${platformPackage}/package.json`);
+		const executable = join(dirname(manifest), process.platform === "win32" ? "tsgolint.exe" : "tsgolint");
+		return existsSync(executable) ? executable : null;
+	} catch {
+		return null;
+	}
+}
+function exportBundledTsgolint() {
+	if (process.env.OXC_TSRX_BUNDLED_TSGOLINT) return;
+	const executable = bundledTsgolintExecutable();
+	if (executable) process.env.OXC_TSRX_BUNDLED_TSGOLINT = executable;
+}
 function resolveNativeBinary(kind) {
 	const environment = ENVIRONMENTS[kind];
 	if (!environment || !SUBCOMMANDS[kind]) throw new Error(`unknown native binary kind: ${kind}`);
+	exportBundledTsgolint();
 	const explicit = process.env[environment];
 	if (explicit) return assertExecutable(resolve(explicit), environment);
 	const packageName = platformPackage();
@@ -382,4 +415,4 @@ function ensureSupportedOutput(format, files) {
 	if (files.length > 0 && format !== "default" && format !== "json") throw new Error(`OXC for TSRX currently combines default and json lint output; ${format} is unavailable for mixed .tsrx runs`);
 }
 //#endregion
-export { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, ensureSupportedOutput, isViteConfigPath, pathArguments, platformPackage, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveCanonicalOxlint, resolveNativeBinary, resolveNativeCommand, resolvePackageBinary, runCaptured, runPassthrough, selectCanonicalOxlint };
+export { argumentValue, bundledTsgolintExecutable, canonicalToolEnvironment, discoverTsrxFiles, ensureSupportedOutput, isViteConfigPath, pathArguments, platformPackage, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveCanonicalOxlint, resolveNativeBinary, resolveNativeCommand, resolvePackageBinary, runCaptured, runPassthrough, selectCanonicalOxlint };

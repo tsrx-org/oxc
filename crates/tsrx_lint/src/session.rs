@@ -15,7 +15,7 @@ use crate::{
     fixes::collect_editor_fixes,
     pipeline::{
         PendingBatchFile, finish_lint, lint_loaded_file, lint_loaded_source, run_syntax_lint,
-        run_type_lint, virtual_type_path,
+        run_type_lint, type_lane_path,
     },
     report::{
         EditorFix, Output, aggregate_outputs, parse_failure_output, projection_failure_output,
@@ -111,6 +111,14 @@ impl LintSession {
         Ok(Self { engine, fix })
     }
 
+    /// Name the tsconfig whose project every type-aware `.tsrx` projection joins, as `--tsconfig`
+    /// does. Without one, each projection joins the project that owns its authored file.
+    #[must_use]
+    pub fn with_tsconfig(mut self, tsconfig: Option<PathBuf>) -> Self {
+        self.engine = self.engine.with_tsconfig(tsconfig);
+        self
+    }
+
     #[must_use]
     pub fn should_ignore(&self, path: &Path) -> bool {
         self.engine.should_ignore(path)
@@ -184,13 +192,7 @@ impl LintSession {
         }
         let virtual_paths = pending
             .iter()
-            .map(|file| {
-                if file.prepared.is_tsrx {
-                    virtual_type_path(&file.path)
-                } else {
-                    file.path.clone()
-                }
-            })
+            .map(|file| type_lane_path(&file.path, file.prepared.is_tsrx))
             .collect::<Vec<_>>();
         let batch_files = pending
             .iter()

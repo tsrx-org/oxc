@@ -75,9 +75,13 @@ Three things behave differently here:
   copy rather than the code you wrote. Read
   [Custom JavaScript plugins](/integrations/custom-js-plugins) before relying on
   them.
-- **Type-aware lint is opt-in** and needs exactly `oxlint-tsgolint` 7.0.2002. A
-  missing or mismatched version fails loudly instead of quietly switching
-  itself off.
+- **Type-aware lint is opt-in** and needs `oxlint-tsgolint` 7.0.2002 or a
+  later 7.0 release. A missing or older version fails loudly instead of
+  quietly switching itself off.
+- **Each `.tsrx` file is type-checked with the tsconfig that owns it**, the
+  same one a `.ts` file next to it would use, so `jsx`, `jsxImportSource`,
+  `paths`, and `types` all apply. `--tsconfig PATH` names one tsconfig for
+  every `.tsrx` file instead.
 
 [Configuration](/integrations/configuration) lists every supported field.
 

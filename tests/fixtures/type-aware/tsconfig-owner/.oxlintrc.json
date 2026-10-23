@@ -1,0 +1,8 @@
+{
+  "plugins": ["typescript"],
+  "rules": {},
+  "options": {
+    "typeAware": true,
+    "typeCheck": true
+  }
+}

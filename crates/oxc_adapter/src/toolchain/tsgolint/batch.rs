@@ -1,6 +1,7 @@
 //! Turning TSRX projections into one protocol-v2 payload, and its answers back into diagnostics.
 
 use std::{
+    borrow::Cow,
     collections::BTreeMap,
     path::{Path, PathBuf},
 };
@@ -11,6 +12,7 @@ use rustc_hash::FxHashMap;
 
 use super::TsgolintError;
 use super::protocol::{ProtocolConfigGroup, ProtocolDiagnostic, ProtocolPayload, ProtocolRule};
+use super::tsconfig::{ProjectedFile, tsconfig_overrides};
 use crate::toolchain::{
     EngineDiagnostic, EngineFix, EngineSpan, LintEngine, TypeBatchDiagnostic, TypeBatchFile,
 };
@@ -26,12 +28,12 @@ pub(crate) fn prepare_type_batch<'a>(
     files: &'a [TypeBatchFile<'a>],
 ) -> Result<PreparedTypeBatch<'a>, TsgolintError> {
     let mut groups = BTreeMap::<String, ProtocolConfigGroup>::new();
-    let mut source_overrides = FxHashMap::default();
+    let mut source_overrides: FxHashMap<String, Cow<'a, str>> = FxHashMap::default();
     let mut severities = FxHashMap::default();
     let mut directives = FxHashMap::default();
     for file in files {
         let virtual_path = file.virtual_path.to_string_lossy().into_owned();
-        source_overrides.insert(virtual_path.clone(), file.projected_source);
+        source_overrides.insert(virtual_path.clone(), Cow::Borrowed(file.projected_source));
         let (rules, file_severities) = resolved_protocol_rules(engine, file.authored_path)?;
         if !rules.is_empty() || engine.type_check_enabled() {
             let signature = serde_json::to_string(&rules)
@@ -48,6 +50,18 @@ pub(crate) fn prepare_type_batch<'a>(
         severities.insert(file.virtual_path.to_path_buf(), file_severities);
         if let Some(disable_directives) = file.disable_directives {
             directives.insert(file.virtual_path.to_path_buf(), disable_directives);
+        }
+    }
+    if !groups.is_empty() {
+        let projected = files
+            .iter()
+            .map(|file| ProjectedFile {
+                authored: file.authored_path,
+                virtual_path: file.virtual_path,
+            })
+            .collect::<Vec<_>>();
+        for (config, source) in tsconfig_overrides(&engine.cwd, engine.tsconfig(), &projected)? {
+            source_overrides.insert(config, Cow::Owned(source));
         }
     }
     Ok(PreparedTypeBatch {

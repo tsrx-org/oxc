@@ -41,6 +41,7 @@ pub struct LintEngine {
     max_warnings: Option<usize>,
     pub(super) cwd: PathBuf,
     type_mode: TypeMode,
+    tsconfig: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -175,7 +176,21 @@ impl LintEngine {
             } else {
                 TypeMode::Aware
             },
+            tsconfig: None,
         })
+    }
+
+    /// Name the tsconfig whose project every type-aware `.tsrx` projection joins, as `--tsconfig`
+    /// does. Without one, each projection joins the project that owns its authored file.
+    #[must_use]
+    pub fn with_tsconfig(mut self, tsconfig: Option<PathBuf>) -> Self {
+        self.tsconfig = tsconfig;
+        self
+    }
+
+    #[must_use]
+    pub fn tsconfig(&self) -> Option<&Path> {
+        self.tsconfig.as_deref()
     }
 
     #[must_use]

@@ -122,9 +122,52 @@ function validateNativeManifest(manifest, packageName, executable) {
   }
 }
 
+const TSGOLINT_PLATFORM_PACKAGES = {
+  "darwin:arm64": "darwin-arm64",
+  "darwin:x64": "darwin-x64",
+  "linux:arm64": "linux-arm64",
+  "linux:x64": "linux-x64",
+  "win32:arm64": "win32-arm64",
+  "win32:x64": "win32-x64",
+};
+
+/**
+ * The tsgolint executable from the `oxlint-tsgolint` this package depends on,
+ * or null when it is not installed for this host. A project on a newer Oxlint
+ * keeps its own tsgolint in `node_modules/.bin`, and under pnpm that entry is a
+ * shell shim whose version cannot be verified, so the native linter is told
+ * where the copy this release was built against lives and tries it first.
+ */
+export function bundledTsgolintExecutable() {
+  const platformPackage = TSGOLINT_PLATFORM_PACKAGES[`${process.platform}:${process.arch}`];
+  if (!platformPackage) return null;
+  try {
+    const tsgolintManifest = require.resolve("oxlint-tsgolint/package.json");
+    const manifest = createRequire(tsgolintManifest).resolve(
+      `@oxlint-tsgolint/${platformPackage}/package.json`,
+    );
+    const executable = join(
+      dirname(manifest),
+      process.platform === "win32" ? "tsgolint.exe" : "tsgolint",
+    );
+    return existsSync(executable) ? executable : null;
+  } catch {
+    return null;
+  }
+}
+
+function exportBundledTsgolint() {
+  if (process.env.OXC_TSRX_BUNDLED_TSGOLINT) return;
+  const executable = bundledTsgolintExecutable();
+  if (executable) process.env.OXC_TSRX_BUNDLED_TSGOLINT = executable;
+}
+
 export function resolveNativeBinary(kind) {
   const environment = ENVIRONMENTS[kind];
   if (!environment || !SUBCOMMANDS[kind]) throw new Error(`unknown native binary kind: ${kind}`);
+  // Every native run inherits this process's environment, so setting it once
+  // here reaches the lint CLI, the drop-in `oxlint` lane, and the server.
+  exportBundledTsgolint();
 
   const explicit = process.env[environment];
   if (explicit) return assertExecutable(resolve(explicit), environment);

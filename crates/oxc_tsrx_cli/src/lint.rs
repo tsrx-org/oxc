@@ -25,6 +25,9 @@ Options:
     -c, --config PATH       Use an explicit JSON/JSONC Oxlint configuration
     --type-aware            Enable the type-aware rules
     --type-check            Enable the type-aware rules and type checking
+    --tsconfig PATH         Type-check every .tsrx file in the project of this
+                            tsconfig. By default each file is checked in the
+                            project of the tsconfig that owns it, as a .ts file is
     --format json           Output format; json is the only value, and the default
     --paths-file PATH       Read more paths from PATH, one per line, so a list
                             larger than the host's argument limit still arrives
@@ -106,10 +109,18 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<u8, String> {
     // The projection flag is answered after parsing, but the parser has never heard of it, so it
     // is filtered out on the way in rather than taught as an option that takes no value.
     let emit_projection = arguments.iter().any(|argument| argument == EMIT_PLUGIN_PROJECTION);
-    let ParsedArguments { filters, files, fix, config_path, config_base, type_aware, type_check } =
-        parse_arguments(
-            arguments.into_iter().filter(|argument| argument != EMIT_PLUGIN_PROJECTION),
-        )?;
+    let ParsedArguments {
+        filters,
+        files,
+        fix,
+        config_path,
+        config_base,
+        tsconfig,
+        type_aware,
+        type_check,
+    } = parse_arguments(
+        arguments.into_iter().filter(|argument| argument != EMIT_PLUGIN_PROJECTION),
+    )?;
 
     let cwd =
         env::current_dir().map_err(|error| format!("unable to read current directory: {error}"))?;
@@ -132,6 +143,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<u8, String> {
             fix,
             type_check,
         )?
+        .with_tsconfig(tsconfig.map(|path| if path.is_absolute() { path } else { cwd.join(path) }))
     } else {
         LintSession::new_with_config_base(
             &cwd,
@@ -347,6 +359,7 @@ struct ParsedArguments {
     fix: bool,
     config_path: Option<PathBuf>,
     config_base: Option<PathBuf>,
+    tsconfig: Option<PathBuf>,
     type_aware: bool,
     type_check: bool,
 }
@@ -357,6 +370,7 @@ fn parse_arguments(mut arguments: impl Iterator<Item = String>) -> Result<Parsed
     let mut fix = false;
     let mut config_path = None;
     let mut config_base = None;
+    let mut tsconfig = None;
     let mut type_aware = false;
     let mut type_check = false;
 
@@ -395,6 +409,13 @@ fn parse_arguments(mut arguments: impl Iterator<Item = String>) -> Result<Parsed
                 config_base =
                     Some(PathBuf::from(arguments.next().ok_or("--config-base requires a path")?));
             }
+            "--tsconfig" => {
+                if tsconfig.is_some() {
+                    return Err("--tsconfig may be specified only once".to_string());
+                }
+                tsconfig =
+                    Some(PathBuf::from(arguments.next().ok_or("--tsconfig requires a path")?));
+            }
             "--fix" => fix = true,
             "--paths-file" => {
                 let path = arguments.next().ok_or("--paths-file requires a path")?;
@@ -406,6 +427,12 @@ fn parse_arguments(mut arguments: impl Iterator<Item = String>) -> Result<Parsed
                 type_check = true;
             }
             "-h" | "--help" | "-V" | "--version" => unreachable!("handled before parsing"),
+            value if value.starts_with("--tsconfig=") => {
+                if tsconfig.is_some() {
+                    return Err("--tsconfig may be specified only once".to_string());
+                }
+                tsconfig = Some(PathBuf::from(value.trim_start_matches("--tsconfig=")));
+            }
             value if value.starts_with("--paths-file=") => {
                 files.extend(crate::paths::read_paths_file(Path::new(
                     value.trim_start_matches("--paths-file="),
@@ -422,5 +449,14 @@ fn parse_arguments(mut arguments: impl Iterator<Item = String>) -> Result<Parsed
         return Err("at least one explicit source file is required".to_string());
     }
 
-    Ok(ParsedArguments { filters, files, fix, config_path, config_base, type_aware, type_check })
+    Ok(ParsedArguments {
+        filters,
+        files,
+        fix,
+        config_path,
+        config_base,
+        tsconfig,
+        type_aware,
+        type_check,
+    })
 }

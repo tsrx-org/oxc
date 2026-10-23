@@ -4,6 +4,7 @@ mod batch;
 mod discovery;
 mod error;
 mod protocol;
+mod tsconfig;
 
 pub(crate) use batch::prepare_type_batch;
 pub use discovery::SUPPORTED_TSGOLINT_VERSION;

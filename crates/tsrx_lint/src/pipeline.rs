@@ -3,7 +3,7 @@
 
 use std::{
     ffi::OsString,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     time::Instant,
 };
 
@@ -106,7 +106,7 @@ pub(crate) fn run_type_lint(
     if !session.engine.type_aware_enabled() {
         return Ok((Vec::new(), 0, 0));
     }
-    let virtual_path = if prepared.is_tsrx { virtual_type_path(path) } else { path.to_path_buf() };
+    let virtual_path = type_lane_path(path, prepared.is_tsrx);
     let projected_source = prepared.type_projection.as_ref().map_or(source, TypeProjection::source);
     let batch = session.engine.lint_type_batch(
         &[TypeBatchFile {
@@ -308,10 +308,27 @@ fn prepare_source(
     })
 }
 
-pub(crate) fn virtual_type_path(path: &Path) -> PathBuf {
-    let mut path = OsString::from(path.as_os_str());
-    path.push(".tsx");
-    PathBuf::from(path)
+/// The path the type lane sends tsgolint for one file: `View.tsrx.tsx` for a projection, the file
+/// itself otherwise. `.` and `..` are resolved here, because tsgolint panics on a config path it
+/// derives from an unnormalized one (`./src/View.tsrx` from the command line), and the diagnostics
+/// it answers with carry the normalized form this is matched against.
+pub(crate) fn type_lane_path(path: &Path, is_tsrx: bool) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            other => normalized.push(other),
+        }
+    }
+    if !is_tsrx {
+        return normalized;
+    }
+    let mut virtual_path = OsString::from(normalized.as_os_str());
+    virtual_path.push(".tsx");
+    PathBuf::from(virtual_path)
 }
 
 fn elapsed_ns(started: Instant) -> u64 {

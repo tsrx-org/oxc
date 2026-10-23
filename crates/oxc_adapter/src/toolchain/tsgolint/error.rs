@@ -41,10 +41,12 @@ pub enum TsgolintError {
     NotInstalled,
     /// The npm package next to the executable carries no `version` field.
     MetadataWithoutVersion { manifest: PathBuf },
-    /// The installed tsgolint does not speak the protocol version this adapter pins.
+    /// The installed tsgolint is older than, or a different line from, the protocol-v2 releases.
     UnsupportedVersion { version: String },
     /// A standalone binary's version could not be established at all.
     UnverifiableVersion { executable: PathBuf },
+    /// `--tsconfig` names a file that cannot be read as a JSON/JSONC tsconfig object.
+    TsconfigUnreadable { path: PathBuf },
     /// The resolved rule set could not be grouped into protocol config groups.
     UngroupableRules { detail: String },
     /// One type-aware rule's options could not be serialized.
@@ -98,7 +100,7 @@ impl fmt::Display for TsgolintError {
             ),
             Self::NotInstalled => write!(
                 formatter,
-                "type-aware linting requires oxlint-tsgolint {SUPPORTED_TSGOLINT_VERSION}; install it in this project or set OXLINT_TSGOLINT_PATH"
+                "type-aware linting requires oxlint-tsgolint {SUPPORTED_TSGOLINT_VERSION} or a later 7.0 release; install it in this project or set OXLINT_TSGOLINT_PATH"
             ),
             Self::MetadataWithoutVersion { manifest } => write!(
                 formatter,
@@ -107,12 +109,17 @@ impl fmt::Display for TsgolintError {
             ),
             Self::UnsupportedVersion { version } => write!(
                 formatter,
-                "unsupported tsgolint version {version}; OXC for TSRX requires oxlint-tsgolint {SUPPORTED_TSGOLINT_VERSION} for protocol v2"
+                "unsupported tsgolint version {version}; OXC for TSRX requires oxlint-tsgolint {SUPPORTED_TSGOLINT_VERSION} or a later 7.0 release for protocol v2"
             ),
             Self::UnverifiableVersion { executable } => write!(
                 formatter,
-                "unable to verify tsgolint version for {}; use the oxlint-tsgolint {SUPPORTED_TSGOLINT_VERSION} npm package or set OXC_TSRX_TSGOLINT_VERSION={SUPPORTED_TSGOLINT_VERSION} for a verified standalone binary",
+                "unable to verify tsgolint version for {}; use the oxlint-tsgolint npm package ({SUPPORTED_TSGOLINT_VERSION} or a later 7.0 release) or set OXC_TSRX_TSGOLINT_VERSION={SUPPORTED_TSGOLINT_VERSION} for a verified standalone binary",
                 executable.display()
+            ),
+            Self::TsconfigUnreadable { path } => write!(
+                formatter,
+                "--tsconfig does not name a readable tsconfig: {}",
+                path.display()
             ),
             Self::UngroupableRules { detail } => {
                 write!(formatter, "unable to group type-aware rules: {detail}")

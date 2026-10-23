@@ -43,6 +43,7 @@ const NATIVE_VALUE_OPTIONS = new Map([
   ["--warn", "--warn"],
   ["-D", "--deny"],
   ["--deny", "--deny"],
+  ["--tsconfig", "--tsconfig"],
 ]);
 // Canonical Oxlint's own wording for "every path you named matched nothing",
 // reproduced verbatim so a `.tsrx` positional reports it the same way a `.ts`
