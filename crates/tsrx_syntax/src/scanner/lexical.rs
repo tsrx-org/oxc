@@ -6,9 +6,10 @@ use crate::{
 use super::Scanner;
 
 /// Last bytes of the tokens that cannot end an expression, so a TSRX control written after one is
-/// continuing that expression however the source is laid out. `>` covers both `=>` and the close of
-/// a markup element, and `/` covers both division and the close of a regular expression, which is
-/// why neither of those shapes changes context under the line-leading rule.
+/// continuing that expression however the source is laid out. `/` covers both division and the
+/// close of a regular expression, which is why that shape does not change context under the
+/// line-leading rule. `>` demands an operand only as `=>`, a shift, or a comparison; a markup close
+/// ends a complete element, so `token_demands_an_operand` carves `/>` and `</name>` out.
 const OPERAND_BYTES: &[u8] = b"=([,?:.+-*/%&|^!~<>";
 
 /// Keywords that demand an operand. A line-leading control after one of these is still part of the
@@ -155,8 +156,11 @@ impl Scanner<'_> {
         let Some(&last) = index.checked_sub(1).and_then(|last| self.bytes.get(last)) else {
             return false;
         };
+        // A markup close — `/>`, `</>`, or `</name>` — ends a complete element, so a line-leading
+        // control after it opens a statement, the same boundary `;` or the `(...)` parens a
+        // formatter may add in its place already gave it.
         if OPERAND_BYTES.contains(&last) {
-            return true;
+            return last != b'>' || !self.markup_close_ends_at(index);
         }
         let mut word_start = index;
         while word_start > 0 && self.bytes[word_start - 1].is_ascii_alphabetic() {
@@ -165,6 +169,24 @@ impl Scanner<'_> {
         word_start < index
             && !identifier_continue_before(self.bytes, word_start)
             && OPERAND_KEYWORDS.contains(&&self.bytes[word_start..index])
+    }
+
+    /// Whether the `>` ending at `index` closes markup — a self-closing `/>`, the `</>` fragment
+    /// close, or a `</name>` tag — rather than ending `=>`, a shift, or a comparison.
+    fn markup_close_ends_at(&self, index: usize) -> bool {
+        let mut cursor = index - 1;
+        while cursor > 0 && self.bytes[cursor - 1].is_ascii_whitespace() {
+            cursor -= 1;
+        }
+        match self.bytes.get(cursor.wrapping_sub(1)) {
+            Some(b'/') => return true,
+            Some(&byte) if jsx_name_byte(byte) => {}
+            _ => return false,
+        }
+        while cursor > 0 && jsx_name_byte(self.bytes[cursor - 1]) {
+            cursor -= 1;
+        }
+        cursor >= 2 && self.bytes[cursor - 2..cursor] == *b"</"
     }
 
     /// Octane starts a new statement when a line begins with a committed markup opening, even
@@ -727,6 +749,13 @@ pub(crate) const fn is_identifier_start(byte: u8) -> bool {
 
 pub(crate) const fn is_identifier_continue(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$')
+}
+
+/// The ASCII bytes `skip_jsx_name` keeps inside a tag name, so `markup_close_ends_at` can walk a
+/// `</name>` backwards. A non-ASCII byte stops the walk, which only keeps the `>` on the
+/// operand-demanding side it already had.
+fn jsx_name_byte(byte: u8) -> bool {
+    is_identifier_continue(byte) || matches!(byte, b'.' | b':' | b'-')
 }
 
 #[cfg(test)]
