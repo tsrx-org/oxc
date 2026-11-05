@@ -25,7 +25,7 @@ env:
 
 jobs:
   correctness:
-    name: Node 24.15.0 / Rust 1.97.0 (correctness)
+    name: Node 24.22.2 / Rust 1.97.0 (correctness)
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     steps:
@@ -38,10 +38,10 @@ jobs:
       - name: Install the pinned pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
-      - name: Install Node.js 24.15.0
+      - name: Install Node.js 24.22.2
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24.15.0
+          node-version: 24.22.2
           cache: pnpm
 
       - name: Install Rust 1.97.0
@@ -119,10 +119,10 @@ jobs:
       - name: Install the pinned pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
-      - name: Install the tooling Node.js 24.15.0
+      - name: Install the tooling Node.js 24.22.2
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24.15.0
+          node-version: 24.22.2
 
       - name: Capture the tooling Node.js executable
         shell: bash
@@ -213,8 +213,8 @@ jobs:
       - name: Install the pinned pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
-      # Not 24.15.0 like the other jobs. Every npm, pnpm and `corepack yarn`
-      # child below runs on this Node, and 24.15.0 bundles libuv 1.51.0, whose
+      # Never below 24.16.0 on this job. Every npm, pnpm and `corepack yarn`
+      # child below runs on this Node, and 24.15.0 bundled libuv 1.51.0, whose
       # Windows TCP code passes an uninitialized OSVERSIONINFOW to
       # RtlGetVersion. That overruns the stack in uv__tcp_keepalive and the /GS
       # cookie check kills the process with 0xC0000409 and no stderr, no WER
@@ -347,10 +347,10 @@ jobs:
       - name: Install the pinned pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
-      - name: Install Node.js 24.15.0
+      - name: Install Node.js 24.22.2
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24.15.0
+          node-version: 24.22.2
           cache: pnpm
 
       - name: Install Rust 1.96.0

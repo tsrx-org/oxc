@@ -227,10 +227,12 @@ pass from October was on 20261021, and every failure from November was on 202610
 or 20261103. Nothing in the repository changed. The new image makes the existing bug
 fire more often. It did not create it.
 
-**Fix.** The `Install and arbitration` job in `ci.yml` now runs Node 24.22.2.
-The other workflows still pin 24.15.0. Any of them that runs package-manager
-installs on Windows (the `release-candidate.yml` Windows lanes) is exposed to
-the same bug until it moves too.
+**Fix.** Every workflow that pinned Node 24.15.0 now pins 24.22.2. That covers
+`ci.yml`, `release-candidate.yml` with its Windows lanes, `publish.yml`,
+`manual-release.yml`, `site-artifact.yml` and `advisory.yml`. The product floors
+(20.19.0 and 22.12.0) are unchanged, and they predate the libuv change. The
+bounded retry on this exit code in `tests/packaging/provider-discovery.test.mjs`
+has been removed, so the status fails immediately again if it ever comes back.
 
 The original write-up follows, unchanged, as the record of what was ruled out.
 

@@ -123,7 +123,7 @@ const WINDOWS_FAST_FAIL_STATUS = new Map([
  *
  * The cause turned out to be libuv 1.51.0 in Node 24.15.0 (an uninitialized
  * OSVERSIONINFOW overrunning the stack in the Windows TCP path, nodejs/node#62561),
- * which is why the Windows lane of ci.yml runs a later Node. See
+ * which is why every workflow now pins Node 24.22.2. See
  * docs/releasing/platform-management-followups.md section 5.
  *
  * Nothing here tolerates the status: the assertion still fails on it. Naming
