@@ -213,10 +213,20 @@ jobs:
       - name: Install the pinned pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
-      - name: Install Node.js 24.15.0
+      # Not 24.15.0 like the other jobs. Every npm, pnpm and `corepack yarn`
+      # child below runs on this Node, and 24.15.0 bundles libuv 1.51.0, whose
+      # Windows TCP code passes an uninitialized OSVERSIONINFOW to
+      # RtlGetVersion. That overruns the stack in uv__tcp_keepalive and the /GS
+      # cookie check kills the process with 0xC0000409 and no stderr, no WER
+      # record and no Node report: the "external" Windows fast-fail recorded in
+      # docs/releasing/platform-management-followups.md section 5. Fixed by
+      # libuv aabb7651de (nodejs/node#62561, nodejs/node#63620), first shipped
+      # in Node 24.16.0. Runner image 20261030 raised the rate from ~1 run in 9
+      # to ~1 in 3 without changing the cause.
+      - name: Install Node.js 24.22.2
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24.15.0
+          node-version: 24.22.2
           cache: pnpm
 
       # The provider matrix drives Bun and Deno as real consumers, and neither
