@@ -34,6 +34,11 @@ pub(crate) struct Scanner<'a> {
     /// Quoted JSX attribute values that span lines, quotes included. Only the format lift reads
     /// these, and the common single-line case never allocates.
     multiline_attribute_strings: Vec<ByteSpan>,
+    /// One past the `>` of the last markup element `scan_region` read, or `usize::MAX` before
+    /// the first. A line-leading control right after it follows a complete element, so
+    /// `token_demands_an_operand` reads that `>` as a close rather than an operator; a byte walk
+    /// backwards cannot tell `/>` from a regex or comment ending in `/` before a comparison.
+    last_markup_end: usize,
 }
 
 /// Returns the span of every quoted JSX attribute value in `source` that spans lines, quotes
@@ -83,6 +88,7 @@ impl<'a> Scanner<'a> {
             last_root: NONE,
             parents: Vec::with_capacity(8),
             multiline_attribute_strings: Vec::new(),
+            last_markup_end: usize::MAX,
         }
     }
 
@@ -191,6 +197,7 @@ impl<'a> Scanner<'a> {
                     }
                     match self.scan_jsx_element(index) {
                         Ok(end) => {
+                            self.last_markup_end = end;
                             index = end;
                             can_start_expression = false;
                             can_start_jsx = true;

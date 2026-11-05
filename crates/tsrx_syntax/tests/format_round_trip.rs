@@ -225,6 +225,65 @@ fn a_trailing_control_takes_no_wrapper_scaffold_whichever_way_its_sibling_ends()
     }
 }
 
+/// A markup close — `/>`, `</>`, or `</name>` — ends a complete element, so a line-leading
+/// control after one opens a statement exactly as it does after a `;`. Reading the `>` as
+/// operand-demanding held the control in expression context, where the wrapper scaffold made the
+/// element's own bytes load-bearing: Oxfmt wrapping the element in `(...)` or writing a `;`
+/// changed the byte before the control and the lift's rescan rejected its own output.
+const MARKUP_CLOSE_BODIES: [(&str, &str); 3] = [
+    ("const d = <a x=\"1\" />", "const d = (\n      <a x=\"1\" />\n    )"),
+    ("const d = <a>x</a>", "const d = (\n      <a>x</a>\n    )"),
+    ("<a x=\"1\" />", "<a x=\"1\" />;"),
+];
+
+fn markup_close_source(before: &str) -> String {
+    format!("function D() @{{\n  {before}\n  @if (d) {{\n    <main>a</main>\n  }}\n}}\n")
+}
+
+#[test]
+fn a_line_leading_control_after_a_markup_close_is_a_statement() {
+    // Whichever way the element ends, the control leads its line after a complete expression, so
+    // the projection spells it as a statement — the plain marker comment, no generator wrapper.
+    for (before, _) in MARKUP_CLOSE_BODIES {
+        let source = markup_close_source(before);
+        let projection = project_for_format(&source, &scan(&source).unwrap())
+            .unwrap_or_else(|error| panic!("project `{source}`: {error}"));
+        assert!(
+            !projection.source().contains("_W"),
+            "markup close left the control in expression context: {}",
+            projection.source()
+        );
+    }
+}
+
+#[test]
+fn a_control_after_a_markup_close_lifts_when_oxfmt_rewrites_the_element() {
+    // `flip_sibling_semicolon`'s sibling: the element in front of the control, rewritten the way
+    // canonical Oxfmt writes it — wrapped in parens once it breaks, or `;`-terminated — leaves the
+    // control's statement context unchanged, so the lift has to accept its own output.
+    for (before, after) in MARKUP_CLOSE_BODIES {
+        let source = markup_close_source(before);
+        let overlay = scan(&source).unwrap_or_else(|error| panic!("scan `{source}`: {error}"));
+        let controls = overlay.control_count();
+        let projection = project_for_format(&source, &overlay)
+            .unwrap_or_else(|error| panic!("project `{source}`: {error}"));
+
+        let rewritten = projection.source().replacen(before, after, 1);
+        assert_ne!(
+            rewritten,
+            projection.source(),
+            "the element rewrite did not change anything to test in `{source}`"
+        );
+
+        let lifted = lift_formatted(&rewritten, &source, &projection).unwrap_or_else(|error| {
+            panic!("rewritten-element lift failed for `{source}`: {error}\n{rewritten}")
+        });
+        assert!(!lifted.contains("_t"), "a scaffold identifier survived the lift: {lifted}");
+        let relifted = scan(&lifted).unwrap_or_else(|error| panic!("rescan `{lifted}`: {error}"));
+        assert_eq!(relifted.control_count(), controls, "control count changed: {lifted}");
+    }
+}
+
 #[test]
 fn a_control_that_really_continues_an_expression_keeps_its_wrapper_scaffold() {
     // The line-leading rule is a deny-list, so the tokens that demand an operand must still hold
@@ -235,6 +294,11 @@ fn a_control_that_really_continues_an_expression_keeps_its_wrapper_scaffold() {
         "function D() @{\n  const d = get()\n  const e = [\n    @if (d) {\n      <main>a</main>\n    }\n  ]\n  <b>{e}</b>\n}\n",
         "function D() @{\n  const d = get()\n  const e = () =>\n    @if (d) {\n      <main>a</main>\n    }\n  <b>{e()}</b>\n}\n",
         "function D() @{\n  const d = get()\n  const e = d ?\n    @if (d) {\n      <main>a</main>\n    } : null\n  <b>{e}</b>\n}\n",
+        // A comparison whose left operand ends in `/` or `</name` without being markup: a regex,
+        // a block comment, and a regex whose body ends in `</g`.
+        "function D() @{\n  const d = get()\n  const e = /re/ >\n    @if (d) {\n      <main>a</main>\n    }\n  <b>{e}</b>\n}\n",
+        "function D() @{\n  const d = get()\n  const e = d /* n */ >\n    @if (d) {\n      <main>a</main>\n    }\n  <b>{e}</b>\n}\n",
+        "function D() @{\n  const d = get()\n  const e = /a</g >\n    @if (d) {\n      <main>a</main>\n    }\n  <b>{e}</b>\n}\n",
     ] {
         let overlay = scan(source).unwrap_or_else(|error| panic!("scan `{source}`: {error}"));
         let projection = project_for_format(source, &overlay)

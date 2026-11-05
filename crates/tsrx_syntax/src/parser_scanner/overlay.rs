@@ -33,6 +33,7 @@ pub(super) struct Checkpoint {
     pub(super) implicit_closes: usize,
     pub(super) first_root: u32,
     pub(super) last_root: u32,
+    pub(super) last_markup_end: usize,
     parent: Option<(usize, u32, u32)>,
     probe_changes: usize,
 }
@@ -190,6 +191,7 @@ impl Scanner<'_> {
             implicit_closes: self.implicit_closes.len(),
             first_root: self.first_root,
             last_root: self.last_root,
+            last_markup_end: self.last_markup_end,
             parent,
             probe_changes: self
                 .surrogate_probes
@@ -222,6 +224,7 @@ impl Scanner<'_> {
         }
         self.first_root = checkpoint.first_root;
         self.last_root = checkpoint.last_root;
+        self.last_markup_end = checkpoint.last_markup_end;
         if let Some((index, first_child, last_child)) = checkpoint.parent {
             self.nodes[index].first_child = first_child;
             self.nodes[index].last_child = last_child;

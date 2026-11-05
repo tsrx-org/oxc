@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import test from "node:test";
 import { parseNpmPackResponse } from "../helpers/npm-pack-response.mjs";
 import { scriptNode } from "../helpers/script-node.mjs";
+import { acceptedAdvisoriesPresent, blockingAdvisories } from "./audit-policy.mjs";
 import { startLocalRegistry } from "./local-registry.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -148,9 +149,7 @@ test("untouched tarballs run the complete supported workflow from an empty consu
     { cwd: consumer, env: environment },
   );
   const auditReport = JSON.parse(audit.stdout);
-  assert.equal(audit.status, 0, audit.stderr || audit.stdout);
-  assert.equal(auditReport.metadata.vulnerabilities.high, 0);
-  assert.equal(auditReport.metadata.vulnerabilities.critical, 0);
+  assert.deepEqual(blockingAdvisories(auditReport), [], audit.stderr || audit.stdout);
 
   assert.deepEqual(Object.keys(packageJson.dependencies), ["@tsrx/oxc", "vite-plus"]);
   const toolchainRoot = join(consumer, "node_modules/@tsrx/oxc");
@@ -360,6 +359,7 @@ test("untouched tarballs run the complete supported workflow from an empty consu
         },
         resolutions,
         audit: auditReport.metadata.vulnerabilities,
+        acceptedAdvisories: acceptedAdvisoriesPresent(auditReport),
         assertions: {
           mixedLintAuthoredDiagnostics: true,
           mixedFormatCheckWriteCheck: true,

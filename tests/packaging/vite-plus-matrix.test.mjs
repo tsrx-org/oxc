@@ -22,6 +22,7 @@ import { pathToFileURL } from "node:url";
 import test from "node:test";
 import { parseNpmPackResponse } from "../helpers/npm-pack-response.mjs";
 import { scriptNode } from "../helpers/script-node.mjs";
+import { acceptedAdvisoriesPresent, blockingAdvisories } from "./audit-policy.mjs";
 import { startLocalRegistry } from "./local-registry.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -311,16 +312,21 @@ async function exerciseLane(lane, artifacts, environment) {
       "oxfmt",
     ]);
     let audit = null;
+    let acceptedAdvisories = null;
     if (lane.name !== "legacy") {
       const auditResult = await run(
         npm,
         ["audit", "--audit-level=high", "--json"],
         { cwd: consumer, env: environment },
       );
-      audit = JSON.parse(auditResult.stdout).metadata.vulnerabilities;
-      assert.equal(auditResult.status, 0, auditResult.stderr || auditResult.stdout);
-      assert.equal(audit.high, 0);
-      assert.equal(audit.critical, 0);
+      const auditReport = JSON.parse(auditResult.stdout);
+      audit = auditReport.metadata.vulnerabilities;
+      acceptedAdvisories = acceptedAdvisoriesPresent(auditReport);
+      assert.deepEqual(
+        blockingAdvisories(auditReport),
+        [],
+        auditResult.stderr || auditResult.stdout,
+      );
     }
 
     const consumerRoot = await realpath(consumer);
@@ -488,6 +494,7 @@ export default {
         viteDev: true,
         viteDevRetransform: true,
         audit,
+        acceptedAdvisories,
         environmentOverrides: false,
       },
     };

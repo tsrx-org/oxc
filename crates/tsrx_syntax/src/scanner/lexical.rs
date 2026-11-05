@@ -6,9 +6,10 @@ use crate::{
 use super::Scanner;
 
 /// Last bytes of the tokens that cannot end an expression, so a TSRX control written after one is
-/// continuing that expression however the source is laid out. `>` covers both `=>` and the close of
-/// a markup element, and `/` covers both division and the close of a regular expression, which is
-/// why neither of those shapes changes context under the line-leading rule.
+/// continuing that expression however the source is laid out. `/` covers both division and the
+/// close of a regular expression, which is why that shape does not change context under the
+/// line-leading rule. `>` demands an operand only as `=>`, a shift, or a comparison; a markup close
+/// ends a complete element, so `token_demands_an_operand` carves `/>` and `</name>` out.
 const OPERAND_BYTES: &[u8] = b"=([,?:.+-*/%&|^!~<>";
 
 /// Keywords that demand an operand. A line-leading control after one of these is still part of the
@@ -155,8 +156,11 @@ impl Scanner<'_> {
         let Some(&last) = index.checked_sub(1).and_then(|last| self.bytes.get(last)) else {
             return false;
         };
+        // A markup close — `/>`, `</>`, or `</name>` — ends a complete element, so a line-leading
+        // control after it opens a statement, the same boundary `;` or the `(...)` parens a
+        // formatter may add in its place already gave it.
         if OPERAND_BYTES.contains(&last) {
-            return true;
+            return last != b'>' || !self.markup_close_ends_at(index);
         }
         let mut word_start = index;
         while word_start > 0 && self.bytes[word_start - 1].is_ascii_alphabetic() {
@@ -165,6 +169,14 @@ impl Scanner<'_> {
         word_start < index
             && !identifier_continue_before(self.bytes, word_start)
             && OPERAND_KEYWORDS.contains(&&self.bytes[word_start..index])
+    }
+
+    /// Whether the `>` ending at `index` closes markup — a self-closing `/>`, the `</>` fragment
+    /// close, or a `</name>` tag — rather than ending `=>`, a shift, or a comparison. The scanner
+    /// has already read every element before a control, so this is the end it recorded, not a
+    /// guess from the bytes: `/re/ >` and `x /* c */ >` end in `/` before a comparison too.
+    fn markup_close_ends_at(&self, index: usize) -> bool {
+        self.last_markup_end == index
     }
 
     /// Octane starts a new statement when a line begins with a committed markup opening, even
