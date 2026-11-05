@@ -50,6 +50,9 @@ impl Scanner<'_> {
         if let Some(closing) = closing {
             delimiters.push((closing, closing == b'}'));
         }
+        // The `delimiters` depth of each function body `@{` still open in this region. Its `{`
+        // is the next byte, so it is pushed one level above the depth at the `@`.
+        let mut function_bodies = TinyStack::<usize, 4>::new();
         let mut can_start_expression = true;
         let mut can_start_jsx = true;
         let mut pending_control_paren = false;
@@ -234,6 +237,7 @@ impl Scanner<'_> {
                         can_start_expression = false;
                     } else {
                         self.push_token(StructuralKind::FunctionBody, index)?;
+                        function_bodies.push(delimiters.len() + 1);
                         index += 1;
                         can_start_expression = true;
                     }
@@ -312,6 +316,10 @@ impl Scanner<'_> {
                 b')' | b']' | b'}' => {
                     let mut closed_block = false;
                     if delimiters.last().is_some_and(|delimiter| delimiter.0 == byte) {
+                        if byte == b'}' && function_bodies.last() == Some(delimiters.len()) {
+                            function_bodies.pop();
+                            self.function_body_ends.push(to_u32(index)?);
+                        }
                         closed_block = delimiters.pop().is_some_and(|delimiter| delimiter.1);
                         index += 1;
                         if byte == b'}'

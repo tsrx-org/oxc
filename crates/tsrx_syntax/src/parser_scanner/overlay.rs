@@ -29,6 +29,7 @@ pub(super) struct Checkpoint {
     pub(super) jsx_text_comments: usize,
     pub(super) jsx_text_gts: usize,
     pub(super) case_expressions: usize,
+    pub(super) function_body_ends: usize,
     pub(super) implicit_closes: usize,
     pub(super) first_root: u32,
     pub(super) last_root: u32,
@@ -57,6 +58,7 @@ impl Scanner<'_> {
             jsx_text_comments: self.jsx_text_comments,
             jsx_text_gts: self.jsx_text_gts,
             case_expressions: self.case_expressions,
+            function_body_ends: self.function_body_ends,
             implicit_closes: self.implicit_closes,
             first_root: self.first_root,
             last_root: self.last_root,
@@ -185,6 +187,7 @@ impl Scanner<'_> {
             jsx_text_comments: self.jsx_text_comments.len(),
             jsx_text_gts: self.jsx_text_gts.len(),
             case_expressions: self.case_expressions.len(),
+            function_body_ends: self.function_body_ends.len(),
             implicit_closes: self.implicit_closes.len(),
             first_root: self.first_root,
             last_root: self.last_root,
@@ -214,6 +217,7 @@ impl Scanner<'_> {
         self.jsx_text_comments.truncate(checkpoint.jsx_text_comments);
         self.jsx_text_gts.truncate(checkpoint.jsx_text_gts);
         self.case_expressions.truncate(checkpoint.case_expressions);
+        self.function_body_ends.truncate(checkpoint.function_body_ends);
         self.implicit_closes.truncate(checkpoint.implicit_closes);
         if let Some(probes) = self.surrogate_probes.as_deref() {
             probes.borrow_mut().rollback(checkpoint.probe_changes);

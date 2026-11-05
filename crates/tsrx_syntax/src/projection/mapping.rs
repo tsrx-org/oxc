@@ -26,6 +26,8 @@ pub struct MappedProjection {
 pub struct TypeProjection {
     pub(super) projected: String,
     pub(super) segments: Vec<ProjectionSegment>,
+    /// Projected span of each `return` that ends a function body `@{ … }`, in source order.
+    pub(super) body_returns: Vec<ByteSpan>,
 }
 
 impl TypeProjection {
@@ -53,8 +55,33 @@ impl TypeProjection {
             return self.map_endpoint(range.start, true).map(|point| point..point);
         }
         let start = self.map_endpoint(range.start, true)?;
-        let end = self.map_endpoint(range.end, false)?;
+        let end = self
+            .map_endpoint(range.end, false)
+            .or_else(|| self.map_end_before_body_return(range.clone()))?;
         (start <= end).then_some(start..end)
+    }
+
+    /// Maps the end of a range that runs from authored code into the `return` the projection
+    /// wrote to end a function body, onto the last authored byte before that `return`.
+    ///
+    /// TypeScript reports a run of unreachable statements as one range. After an authored
+    /// `return` or `throw`, the run takes in the synthetic `return` too, so without this the
+    /// whole report, authored statements included, would have no authored end and be dropped.
+    /// Trailing whitespace is left out, so the range ends where the last authored statement does.
+    fn map_end_before_body_return(&self, range: Range<u32>) -> Option<u32> {
+        let body_return = self
+            .body_returns
+            .iter()
+            .find(|span| (span.start + 1..=span.end).contains(&range.end))?;
+        if range.start >= body_return.start {
+            return None;
+        }
+        let authored = self.projected.get(range.start as usize..body_return.start as usize)?;
+        let trimmed = u32::try_from(authored.trim_end().len()).ok()?;
+        if trimmed == 0 {
+            return None;
+        }
+        self.map_endpoint(range.start + trimmed, false)
     }
 
     /// Maps a fix only when the complete edit is one unchanged affine authored segment.

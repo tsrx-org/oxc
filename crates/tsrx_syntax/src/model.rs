@@ -417,6 +417,10 @@ pub struct Overlay {
     /// Each `{ … }` that begins a consequent directly in an `@case` or `@default` body, in source
     /// order. `@tsrx/core` reads one as a template expression container, not a block statement.
     pub(crate) case_expressions: Vec<ByteSpan>,
+    /// Offset of the `}` that closes each function body `@{ … }`, in source order. Only the parser
+    /// scanner records these; the type projection ends each such body with the `return` that
+    /// types the component, where it cannot change which return the body reaches first.
+    pub(crate) function_body_ends: Vec<u32>,
     pub(crate) implicit_closes: Vec<ImplicitClose>,
     pub(crate) first_root: u32,
     pub(crate) last_root: u32,

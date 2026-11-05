@@ -31,7 +31,11 @@ pub fn project_for_types(
     let built = build_projection_with_purpose(source, overlay, true, ProjectionPurpose::Types)?;
     let mut projected = built.mapped.projected;
     append_type_helper_declarations(&mut projected, overlay, &built.prefix);
-    Ok(TypeProjection { projected, segments: built.mapped.segments })
+    Ok(TypeProjection {
+        projected,
+        segments: built.mapped.segments,
+        body_returns: built.body_returns,
+    })
 }
 
 fn append_type_helper_declarations(output: &mut String, overlay: &Overlay, prefix: &str) {
