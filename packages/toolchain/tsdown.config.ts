@@ -26,6 +26,7 @@ export default defineConfig({
     "src/runtime.ts",
     "src/spawn-command.ts",
     "src/tsrx-transfer.ts",
+    "src/tsgolint-proxy.ts",
     "src/bin/oxc-tsrx.ts",
     "src/bin/oxc-tsrx-fmt.ts",
     "src/bin/oxc-tsrx-lint.ts",

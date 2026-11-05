@@ -27,6 +27,7 @@ mod fmt;
 mod lint;
 mod lsp;
 mod paths;
+mod tsgolint_proxy;
 
 use std::{env, path::Path, process::ExitCode};
 
@@ -79,6 +80,10 @@ fn main() -> ExitCode {
     let program = program_name(raw.next());
     let arguments = raw.collect::<Vec<_>>();
 
+    // Canonical Oxlint starting this executable as its tsgolint; see `tsgolint_proxy`.
+    if let Some(target) = tsgolint_proxy::proxy_target(&arguments) {
+        return tsgolint_proxy::run(&target, &arguments);
+    }
     if let Some(tool) = program.as_deref().and_then(Tool::from_program_name) {
         return tool.run(arguments);
     }

@@ -144,7 +144,7 @@ test(
       .filter((file) => file.endsWith(".ts") && !file.endsWith(".d.ts"))
       .map((file) => `${file.slice(0, -3)}.js`)
       .sort();
-    assert.equal(authoredRuntime.filter((file) => !file.startsWith("bin/")).length, 23);
+    assert.equal(authoredRuntime.filter((file) => !file.startsWith("bin/")).length, 24);
     assert.equal(authoredRuntime.filter((file) => file.startsWith("bin/")).length, 6);
     assert.equal(toolchainDeclarationFiles.length, 9);
     const toolchainExpectedInventory = [

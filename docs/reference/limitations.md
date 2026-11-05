@@ -57,20 +57,24 @@ TSRX, and neither is code a bundler can consume.
   other version fails rather than guess at the protocol, which is what a fresh Vite+ scaffold runs into when
   it resolves Vite+'s own runner instead. See [the type-aware template
   default](/guide/getting-started#if-something-goes-wrong).
-- **Some `.tsrx` imports still do not resolve in a type-aware run.** A `.tsrx`
-  module the run imports resolves whether or not it is being linted, but only
-  when the specifier names the file relative to the importer
-  (`./label.tsrx`, `../ui/label.tsrx`) or by absolute path. Three cases are
-  not covered yet, and in each one the import is typed `any`, so `--type-check`
-  reports TS2307 on it and type-aware rules cannot see across it:
-  - A tsconfig `paths` alias or a package specifier (`@/ui/label.tsrx`).
-  - An import reached only through a `.ts` or `.tsx` file that is not itself
-    being linted.
-  - An import in a `.ts`, `.tsx`, or `.js` file linted through the `oxlint`
-    command. That command hands ordinary files to canonical Oxlint, which has
-    no TSRX projection to resolve the import against. `oxc-tsrx-lint` lints
-    exactly the files it is handed in the TSRX lane, so naming the `.ts` file
-    there resolves the import.
+- **A `.tsrx` import behind a `paths` alias or a package name does not resolve
+  in a type-aware run.** A `.tsrx` module the run reaches resolves whether or
+  not it is being linted, from `.tsrx`, `.ts`, `.tsx`, and `.js` files alike,
+  on the `oxlint` command, `vp lint`, `oxc-tsrx-lint`, and the editor. It is
+  reached through relative specifiers only:
+  - a relative (`./label.tsrx`, `../ui/label.tsrx`) or absolute specifier that
+    names the `.tsrx` file;
+  - a relative specifier of an ordinary module that leads to one, such as a
+    barrel `index.ts` that re-exports it. Ordinary specifiers resolve the way
+    TypeScript resolves them: the exact file, `.js`/`.mjs`/`.cjs` standing for
+    `.ts`/`.mts`/`.cts`, an added `.ts`/`.tsx`/`.d.ts`/`.js`/`.jsx`, then the
+    directory's `index`.
+
+  A tsconfig `paths` alias (`@/ui/label.tsrx`), a `baseUrl` import, a package
+  specifier, and a package's `exports` are not followed, for the `.tsrx` file
+  itself or for an ordinary module in front of it. Such an import is typed
+  `any`, so `--type-check` reports TS2307 on it and type-aware rules cannot see
+  across it.
 - **`vp lint` and your editor read different config files.** Vite+ owns lint
   configuration in the `lint` block of `vite.config.ts`, and the language server
   reads `.oxlintrc.json`, so a rule you want on both surfaces has to be declared

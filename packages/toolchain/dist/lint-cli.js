@@ -3,6 +3,7 @@ import { resolveCanonicalOxlint, selectCanonicalOxlint } from "./package-binary.
 import { argumentValue, canonicalToolEnvironment, discoverTsrxFiles, ensureSupportedOutput, isViteConfigPath, pathArguments, prepareVitePlusConfig, removeExplicitTsrx, replaceConfigArgument, resolveNativeCommand } from "./runtime.js";
 import { DELEGATE_ONLY, VALUE_OPTIONS, parseOxlintInvocation, parseOxlintOption, withOxlintOutputFormat } from "./lint-invocation.js";
 import { jsPluginUnmappedNote, preparePluginLane } from "./lint-js-plugins.js";
+import { withTsgolintProxy } from "./tsgolint-proxy.js";
 import { readFile } from "node:fs/promises";
 import { relative } from "pathe";
 //#region src/lint-cli.ts
@@ -435,7 +436,7 @@ async function runCli(args, options = {}) {
 			upstreamPromise = options.prestartedUpstream.result;
 		} else upstreamPromise = runUpstreamOxlint(upstreamBinary, upstreamArgs, {
 			cwd,
-			env: canonicalToolEnvironment(useMaterializedUpstreamConfig)
+			env: withTsgolintProxy(canonicalToolEnvironment(useMaterializedUpstreamConfig), cwd)
 		});
 		const lanePromise = pluginLaneActive ? pluginLane.run().then((value) => ({
 			ok: true,

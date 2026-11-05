@@ -23,7 +23,8 @@ try {
 		const vitePlusHost = Boolean(process.env.VP_VERSION || process.env.VP_COMMAND || process.env.NODE_PACKAGE_MANAGER === "vite-plus");
 		if (canRunCanonicalOxlint(args)) {
 			if (vitePlusHost && !parseOxlintInvocation(args).delegateOnly) process.argv = [...process.argv.slice(0, 2), ...withDiscoveredViteConfig(args)];
-			await importCanonicalOxlint(import.meta.url);
+			const { withProcessTsgolintProxy } = await import("../tsgolint-proxy.js");
+			await withProcessTsgolintProxy(process.cwd(), () => importCanonicalOxlint(import.meta.url));
 		} else {
 			const plan = vitePlusHost ? null : planCanonicalOxlintComposition(args);
 			const prestart = plan === null ? Promise.resolve(null) : import("../lint-prestart.js").then(({ startCanonicalOxlint }) => startCanonicalOxlint(plan.args));
