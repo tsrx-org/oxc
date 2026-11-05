@@ -75,6 +75,8 @@ pub(super) struct BuiltProjection {
     pub(super) wrappers: Vec<WrapperManifest>,
     pub(super) headers: Vec<HeaderManifest>,
     pub(super) tries: Vec<TryManifest>,
+    /// Projected span of each `return` the type lane wrote to end a function body.
+    pub(super) body_returns: Vec<ByteSpan>,
 }
 
 struct Builder<'a> {
@@ -97,6 +99,8 @@ struct Builder<'a> {
     consumed: ByteSpan,
     /// Scaffold ordinal of each dynamic tag. A tag nested in another tag's expression has none.
     dynamic_ordinals: Vec<u32>,
+    /// Projected span of each `return` written by [`Self::function_body_end`].
+    body_returns: Vec<ByteSpan>,
 }
 
 impl<'a> Builder<'a> {
@@ -138,6 +142,7 @@ impl<'a> Builder<'a> {
             gt_stand_in,
             consumed: ByteSpan::default(),
             dynamic_ordinals: Vec::new(),
+            body_returns: Vec::new(),
         }
     }
 
@@ -317,7 +322,11 @@ impl<'a> Builder<'a> {
             return Err(ProjectionError::SourceChanged { offset: close });
         }
         self.copy_to(close as usize)?;
-        self.output.push_str("\nreturn null as any;\n");
+        self.output.push('\n');
+        let start = to_u32(self.output.len())?;
+        self.output.push_str("return null as any;");
+        self.body_returns.push(ByteSpan::new(start, to_u32(self.output.len())?));
+        self.output.push('\n');
         Ok(())
     }
 
@@ -1128,6 +1137,7 @@ pub(super) fn build_projection_with_purpose(
     while let Some(action) = pending.next()? {
         pending.apply(&mut builder, action)?;
     }
+    let body_returns = std::mem::take(&mut builder.body_returns);
     let mut mapped = builder.finish()?;
     mapped.synthetic_generator_spans = overlay
         .nodes
@@ -1140,7 +1150,7 @@ pub(super) fn build_projection_with_purpose(
         mapped.dynamic_count = to_u32(dynamic_offsets.len())?;
         mapped.dynamic_offsets = dynamic_offsets;
     }
-    Ok(BuiltProjection { mapped, prefix, gt_stand_in, wrappers, headers, tries })
+    Ok(BuiltProjection { mapped, prefix, gt_stand_in, wrappers, headers, tries, body_returns })
 }
 
 /// What a projection writes for each `>` in JSX text, which TSX rejects and `@tsrx/core` reads as

@@ -158,6 +158,27 @@ fn type_projection_ends_each_function_body_with_its_return() {
     assert!(!lint.source().contains("return null as any"), "{}", lint.source());
 }
 
+/// TypeScript reports a run of unreachable statements as one range, which after an authored
+/// `return` takes in the synthetic return too. The range keeps its authored part.
+#[test]
+fn type_projection_clips_a_range_that_runs_into_the_body_return() {
+    let source = "function View() @{\n  return <i />;\n  <span>never</span>\n}\n";
+    let overlay = scan_for_parser(source).unwrap();
+    let projection = project_for_types(source, &overlay).unwrap();
+    let projected = projection.source();
+    let dead = u32::try_from(projected.find("<span>never</span>").unwrap()).unwrap();
+    let synthetic = u32::try_from(projected.find("return null as any;").unwrap()).unwrap();
+    let authored = u32::try_from(source.find("<span>never</span>").unwrap()).unwrap();
+    assert_eq!(projection.map_range(dead..synthetic + 19), Some(authored..authored + 18));
+    // Ending partway into the synthetic return clips the same way.
+    assert_eq!(projection.map_range(dead..synthetic + 6), Some(authored..authored + 18));
+    // A range on the synthetic return alone still has no authored position.
+    assert_eq!(projection.map_range(synthetic..synthetic + 19), None);
+    // A range that only crosses whitespace before the synthetic return has none either.
+    let gap = dead + 18;
+    assert_eq!(projection.map_range(gap..synthetic + 19), None);
+}
+
 #[test]
 fn type_projection_keeps_unannotated_for_headers_verbatim() {
     let source = concat!(

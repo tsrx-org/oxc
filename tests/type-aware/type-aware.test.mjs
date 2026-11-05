@@ -40,6 +40,8 @@ const componentView = join(componentRoot, "View.tsrx");
 const componentApp = join(componentRoot, "App.tsx");
 const consistentReturnRoot = join(root, "tests/fixtures/type-aware/consistent-return");
 const consistentReturnSource = join(consistentReturnRoot, "View.tsrx");
+const unreachableEndRoot = join(root, "tests/fixtures/type-aware/unreachable-end");
+const unreachableEndSource = join(unreachableEndRoot, "View.tsrx");
 
 function run(cwd, args, env = process.env, executable = binary) {
   return new Promise((resolvePromise, reject) => {
@@ -305,6 +307,47 @@ test("consistent-return reports only the returns the author wrote", async () => 
         offset: byteOffset(source, "export function pick"),
       },
     ],
+    result.stdout,
+  );
+});
+
+// The return that ends each `@{` body is unreachable after an authored `return` or `throw`, and
+// `allowUnreachableCode: false` makes TypeScript report it. Only authored code may be reported.
+test("unreachable-code reports cover authored statements and never the body's own return", async () => {
+  const source = await readFile(unreachableEndSource, "utf8");
+  const result = await run(unreachableEndRoot, [
+    "--format=json",
+    "--type-check",
+    unreachableEndSource,
+  ]);
+
+  assert.equal(result.code, 1, result.stderr || result.stdout);
+  const output = parseJson(result);
+  const compilerDiagnostics = output.diagnostics
+    .filter((item) => item.code.startsWith("typescript(TS"))
+    .map((item) => ({ code: item.code, labels: item.labels.map((label) => label.span) }));
+  // TypeScript reports `Authored`'s dead markup and the synthetic return as one run. The report
+  // keeps its authored part, ending where the authored statement does.
+  assert.deepEqual(
+    compilerDiagnostics,
+    [
+      {
+        code: "typescript(TS7027)",
+        labels: [
+          {
+            offset: byteOffset(source, "<span>never</span>"),
+            length: Buffer.byteLength("<span>never</span>"),
+          },
+        ],
+      },
+    ],
+    result.stdout,
+  );
+  // `Returns`, `Throws`, `Branches`, and `Loops` each get a report on the synthetic return only.
+  assert.equal(output.oxcTsrx.diagnosticsSuppressed, 4, result.stdout);
+  assert.equal(
+    output.diagnostics.filter((item) => item.rule === "consistent-return").length,
+    0,
     result.stdout,
   );
 });
