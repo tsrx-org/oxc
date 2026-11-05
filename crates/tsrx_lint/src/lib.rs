@@ -2,6 +2,7 @@
 
 mod error;
 mod fixes;
+mod imports;
 mod pipeline;
 mod report;
 mod session;

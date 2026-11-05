@@ -82,6 +82,10 @@ Three things behave differently here:
   same one a `.ts` file next to it would use, so `jsx`, `jsxImportSource`,
   `paths`, and `types` all apply. `--tsconfig PATH` names one tsconfig for
   every `.tsrx` file instead.
+- **A `.tsrx` import resolves even when that file is not being linted.**
+  Linting one file, or only the files a change touched, still gives type-aware
+  rules the real types of every `.tsrx` module those files import, without
+  reporting anything in the imported files.
 
 [Configuration](/integrations/configuration) lists every supported field.
 

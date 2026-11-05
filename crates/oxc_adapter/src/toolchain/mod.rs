@@ -4,6 +4,7 @@ mod config;
 mod diagnostics;
 mod engine;
 mod format;
+mod imports;
 mod session;
 mod timings;
 mod tsgolint;
@@ -15,9 +16,10 @@ pub use format::{
     EngineFormatResult, FormatError, FormatOptionError, FormatOptions, FormatRequest,
     count_expanded_objects, format, write_check_report_path,
 };
+pub use imports::module_specifiers;
 pub use session::{
-    LintError, LintRequest, LintResult, TypeBatchDiagnostic, TypeBatchFile, TypeBatchResult,
-    TypeLintError, TypeLintRequest, TypeLintResult, lint,
+    LintError, LintRequest, LintResult, TypeBatchDiagnostic, TypeBatchFile, TypeBatchOverlay,
+    TypeBatchResult, TypeLintError, TypeLintRequest, TypeLintResult, lint,
 };
 pub use timings::{EngineTimings, FormatEngineTimings};
 pub use tsgolint::{FramePart, SUPPORTED_TSGOLINT_VERSION, TsgolintError};

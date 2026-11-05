@@ -10,6 +10,7 @@ fn the_adapter_keeps_one_concept_per_private_module_file() {
         "src/toolchain/diagnostics.rs",
         "src/toolchain/engine.rs",
         "src/toolchain/format.rs",
+        "src/toolchain/imports.rs",
         "src/toolchain/session.rs",
         "src/toolchain/timings.rs",
         "src/toolchain/tsgolint/mod.rs",

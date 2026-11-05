@@ -9,7 +9,7 @@ use std::{
 
 use oxc_adapter::{
     DynamicTagContract, EngineDiagnostic, EngineSpan, LintError as EngineLintError, LintRequest,
-    LintResult, OXC_REVISION, SourceKind, TypeBatchFile,
+    LintResult, OXC_REVISION, SourceKind, TypeBatchFile, TypeBatchOverlay,
 };
 use tsrx_syntax::{
     MappedProjection, SCRIPT_END_TAG_IN_BODY_CODE, TypeProjection, project_for_lint,
@@ -19,6 +19,7 @@ use tsrx_syntax::{
 use crate::{
     error::{LintError, UnparsedFile},
     fixes::{AppliedFixes, apply_safe_fixes},
+    imports::{ImportedProjection, Importer, imported_projections},
     report::{
         FileCounts, FixOutput, Metadata, Output, TimingOutput, map_diagnostics,
         parse_failure_output, projection_failure_output,
@@ -108,6 +109,11 @@ pub(crate) fn run_type_lint(
     }
     let virtual_path = type_lane_path(path, prepared.is_tsrx);
     let projected_source = prepared.type_projection.as_ref().map_or(source, TypeProjection::source);
+    let imported = imported_projections(&[Importer {
+        path,
+        source: projected_source,
+        kind: prepared.source_kind,
+    }]);
     let batch = session.engine.lint_type_batch(
         &[TypeBatchFile {
             authored_path: path,
@@ -115,6 +121,7 @@ pub(crate) fn run_type_lint(
             projected_source,
             disable_directives: syntax.disable_directives.as_ref(),
         }],
+        &type_overlays(&imported),
         session.fix,
     )?;
     let diagnostics = batch
@@ -126,6 +133,17 @@ pub(crate) fn run_type_lint(
         .map(|diagnostic| diagnostic.diagnostic)
         .collect();
     Ok((diagnostics, batch.elapsed_ns, batch.process_count))
+}
+
+/// The read-only overlays for the `.tsrx` modules a batch imports but does not lint.
+pub(crate) fn type_overlays(imported: &[ImportedProjection]) -> Vec<TypeBatchOverlay<'_>> {
+    imported
+        .iter()
+        .map(|file| TypeBatchOverlay {
+            virtual_path: &file.virtual_path,
+            projected_source: file.projection.source(),
+        })
+        .collect()
 }
 
 pub(crate) fn run_syntax_lint(
@@ -313,22 +331,33 @@ fn prepare_source(
 /// derives from an unnormalized one (`./src/View.tsrx` from the command line), and the diagnostics
 /// it answers with carry the normalized form this is matched against.
 pub(crate) fn type_lane_path(path: &Path, is_tsrx: bool) -> PathBuf {
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                normalized.pop();
-            }
-            other => normalized.push(other),
-        }
-    }
+    let normalized = normalize_path(path);
     if !is_tsrx {
         return normalized;
     }
     let mut virtual_path = OsString::from(normalized.as_os_str());
     virtual_path.push(".tsx");
     PathBuf::from(virtual_path)
+}
+
+/// `path` with `.` dropped and each `..` folded into the directory before it, lexically. A `..`
+/// that leads a relative path is kept, and one above the root is dropped, as the OS does.
+pub(crate) fn normalize_path(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => match normalized.components().next_back() {
+                Some(Component::Normal(_)) => {
+                    normalized.pop();
+                }
+                Some(Component::RootDir | Component::Prefix(_)) => {}
+                _ => normalized.push(".."),
+            },
+            other => normalized.push(other),
+        }
+    }
+    normalized
 }
 
 fn elapsed_ns(started: Instant) -> u64 {

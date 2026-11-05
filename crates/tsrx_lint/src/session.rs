@@ -13,9 +13,10 @@ use tsrx_syntax::TypeProjection;
 use crate::{
     error::LintError,
     fixes::collect_editor_fixes,
+    imports::{Importer, imported_projections},
     pipeline::{
         PendingBatchFile, finish_lint, lint_loaded_file, lint_loaded_source, run_syntax_lint,
-        run_type_lint, type_lane_path,
+        run_type_lint, type_lane_path, type_overlays,
     },
     report::{
         EditorFix, Output, aggregate_outputs, parse_failure_output, projection_failure_output,
@@ -208,7 +209,20 @@ impl LintSession {
                 disable_directives: file.syntax.disable_directives.as_ref(),
             })
             .collect::<Vec<_>>();
-        let type_result = self.engine.lint_type_batch(&batch_files, self.fix)?;
+        // The `.tsrx` modules these files import but this run does not lint are made readable to
+        // tsgolint so those imports resolve; none of them is linted or reported.
+        let importers = pending
+            .iter()
+            .zip(&batch_files)
+            .map(|(file, batch_file)| Importer {
+                path: &file.path,
+                source: batch_file.projected_source,
+                kind: file.prepared.source_kind,
+            })
+            .collect::<Vec<_>>();
+        let imported = imported_projections(&importers);
+        let type_result =
+            self.engine.lint_type_batch(&batch_files, &type_overlays(&imported), self.fix)?;
         let mut by_path = HashMap::<PathBuf, Vec<EngineDiagnostic>>::new();
         let mut global = Vec::new();
         for result in type_result.diagnostics {
