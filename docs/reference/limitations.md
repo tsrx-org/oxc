@@ -63,6 +63,10 @@ TSRX, and neither is code a bundler can consume.
   twice, in the two shapes those files use.
 - Not every OXC rule is guaranteed to behave identically around the TSRX
   placeholders. Anything that would report inside placeholder code is suppressed.
+  Type-aware rules see each `@{ … }` body end in a placeholder `return` that
+  types the component, the way a TSX component ends by returning its markup, so
+  `typescript/consistent-return` reports only authored returns that disagree
+  with each other, never a component for falling off its end.
 - On a run that includes `.tsrx`, lint output comes out as `default`, `agent`,
   `github`, or `json`. Any other Oxlint format is refused.
 

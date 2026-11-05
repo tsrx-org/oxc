@@ -38,6 +38,8 @@ const controlSource = join(controlRoot, "View.tsrx");
 const componentRoot = join(root, "tests/fixtures/type-aware/component-project");
 const componentView = join(componentRoot, "View.tsrx");
 const componentApp = join(componentRoot, "App.tsx");
+const consistentReturnRoot = join(root, "tests/fixtures/type-aware/consistent-return");
+const consistentReturnSource = join(consistentReturnRoot, "View.tsrx");
 
 function run(cwd, args, env = process.env, executable = binary) {
   return new Promise((resolvePromise, reject) => {
@@ -265,6 +267,46 @@ test("cross-file component inference remains usable from ordinary TSX", async ()
   assert.equal(floating[0].filename, componentApp);
   assert.equal(output.oxcTsrx.typeAwareProcesses, 1);
   assert.equal(output.oxcTsrx.parseCount, 2);
+});
+
+// Issue #224: the projection used to open every `@{` body with a placeholder return, so each
+// component returned a value first and then fell off its end, and `consistent-return` reported
+// the component itself.
+test("consistent-return reports only the returns the author wrote", async () => {
+  const source = await readFile(consistentReturnSource, "utf8");
+  const result = await run(consistentReturnRoot, [
+    "--format=json",
+    "--type-check",
+    consistentReturnSource,
+  ]);
+
+  assert.equal(result.code, 1, result.stderr || result.stdout);
+  const output = parseJson(result);
+  assert.deepEqual(
+    output.diagnostics.filter((item) => item.code.startsWith("typescript(TS")),
+    [],
+    result.stdout,
+  );
+  const reports = output.diagnostics
+    .filter((item) => item.rule === "consistent-return")
+    .map((item) => ({ message: item.message, offset: item.labels[0].span.offset }))
+    .sort((left, right) => left.offset - right.offset);
+  // `Label`, `Guarded`, and `Badge` are not reported. `Mixed` is, at the bare `return;` that
+  // disagrees with its earlier `return 1;`, and so is the ordinary function `pick`.
+  assert.deepEqual(
+    reports,
+    [
+      {
+        message: "Function 'Mixed' expected a return value.",
+        offset: byteOffset(source, "return;\n  <span>{props.text}</span>\n}\n\nexport function pick"),
+      },
+      {
+        message: "Function 'pick' expected a return value.",
+        offset: byteOffset(source, "export function pick"),
+      },
+    ],
+    result.stdout,
+  );
 });
 
 test("the @tsrx/oxc lint bridge enables type awareness from resolved Vite+ config", async () => {

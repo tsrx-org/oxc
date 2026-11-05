@@ -98,7 +98,7 @@ fn type_projection_preserves_loop_bindings_and_identity_fix_boundaries() {
     assert!(projection.source().contains("for(const item of items)"));
     assert!(projection.source().contains("let i = 0;"));
     assert!(projection.source().contains("void (item.id);"));
-    assert!(projection.source().contains("if (false) return null as any;"));
+    assert!(projection.source().contains("</main>\nreturn null as any;\n}"));
 
     let projected_start = u32::try_from(projection.source().find("item.save()").unwrap()).unwrap();
     let authored_start = u32::try_from(source.find("item.save()").unwrap()).unwrap();
@@ -112,6 +112,50 @@ fn type_projection_preserves_loop_bindings_and_identity_fix_boundaries() {
     );
     let wrapper = u32::try_from(projection.source().find("W0_").unwrap()).unwrap();
     assert!(projection.map_fix_range(wrapper..wrapper + 3).is_none());
+}
+
+/// The return that types a `@{` body as a component closes the body rather than opening it.
+/// Opening it made every component return a value first and then fall off its end, which
+/// `consistent-return` reported on the function itself.
+#[test]
+fn type_projection_ends_each_function_body_with_its_return() {
+    let source = concat!(
+        "export function View(props: { ready: boolean }) @{\n",
+        "  if (!props.ready) return;\n",
+        "  const Row = () => @{ <li>{props.ready}</li> };\n",
+        "  const render = () => { return 1; };\n",
+        "  <ul>{render()}<Row /></ul>\n",
+        "}\n",
+        "class Card { render() @{ <p>card</p> } }\n",
+    );
+    let overlay = scan_for_parser(source).unwrap();
+    let projection = project_for_types(source, &overlay).unwrap();
+    let projected = projection.source();
+    assert!(!projected.contains("if (false)"), "{projected}");
+    assert_eq!(projected.matches("return null as any;").count(), 3, "{projected}");
+    // Each one sits directly before the `}` that closes its own body, after everything authored.
+    assert!(projected.contains("<li>{props.ready}</li> \nreturn null as any;\n};"), "{projected}");
+    assert!(
+        projected.contains("<ul>{render()}<Row /></ul>\n\nreturn null as any;\n}\n"),
+        "{projected}"
+    );
+    assert!(projected.contains("<p>card</p> \nreturn null as any;\n} }"), "{projected}");
+    // The ordinary block body is copied as written.
+    assert!(projected.contains("const render = () => { return 1; };"), "{projected}");
+    // The authored early return keeps its authored position.
+    let projected_return = u32::try_from(projected.find("return;").unwrap()).unwrap();
+    let authored_return = u32::try_from(source.find("return;").unwrap()).unwrap();
+    assert_eq!(
+        projection.map_range(projected_return..projected_return + 7),
+        Some(authored_return..authored_return + 7)
+    );
+    // The synthetic return has no authored position, so anything reported on it is dropped.
+    let synthetic = u32::try_from(projected.find("return null as any;").unwrap()).unwrap();
+    assert_eq!(projection.map_range(synthetic..synthetic + 19), None);
+
+    // The syntax-lint lane keeps every body exactly as written.
+    let lint = project_for_lint(source, &overlay).unwrap();
+    assert!(!lint.source().contains("return null as any"), "{}", lint.source());
 }
 
 #[test]

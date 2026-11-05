@@ -20,6 +20,7 @@ use crate::projection_view::ProjectionSegment;
 enum Action {
     TryEnd(u32),
     ParserCodeBlockEnd(u32),
+    FunctionBodyEnd(u32),
     WrapperEnd(u32),
     WrapperStart(u32),
     Token(u32),
@@ -40,6 +41,8 @@ impl Action {
                 (overlay.parser_code_blocks[block as usize].body.end.saturating_sub(1), 0)
             }
             Self::WrapperEnd(node) => (overlay.nodes[node as usize].span.end, 1),
+            // After every control that ends right at the body's `}`: the return closes the body.
+            Self::FunctionBodyEnd(body) => (overlay.function_body_ends[body as usize], 2),
             Self::WrapperStart(node) => (overlay.nodes[node as usize].span.start, 2),
             Self::Token(token) => (overlay.tokens[token as usize].span.start, 3),
             Self::Header { clause, .. } => (overlay.clauses[clause as usize].header.start, 3),
@@ -300,6 +303,24 @@ impl<'a> Builder<'a> {
         Ok(())
     }
 
+    /// Ends a function body `@{ … }` with the `return` that types it in the type lane.
+    ///
+    /// A `@{` body renders its markup instead of returning it, so TypeScript would infer `void`
+    /// and reject the component wherever it is used as one. A trailing `return null as any;`
+    /// types it `any`, and because it closes the body it reads the way the rendered output does:
+    /// as the value the body ends with. An early authored `return` still comes first, and the end
+    /// of the body is never an implicit `undefined` return, so `consistent-return` does not
+    /// report a component for a return its author never wrote.
+    fn function_body_end(&mut self, body: u32) -> Result<(), ProjectionError> {
+        let close = self.overlay.function_body_ends[body as usize];
+        if self.source.as_bytes().get(close as usize) != Some(&b'}') {
+            return Err(ProjectionError::SourceChanged { offset: close });
+        }
+        self.copy_to(close as usize)?;
+        self.output.push_str("\nreturn null as any;\n");
+        Ok(())
+    }
+
     fn try_end(&mut self, node_index: u32) -> Result<(), ProjectionError> {
         let node = self.overlay.nodes[node_index as usize];
         if node.kind != ControlKind::Try {
@@ -346,7 +367,6 @@ impl<'a> Builder<'a> {
                     return Err(ProjectionError::SourceChanged { offset: token.span.start });
                 }
                 self.copy_to(self.cursor + 1)?;
-                self.output.push_str("\nif (false) return null as any;\n");
             }
             StructuralKind::Try => {
                 if token.owner == NONE {
@@ -898,12 +918,14 @@ struct PendingActions<'a> {
     wrappers: &'a [Action],
     try_ends: &'a [Action],
     code_block_ends: &'a [Action],
+    function_body_ends: &'a [Action],
     headers: &'a [Action],
     case_expression_ends: &'a [Action],
     case_expressions: usize,
     wrapper: usize,
     try_end: usize,
     code_block_end: usize,
+    function_body_end: usize,
     token: usize,
     header: usize,
     embedded: usize,
@@ -919,6 +941,7 @@ impl<'a> PendingActions<'a> {
         wrappers: &'a [Action],
         try_ends: &'a [Action],
         code_block_ends: &'a [Action],
+        function_body_ends: &'a [Action],
         headers: &'a [Action],
         case_expression_ends: &'a [Action],
     ) -> Self {
@@ -927,12 +950,14 @@ impl<'a> PendingActions<'a> {
             wrappers,
             try_ends,
             code_block_ends,
+            function_body_ends,
             headers,
             case_expression_ends,
             case_expressions: case_expression_ends.len(),
             wrapper: 0,
             try_end: 0,
             code_block_end: 0,
+            function_body_end: 0,
             token: 0,
             header: 0,
             embedded: 0,
@@ -966,6 +991,7 @@ impl<'a> PendingActions<'a> {
             self.wrappers.get(self.wrapper).copied(),
             self.try_ends.get(self.try_end).copied(),
             self.code_block_ends.get(self.code_block_end).copied(),
+            self.function_body_ends.get(self.function_body_end).copied(),
             token,
             self.headers.get(self.header).copied(),
             embedded,
@@ -981,6 +1007,7 @@ impl<'a> PendingActions<'a> {
         match action {
             Action::TryEnd(_) => self.try_end += 1,
             Action::ParserCodeBlockEnd(_) => self.code_block_end += 1,
+            Action::FunctionBodyEnd(_) => self.function_body_end += 1,
             Action::WrapperEnd(_) | Action::WrapperStart(_) => self.wrapper += 1,
             Action::Token(_) => self.token += 1,
             Action::Header { .. } | Action::ForBody(_) => self.header += 1,
@@ -997,6 +1024,7 @@ impl<'a> PendingActions<'a> {
         match action {
             Action::TryEnd(node) => builder.try_end(node),
             Action::ParserCodeBlockEnd(block) => builder.parser_code_block_end(block),
+            Action::FunctionBodyEnd(body) => builder.function_body_end(body),
             Action::WrapperEnd(node) => builder.wrapper_end(node),
             Action::WrapperStart(node) => builder.wrapper_start(node),
             Action::Token(token) => builder.token(token),
@@ -1047,6 +1075,15 @@ pub(super) fn build_projection_with_purpose(
         .map(|(index, _)| to_u32(index).map(Action::ParserCodeBlockEnd))
         .collect::<Result<Vec<_>, _>>()?;
     parser_code_block_end_actions.sort_unstable_by_key(|action| action.key(overlay));
+    // Only the type lane gives a function body a return; every other lane copies it as written.
+    let mut function_body_end_actions = if purpose == ProjectionPurpose::Types {
+        (0..overlay.function_body_ends.len())
+            .map(|index| to_u32(index).map(Action::FunctionBodyEnd))
+            .collect::<Result<Vec<_>, _>>()?
+    } else {
+        Vec::new()
+    };
+    function_body_end_actions.sort_unstable_by_key(|action| action.key(overlay));
     // Only the formatter lane: the other lanes read the braces as a block, which types and lints
     // the expression inside the same way.
     let mut case_expression_end_actions = if record_segments {
@@ -1084,6 +1121,7 @@ pub(super) fn build_projection_with_purpose(
         &wrapper_actions,
         &try_end_actions,
         &parser_code_block_end_actions,
+        &function_body_end_actions,
         &header_actions,
         &case_expression_end_actions,
     );

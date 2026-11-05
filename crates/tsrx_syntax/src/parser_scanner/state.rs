@@ -42,6 +42,8 @@ pub(crate) struct Scanner<'a> {
     pub(super) jsx_text_gts: Vec<u32>,
     /// See [`Overlay`].
     pub(super) case_expressions: Vec<ByteSpan>,
+    /// See [`Overlay`].
+    pub(super) function_body_ends: Vec<u32>,
     pub(super) implicit_closes: Vec<ImplicitClose>,
     pub(super) first_root: u32,
     pub(super) last_root: u32,
@@ -71,6 +73,7 @@ impl<'a> Scanner<'a> {
             jsx_text_comments: Vec::new(),
             jsx_text_gts: Vec::new(),
             case_expressions: Vec::new(),
+            function_body_ends: Vec::new(),
             implicit_closes: Vec::new(),
             first_root: NONE,
             last_root: NONE,
