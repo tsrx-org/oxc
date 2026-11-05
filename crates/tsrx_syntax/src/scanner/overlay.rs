@@ -10,6 +10,7 @@ pub(super) struct Checkpoint {
     statement_boundaries: usize,
     first_root: u32,
     last_root: u32,
+    last_markup_end: usize,
     parent: Option<(usize, u32, u32)>,
 }
 
@@ -140,6 +141,7 @@ impl Scanner<'_> {
             statement_boundaries: self.statement_boundaries.len(),
             first_root: self.first_root,
             last_root: self.last_root,
+            last_markup_end: self.last_markup_end,
             parent,
         }
     }
@@ -155,6 +157,7 @@ impl Scanner<'_> {
         self.statement_boundaries.truncate(checkpoint.statement_boundaries);
         self.first_root = checkpoint.first_root;
         self.last_root = checkpoint.last_root;
+        self.last_markup_end = checkpoint.last_markup_end;
         if let Some((index, first_child, last_child)) = checkpoint.parent {
             self.nodes[index].first_child = first_child;
             self.nodes[index].last_child = last_child;

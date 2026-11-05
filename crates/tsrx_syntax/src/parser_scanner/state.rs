@@ -36,6 +36,11 @@ pub(crate) struct Scanner<'a> {
     /// each opening is pushed before its element is scanned. The formatter lift consults this
     /// list before dropping an ASI guard Oxfmt printed in front of one.
     pub(super) markup_statements: Vec<u32>,
+    /// One past the `>` of the last markup element `scan_region` read, or `usize::MAX` before
+    /// the first. A line-leading control right after it follows a complete element, so
+    /// `token_demands_an_operand` reads that `>` as a close rather than an operator; a byte walk
+    /// backwards cannot tell `/>` from a regex or comment ending in `/` before a comparison.
+    pub(super) last_markup_end: usize,
     /// JavaScript comments in JSX text, in source order; see [`Overlay`].
     pub(super) jsx_text_comments: Vec<ByteSpan>,
     /// Offsets of each `>` in JSX text, in source order; see [`Overlay`].
@@ -68,6 +73,7 @@ impl<'a> Scanner<'a> {
             script_blocks: Vec::new(),
             statement_boundaries: Vec::new(),
             markup_statements: Vec::new(),
+            last_markup_end: usize::MAX,
             jsx_text_comments: Vec::new(),
             jsx_text_gts: Vec::new(),
             case_expressions: Vec::new(),

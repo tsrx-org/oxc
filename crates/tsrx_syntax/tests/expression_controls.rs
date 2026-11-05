@@ -76,3 +76,28 @@ fn a_not_expression_after_a_line_break_is_not_a_control_subscript() {
         assert!(matches!(scan_for_parser(&source), Err(ProjectionError::MalformedSyntax { .. })));
     }
 }
+
+#[test]
+fn a_line_leading_control_after_a_markup_close_is_a_statement_and_not_after_a_comparison() {
+    let body = |before: &str| {
+        format!("function D() @{{\n  {before}\n  @if (d) {{\n    <main>a</main>\n  }}\n}}\n")
+    };
+    // A complete element ends the statement before the control, so it takes no wrapper.
+    for before in
+        ["const d = <a x=\"1\" />", "const d = <a>x</a>", "const d = <></>", "<a x=\"1\" />"]
+    {
+        let source = body(before);
+        let overlay = scan_for_parser(&source).unwrap_or_else(|error| panic!("{source}: {error}"));
+        assert_eq!(project_for_parser(&source, &overlay).unwrap().anchors(), [], "{source}");
+    }
+    // A comparison whose left operand ends in `/` or `</name` without being markup still demands
+    // the control as its operand.
+    for before in ["const e = /re/ >", "const e = d /* n */ >", "const e = /a</g >"] {
+        let source = body(before);
+        let overlay = scan_for_parser(&source).unwrap_or_else(|error| panic!("{source}: {error}"));
+        assert!(
+            !project_for_parser(&source, &overlay).unwrap().anchors().is_empty(),
+            "the comparison operand lost its wrapper: {source}"
+        );
+    }
+}

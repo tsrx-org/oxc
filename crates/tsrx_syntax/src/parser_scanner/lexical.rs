@@ -547,21 +547,11 @@ impl Scanner<'_> {
     }
 
     /// Whether the `>` ending at `index` closes markup — a self-closing `/>`, the `</>` fragment
-    /// close, or a `</name>` tag — rather than ending `=>`, a shift, or a comparison.
+    /// close, or a `</name>` tag — rather than ending `=>`, a shift, or a comparison. The scanner
+    /// has already read every element before a control, so this is the end it recorded, not a
+    /// guess from the bytes: `/re/ >` and `x /* c */ >` end in `/` before a comparison too.
     fn markup_close_ends_at(&self, index: usize) -> bool {
-        let mut cursor = index - 1;
-        while cursor > 0 && self.bytes[cursor - 1].is_ascii_whitespace() {
-            cursor -= 1;
-        }
-        match self.bytes.get(cursor.wrapping_sub(1)) {
-            Some(b'/') => return true,
-            Some(&byte) if jsx_name_byte(byte) => {}
-            _ => return false,
-        }
-        while cursor > 0 && jsx_name_byte(self.bytes[cursor - 1]) {
-            cursor -= 1;
-        }
-        cursor >= 2 && self.bytes[cursor - 2..cursor] == *b"</"
+        self.last_markup_end == index
     }
 }
 
@@ -759,13 +749,6 @@ pub(crate) const fn is_identifier_start(byte: u8) -> bool {
 
 pub(crate) const fn is_identifier_continue(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$')
-}
-
-/// The ASCII bytes `skip_jsx_name` keeps inside a tag name, so `markup_close_ends_at` can walk a
-/// `</name>` backwards. A non-ASCII byte stops the walk, which only keeps the `>` on the
-/// operand-demanding side it already had.
-fn jsx_name_byte(byte: u8) -> bool {
-    is_identifier_continue(byte) || matches!(byte, b'.' | b':' | b'-')
 }
 
 #[cfg(test)]

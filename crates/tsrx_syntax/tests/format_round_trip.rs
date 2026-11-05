@@ -294,6 +294,11 @@ fn a_control_that_really_continues_an_expression_keeps_its_wrapper_scaffold() {
         "function D() @{\n  const d = get()\n  const e = [\n    @if (d) {\n      <main>a</main>\n    }\n  ]\n  <b>{e}</b>\n}\n",
         "function D() @{\n  const d = get()\n  const e = () =>\n    @if (d) {\n      <main>a</main>\n    }\n  <b>{e()}</b>\n}\n",
         "function D() @{\n  const d = get()\n  const e = d ?\n    @if (d) {\n      <main>a</main>\n    } : null\n  <b>{e}</b>\n}\n",
+        // A comparison whose left operand ends in `/` or `</name` without being markup: a regex,
+        // a block comment, and a regex whose body ends in `</g`.
+        "function D() @{\n  const d = get()\n  const e = /re/ >\n    @if (d) {\n      <main>a</main>\n    }\n  <b>{e}</b>\n}\n",
+        "function D() @{\n  const d = get()\n  const e = d /* n */ >\n    @if (d) {\n      <main>a</main>\n    }\n  <b>{e}</b>\n}\n",
+        "function D() @{\n  const d = get()\n  const e = /a</g >\n    @if (d) {\n      <main>a</main>\n    }\n  <b>{e}</b>\n}\n",
     ] {
         let overlay = scan(source).unwrap_or_else(|error| panic!("scan `{source}`: {error}"));
         let projection = project_for_format(source, &overlay)
