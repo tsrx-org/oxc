@@ -114,6 +114,34 @@ function lockPackages(lock) {
     }));
 }
 
+// The package names a lock entry depends on. A lock spells a dependency as
+// "name" or, when two versions coexist, "name version"; only the name is
+// compared, because the two locks may legitimately resolve different versions.
+function lockDependencyNames(block) {
+  const list = block.match(/^dependencies\s*=\s*\[([^\]]*)\]/m)?.[1] ?? "";
+  return [...list.matchAll(/"([^" ]+)[^"]*"/g)].map((match) => match[1]).sort();
+}
+
+// The non-optional, non-dev dependency names a crate's manifest declares, in
+// `[dependencies]`, `[build-dependencies]`, and target-specific tables. Every
+// crate here spells a dependency as one `name = ...` line.
+async function requiredDependencyNames(crateDirectory) {
+  const manifest = await readFile(join(crateDirectory, "Cargo.toml"), "utf8");
+  const names = new Set();
+  let inDependencies = false;
+  for (const line of manifest.split(/\r?\n/)) {
+    const table = line.match(/^\[(.+)\]\s*$/)?.[1];
+    if (table !== undefined) {
+      inDependencies = /^(dependencies|build-dependencies|target\..+\.(dependencies|build-dependencies))$/.test(table);
+      continue;
+    }
+    const dependency = inDependencies && line.match(/^([A-Za-z0-9_-]+)\s*=/)?.[1];
+    if (!dependency || /\boptional\s*=\s*true\b/.test(line)) continue;
+    names.add(line.match(/\bpackage\s*=\s*"([^"]+)"/)?.[1] ?? dependency);
+  }
+  return names;
+}
+
 async function cargoManifests(directory) {
   const manifests = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -745,6 +773,12 @@ test("the out-of-workspace docs locks record the current workspace version", asy
       .map((entry) => entry.name),
   );
 
+  const workspacePackages = new Map(
+    lockPackages(await readFile(join(root, "Cargo.lock"), "utf8"))
+      .filter((entry) => entry.source === undefined)
+      .map((entry) => [entry.name, entry]),
+  );
+
   const toolLocks = ["docs/tools/demo-wasm", "docs/tools/projection-dump"];
   for (const tool of toolLocks) {
     const lock = await readFile(join(root, tool, "Cargo.lock"), "utf8");
@@ -762,6 +796,20 @@ test("the out-of-workspace docs locks record the current workspace version", asy
         entry.block.match(/^version\s*=\s*"([^"]+)"/m)?.[1],
         workspaceVersion,
         `${tool}/Cargo.lock pins ${entry.name} at a stale version; relock it after a version bump`,
+      );
+      // A dependency added to a workspace crate leaves the tool lock stale in the
+      // same way, and `--locked` fails the docs build on it just the same. Only
+      // required dependencies are compared: an optional one is in the tool's
+      // lock only when the tool enables the feature that pulls it in.
+      const recorded = new Set(lockDependencyNames(entry.block));
+      const required = await requiredDependencyNames(join(root, "crates", entry.name));
+      const missing = lockDependencyNames(workspacePackages.get(entry.name)?.block ?? "").filter(
+        (name) => required.has(name) && !recorded.has(name),
+      );
+      assert.deepEqual(
+        missing,
+        [],
+        `${tool}/Cargo.lock is missing dependencies of ${entry.name}; relock it with cargo metadata --manifest-path ${tool}/Cargo.toml`,
       );
     }
   }

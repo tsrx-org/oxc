@@ -1890,8 +1890,10 @@ dependencies = [
 name = "tsrx_lint"
 version = "0.24.0"
 dependencies = [
+ "memchr",
  "oxc_adapter",
  "serde",
+ "serde_json",
  "tsrx_syntax",
 ]
 
