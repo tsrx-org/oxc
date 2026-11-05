@@ -64,10 +64,10 @@ jobs:
       - name: Install the pinned pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
-      - name: Install Node.js 24.15.0
+      - name: Install Node.js 24.22.2
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24.15.0
+          node-version: 24.22.2
           cache: pnpm
 
       - name: Install the locked documentation graph
@@ -93,10 +93,10 @@ jobs:
       - name: Install the pinned pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
-      - name: Install Node.js 24.15.0
+      - name: Install Node.js 24.22.2
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24.15.0
+          node-version: 24.22.2
           cache: pnpm
 
       - name: Install the locked documentation graph

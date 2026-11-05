@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "startedAt": "2026-10-14T18:15:16.368Z",
-  "completedAt": "2026-10-14T18:15:35.269Z",
+  "startedAt": "2026-11-05T14:56:17.941Z",
+  "completedAt": "2026-11-05T14:56:52.274Z",
   "host": {
     "platform": "darwin",
     "arch": "arm64",
     "rustTarget": "aarch64-apple-darwin"
   },
   "install": {
-    "packageManager": "npm 12.0.1",
+    "packageManager": "npm 11.19.1",
     "ignoreScripts": true,
     "environmentOverrides": false,
     "oneDirectTsrxPackage": true,
@@ -17,14 +17,14 @@
   "packages": {
     "toolchain": {
       "name": "@tsrx/oxc",
-      "version": "0.20.0",
-      "integrity": "sha512-Rk6uw//7E6f64dGyVHNujwP0q+inTRSGtNqiEPk63B47XYmEzH/UIhrMSGUcgJ7cE3ta3N0xObWEGImvhTfAmQ=="
+      "version": "0.24.0",
+      "integrity": "sha512-P+E1qvimUW1DdoQE8uHyZ44U2xVDugYkDn3xsTnbw7eYP/tTrHuFGLIjKZr5tSw7wPvj4deMO9BKmGtbMAFdpg=="
     },
     "native": {
       "name": "@tsrx/oxc-darwin-arm64",
-      "version": "0.20.0",
+      "version": "0.24.0",
       "target": "aarch64-apple-darwin",
-      "integrity": "sha512-Q6Mrj+QzY5g8k1gLMzOMlWvjfEzXxtrTOSY6MONsrkMBLXCWP1NRpBi+QC9hFHLZG1AHYGomT/NOVi373uhnNw=="
+      "integrity": "sha512-L7ykLzh6pNw5SxcO7MMcvd2lrx2OifWrOjq7sBYweROC+3/rXylhem1h0yYdLyoRhIdEvk3nW8qfuxqnYFdxCA=="
     },
     "vitePlus": "0.3.3"
   },
@@ -36,11 +36,14 @@
   "audit": {
     "info": 0,
     "low": 0,
-    "moderate": 0,
-    "high": 0,
+    "moderate": 4,
+    "high": 1,
     "critical": 0,
-    "total": 0
+    "total": 5
   },
+  "acceptedAdvisories": [
+    "https://github.com/advisories/GHSA-587h-7wmj-h5pm"
+  ],
   "assertions": {
     "mixedLintAuthoredDiagnostics": true,
     "mixedFormatCheckWriteCheck": true,
