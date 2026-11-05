@@ -153,6 +153,7 @@ impl Scanner<'_> {
                     }
                     match self.scan_jsx_element(index) {
                         Ok(end) => {
+                            self.last_markup_end = end;
                             if case_body && delimiters.len() == 1 {
                                 case_markup_end = Some(end);
                             }
