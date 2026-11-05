@@ -205,7 +205,37 @@ intentional, next to the assertion that enforces the floor.
 
 ---
 
-## 5. The Windows `0xC0000409` fast-fail is external and undiagnosed
+## 5. The Windows `0xC0000409` fast-fail, now diagnosed: a libuv bug in Node 24.15.0
+
+**Root cause, found 2026-11-05.** The process that dies is `node.exe` running
+the package manager, and the defect is in the libuv that Node 24.15.0 bundles
+(1.51.0). Its Windows TCP code calls `RtlGetVersion` with an `OSVERSIONINFOW`
+whose `dwOSVersionInfoSize` was never initialized, so the call can write past
+the structure. The `/GS` cookie check in `uv__tcp_keepalive` / `uv__tcp_connect`
+then calls `__fastfail(FAST_FAIL_STACK_COOKIE_CHECK_FAILURE)`, which exits
+`0xC0000409` without stderr, a Node report or a WER record. That is exactly the
+silence measured below. Every install here opens many keep-alive TCP connections
+to the loopback registry, which is the trigger. It was fixed upstream by
+libuv `aabb7651de` ("win: properly initialize OSVERSIONINFOW"), cherry-picked as
+nodejs/node#62561 and first shipped in Node 24.16.0. nodejs/node#63620 bisects it
+on `windows-latest`: 24.15.0 crashes, 24.16.0 is clean. The 22.12.0 arm below
+came back clean because 22.12.0 predates the libuv change.
+
+Runner image `windows-2025-vs2026` 20261030 (OS build 26100.33674, up from
+.33650) raised the rate from about one run in nine to about one in three. Every
+pass from October was on 20261021, and every failure from November was on 20261030
+or 20261103. Nothing in the repository changed. The new image makes the existing bug
+fire more often. It did not create it.
+
+**Fix.** Every workflow that pinned Node 24.15.0 now pins 24.22.2. That covers
+`ci.yml`, `release-candidate.yml` with its Windows lanes, `publish.yml`,
+`manual-release.yml`, `site-artifact.yml` and `advisory.yml`. The product floors
+(20.19.0 and 22.12.0) are unchanged, and they predate the libuv change. The
+bounded retry on this exit code in `tests/packaging/provider-discovery.test.mjs`
+has been removed, so the status fails immediately again if it ever comes back.
+
+The original write-up follows, unchanged, as the record of what was ruled out.
+
 
 **What is wrong.** On Windows runners, an `npm` or `pnpm` child process is
 occasionally killed by Windows itself with exit status `3221226505`
@@ -287,7 +317,7 @@ race. Nothing about the test's assertions changed, and the teardown still fails
 the test if the directory genuinely cannot be removed.
 
 **Why this is in this file.** It is the second unrecorded CI flake found during
-one goal, after the Windows `0xC0000409` fast-fail above. A flake that lives
+one goal, after the Windows `0xC0000409` fast-fail above (since diagnosed). A flake that lives
 only in a rerun is indistinguishable from a real failure that nobody
 investigated, and the charter line it bears on is "do not add a CI lane whose
 failure will be ignored". If a third appears, the pattern is worth treating as

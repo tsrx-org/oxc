@@ -238,8 +238,8 @@ What makes it work:
 - `permissions: { id-token: write }` on the publish job. Without it there is no
   OIDC token and npm falls back to looking for a token that does not exist. The
   error you get is a misleading `ENEEDAUTH` or `E404`.
-- npm CLI **11.5.1 or newer**, on Node **22.14.0 or newer**. Node 24.15.0, which
-  this repository pins everywhere, bundles npm 11.12.1, so the floor is already
+- npm CLI **11.5.1 or newer**, on Node **22.14.0 or newer**. Node 24.22.2, which
+  this repository pins everywhere, bundles npm 11.19.1, so the floor is already
   met. The workflow still pins `npm@11.18.0` explicitly and asserts the version,
   so a future Node bump cannot silently drop below the floor.
 - A GitHub-hosted runner. Self-hosted runners are not supported for trusted

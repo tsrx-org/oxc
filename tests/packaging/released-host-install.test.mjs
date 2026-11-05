@@ -121,6 +121,11 @@ const WINDOWS_FAST_FAIL_STATUS = new Map([
  * that process, and the same run leaves no Windows Error Reporting record, no
  * local crash dump, and no Node fatal-error report with all three armed.
  *
+ * The cause turned out to be libuv 1.51.0 in Node 24.15.0 (an uninitialized
+ * OSVERSIONINFOW overrunning the stack in the Windows TCP path, nodejs/node#62561),
+ * which is why every workflow now pins Node 24.22.2. See
+ * docs/releasing/platform-management-followups.md section 5.
+ *
  * Nothing here tolerates the status: the assertion still fails on it. Naming
  * it only saves the next reader from having to rediscover which of the two
  * possible readings of a bare `3221226505` applies.
