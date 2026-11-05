@@ -2139,6 +2139,7 @@ version = "0.24.0"
 dependencies = [
  "oxc_adapter",
  "serde",
+ "serde_json",
  "tsrx_syntax",
 ]
 

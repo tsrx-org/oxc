@@ -24,6 +24,7 @@ import {
   withOxlintOutputFormat,
 } from "./lint-invocation.js";
 import { jsPluginUnmappedNote, preparePluginLane } from "./lint-js-plugins.js";
+import { withTsgolintProxy } from "./tsgolint-proxy.js";
 
 // Mixed invocations need captured JSON so the canonical and TSRX diagnostics
 // can be combined. Run the public, manifest-declared JavaScript launcher via
@@ -679,7 +680,7 @@ export async function runCli(args, options: any = {}) {
     } else {
       upstreamPromise = runUpstreamOxlint(upstreamBinary, upstreamArgs, {
         cwd,
-        env: canonicalToolEnvironment(useMaterializedUpstreamConfig),
+        env: withTsgolintProxy(canonicalToolEnvironment(useMaterializedUpstreamConfig), cwd),
       });
     }
 

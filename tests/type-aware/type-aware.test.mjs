@@ -708,3 +708,97 @@ test("the drop-in oxlint passes --tsconfig to the .tsrx lane", async () => {
     ["typescript(TS2322)"],
   );
 });
+
+// tsrx-org/oxc#223. The drop-in `oxlint` command hands `.ts` files to canonical
+// Oxlint, whose own tsgolint read them from disk with no TSRX projection, so
+// `main.ts`'s `import { loadLabel } from "./label.tsrx"` was TS2307, typed
+// `any`, and `loadLabel()` was not a floating promise. Canonical Oxlint now runs
+// the native tsgolint proxy, which overlays the imported projection. Each route
+// the drop-in takes to canonical Oxlint is covered: a directory (composed
+// batch), an ordinary file alone (Oxlint in this process), and an ordinary file
+// beside a `.tsrx` file (canonical Oxlint prestarted before the batch).
+// `vp lint` runs the same command under a Vite+ host, which composes the batch
+// without a prestart.
+const vitePlusHost = { VP_COMMAND: "lint", VP_VERSION: "0.3.3" };
+for (const [route, files, host] of [
+  ["a directory", ["src"], {}],
+  ["an ordinary file alone", ["src/main.ts"], {}],
+  ["an ordinary file beside a .tsrx file", ["src/main.ts", "src/app.tsrx"], {}],
+  ["a directory under vp lint", ["src"], vitePlusHost],
+]) {
+  test(`the drop-in oxlint resolves a .tsrx import from a .ts file: ${route}`, async () => {
+    const source = await readFile(join(importedRoot, "src/main.ts"), "utf8");
+    const result = await run(
+      importedRoot,
+      ["--format=json", "--type-aware", "--type-check", ...files],
+      { ...process.env, ...host, OXC_TSRX_LINT_BIN: binary, OXLINT_TSGOLINT_PATH: tsgolint },
+      join(root, "packages/toolchain/bin/oxlint"),
+    );
+    assert.equal(result.code, 1, result.stderr || result.stdout);
+    const diagnostics = parseJson(result).diagnostics;
+    assert.deepEqual(
+      diagnostics.filter((item) => item.code === "typescript(TS2307)"),
+      [],
+      result.stdout,
+    );
+    const main = diagnostics.filter(
+      (item) => resolve(importedRoot, item.filename) === join(importedRoot, "src/main.ts"),
+    );
+    assert.deepEqual(
+      main.map((item) => item.code),
+      ["typescript(no-floating-promises)"],
+      result.stdout,
+    );
+    assert.equal(main[0].labels[0].span.offset, byteOffset(source, "loadLabel();"), result.stdout);
+    // The imported module is read, never reported, unless it is itself linted,
+    // as it is when the whole directory is.
+    if (!files.includes("src")) {
+      assert.ok(
+        diagnostics.every((item) => !item.filename.endsWith("label.tsrx")),
+        result.stdout,
+      );
+    }
+  });
+}
+
+test("the tsgolint proxy stands in only when canonical Oxlint would have found a tsgolint", async () => {
+  const { TSGOLINT_PROXY_ENV, canonicalTsgolintExecutable, withTsgolintProxy } = await import(
+    "../../packages/toolchain/dist/tsgolint-proxy.js"
+  );
+  const native = () => binary;
+  const environment = { PATH: "", OXLINT_TSGOLINT_PATH: tsgolint };
+  assert.deepEqual(withTsgolintProxy(environment, importedRoot, native), {
+    PATH: "",
+    OXLINT_TSGOLINT_PATH: binary,
+    [TSGOLINT_PROXY_ENV]: tsgolint,
+  });
+  // Already proxied by an outer run, a configured tsgolint Oxlint would refuse,
+  // an unavailable native executable, and a native executable that is the
+  // tsgolint itself all leave Oxlint's environment alone.
+  const proxied = { OXLINT_TSGOLINT_PATH: binary, [TSGOLINT_PROXY_ENV]: tsgolint };
+  assert.equal(withTsgolintProxy(proxied, importedRoot, native), proxied);
+  const missing = { PATH: "", OXLINT_TSGOLINT_PATH: join(importedRoot, "no-such-tsgolint") };
+  assert.equal(withTsgolintProxy(missing, importedRoot, native), missing);
+  const unavailable = () => {
+    throw new Error("no native package");
+  };
+  assert.equal(withTsgolintProxy(environment, importedRoot, unavailable), environment);
+  assert.equal(withTsgolintProxy(environment, importedRoot, () => tsgolint), environment);
+
+  // Without the variable, Oxlint's own search: `node_modules/.bin` upwards, then PATH.
+  const project = await mkdtemp(join(tmpdir(), "oxc-tsrx-tsgolint-search-"));
+  const nested = join(project, "packages/app");
+  const bin = join(project, "node_modules/.bin");
+  await mkdir(nested, { recursive: true });
+  await mkdir(bin, { recursive: true });
+  const name = process.platform === "win32" ? "tsgolint.exe" : "tsgolint";
+  assert.equal(canonicalTsgolintExecutable(nested, { PATH: "" }), null);
+  await writeFile(join(project, name), "");
+  assert.equal(canonicalTsgolintExecutable(nested, { PATH: project }), join(project, name));
+  await writeFile(join(bin, name), "");
+  assert.equal(canonicalTsgolintExecutable(nested, { PATH: project }), join(bin, name));
+  assert.equal(
+    canonicalTsgolintExecutable(nested, { OXLINT_TSGOLINT_PATH: bin, PATH: "" }),
+    process.platform === "win32" ? null : join(bin, name),
+  );
+});

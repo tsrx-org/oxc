@@ -69,6 +69,11 @@ try {
       if (vitePlusHost && !parseOxlintInvocation(args).delegateOnly) {
         process.argv = [...process.argv.slice(0, 2), ...withDiscoveredViteConfig(args)];
       }
+      // Canonical Oxlint runs in this process, so the tsgolint that resolves
+      // `.tsrx` imports for it has to be in this process's own environment.
+      const { withTsgolintProxy } = await import("../tsgolint-proxy.js");
+      const proxied = withTsgolintProxy(process.env, process.cwd());
+      if (proxied !== process.env) Object.assign(process.env, proxied);
       await importCanonicalOxlint(import.meta.url);
     } else {
       const plan = vitePlusHost ? null : planCanonicalOxlintComposition(args);

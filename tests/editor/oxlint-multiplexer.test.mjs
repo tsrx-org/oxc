@@ -771,3 +771,54 @@ test("a project's own official Oxlint is the canonical upstream when the launche
   canonical.emit("close", 0, null);
   assert.equal(await finished, 0);
 });
+
+test("canonical Oxlint's tsgolint is the native proxy that resolves .tsrx imports", async (context) => {
+  // tsrx-org/oxc#223. An ordinary file served by canonical Oxlint imports
+  // `.tsrx` modules its tsgolint cannot read, so the canonical server runs the
+  // native executable as its tsgolint, which overlays their projections and
+  // hands the payload on to the tsgolint Oxlint would have run.
+  const project = await mkdtemp(join(tmpdir(), "oxc-tsrx-lsp-tsgolint-"));
+  context.after(() => rm(project, { recursive: true, force: true }));
+  const tsgolint = join(project, "tsgolint");
+  await writeFile(tsgolint, "");
+  const saved = {
+    OXC_TSRX_LINT_BIN: process.env.OXC_TSRX_LINT_BIN,
+    OXLINT_TSGOLINT_PATH: process.env.OXLINT_TSGOLINT_PATH,
+  };
+  context.after(() => {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  // Any executable file stands in for the native binary; it is never started.
+  process.env.OXC_TSRX_LINT_BIN = process.execPath;
+  process.env.OXLINT_TSGOLINT_PATH = tsgolint;
+
+  const spawns = [];
+  let canonical = null;
+  const finished = runOxlintLspMultiplexer(["--lsp"], {
+    cwd: project,
+    clientInput: new PassThrough(),
+    clientOutput: new PassThrough(),
+    clientError: new PassThrough(),
+    canonical: { binPath: join(project, "node_modules/oxlint/bin/oxlint") },
+    index: { root: project, providers: [], extensions: {}, diagnostics: [] },
+    spawn: (command, args, options) => {
+      spawns.push({ command, args, options });
+      canonical = new FakeChild();
+      return canonical;
+    },
+  });
+
+  await waitFor(() => spawns, () => true, "canonical Oxlint spawn");
+  assert.equal(spawns[0].options.env.OXLINT_TSGOLINT_PATH, process.execPath);
+  assert.equal(spawns[0].options.env.OXC_TSRX_TSGOLINT_PROXY, tsgolint);
+  assert.equal(spawns[0].options.env.NO_COLOR, "1");
+  // The process's own environment, which the native server inherits, is untouched.
+  assert.equal(process.env.OXLINT_TSGOLINT_PATH, tsgolint);
+  assert.equal(process.env.OXC_TSRX_TSGOLINT_PROXY, undefined);
+
+  canonical.emit("close", 0, null);
+  assert.equal(await finished, 0);
+});

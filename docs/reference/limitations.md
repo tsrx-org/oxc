@@ -60,17 +60,14 @@ TSRX, and neither is code a bundler can consume.
 - **Some `.tsrx` imports still do not resolve in a type-aware run.** A `.tsrx`
   module the run imports resolves whether or not it is being linted, but only
   when the specifier names the file relative to the importer
-  (`./label.tsrx`, `../ui/label.tsrx`) or by absolute path. Three cases are
-  not covered yet, and in each one the import is typed `any`, so `--type-check`
-  reports TS2307 on it and type-aware rules cannot see across it:
+  (`./label.tsrx`, `../ui/label.tsrx`) or by absolute path. That holds for an
+  import in a `.ts`, `.tsx`, or `.js` file too, including one the `oxlint`
+  command hands to canonical Oxlint. Two cases are not covered yet, and in
+  each one the import is typed `any`, so `--type-check` reports TS2307 on it
+  and type-aware rules cannot see across it:
   - A tsconfig `paths` alias or a package specifier (`@/ui/label.tsrx`).
   - An import reached only through a `.ts` or `.tsx` file that is not itself
     being linted.
-  - An import in a `.ts`, `.tsx`, or `.js` file linted through the `oxlint`
-    command. That command hands ordinary files to canonical Oxlint, which has
-    no TSRX projection to resolve the import against. `oxc-tsrx-lint` lints
-    exactly the files it is handed in the TSRX lane, so naming the `.ts` file
-    there resolves the import.
 - **`vp lint` and your editor read different config files.** Vite+ owns lint
   configuration in the `lint` block of `vite.config.ts`, and the language server
   reads `.oxlintrc.json`, so a rule you want on both surfaces has to be declared

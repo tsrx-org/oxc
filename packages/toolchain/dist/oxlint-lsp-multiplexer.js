@@ -1,6 +1,7 @@
 import { discoverProviders, extensionOf, findProjectRoot } from "./provider-resolve.js";
 import { spawnCommand } from "./spawn-command.js";
 import { resolveCanonicalOxlint } from "./package-binary.js";
+import { withTsgolintProxy } from "./tsgolint-proxy.js";
 import { spawn } from "node:child_process";
 import { basename, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -584,7 +585,10 @@ async function runOxlintLspMultiplexer(args, options = {}) {
 		cwd: index.root
 	} : childOptions;
 	const providers = providerLspSessions(index, spawnProcess, providerOptions);
-	const canonical = spawnProcess(process.execPath, [canonicalBinary, ...args], childOptions);
+	const canonical = spawnProcess(process.execPath, [canonicalBinary, ...args], {
+		...childOptions,
+		env: withTsgolintProxy(childOptions.env, cwd)
+	});
 	const multiplexer = createOxlintLspMultiplexer({
 		providerRoot: providerOptions === childOptions ? null : index.root,
 		clientInput: options.clientInput ?? process.stdin,

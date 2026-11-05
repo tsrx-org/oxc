@@ -85,7 +85,10 @@ Three things behave differently here:
 - **A `.tsrx` import resolves even when that file is not being linted.**
   Linting one file, or only the files a change touched, still gives type-aware
   rules the real types of every `.tsrx` module those files import, without
-  reporting anything in the imported files.
+  reporting anything in the imported files. That includes `.ts`, `.tsx`, and
+  `.js` files: the `oxlint` command (and `vp lint`, which runs it) lints them
+  with canonical Oxlint, and the tsgolint that Oxlint starts is handed the
+  same read-only `.tsrx` projections.
 
 [Configuration](/integrations/configuration) lists every supported field.
 

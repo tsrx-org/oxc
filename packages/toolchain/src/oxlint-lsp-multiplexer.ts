@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveCanonicalOxlint } from "./package-binary.js";
 import { discoverProviders, extensionOf, findProjectRoot } from "./provider-resolve.js";
 import { spawnCommand } from "./spawn-command.js";
+import { withTsgolintProxy } from "./tsgolint-proxy.js";
 
 const REGISTER_REQUEST_ID = "$/oxc-tsrx/register-capabilities";
 const CANONICAL_SERVER_REQUEST_PREFIX = "$/oxc-tsrx/canonical-request/";
@@ -687,7 +688,12 @@ export async function runOxlintLspMultiplexer(args, options: any = {}) {
       ? { ...childOptions, cwd: index.root }
       : childOptions;
   const providers = providerLspSessions(index, spawnProcess, providerOptions);
-  const canonical = spawnProcess(process.execPath, [canonicalBinary, ...args], childOptions);
+  // Only canonical Oxlint is pointed at the tsgolint proxy that resolves an
+  // ordinary file's `.tsrx` imports; the native server finds its own tsgolint.
+  const canonical = spawnProcess(process.execPath, [canonicalBinary, ...args], {
+    ...childOptions,
+    env: withTsgolintProxy(childOptions.env, cwd),
+  });
   const multiplexer = createOxlintLspMultiplexer({
     providerRoot: providerOptions === childOptions ? null : index.root,
     clientInput: options.clientInput ?? process.stdin,
