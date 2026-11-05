@@ -43,10 +43,13 @@ pub(crate) struct ImportedProjection {
 }
 
 /// Whether `source` can request a module this discovery follows: every followed specifier holds
-/// `./` (relative) or `.tsrx` (an absolute `.tsrx` path). A byte search, so a file that requests
+/// `./` (relative), ends in `.` right before its closing quote (`"."` and `".."`, a directory's
+/// index), or holds `.tsrx` (an absolute `.tsrx` path). A byte search, so a file that requests
 /// nothing is passed over without being decoded or parsed.
 pub(crate) fn may_import_followed_module(source: &[u8]) -> bool {
-    memmem::find(source, b"./").is_some() || memmem::find(source, b".tsrx").is_some()
+    [&b"./"[..], b".tsrx", b".'", b".\"", b".`"]
+        .iter()
+        .any(|needle| memmem::find(source, needle).is_some())
 }
 
 /// Every `.tsrx` module the importers reach, each projected once and none of them an importer.
@@ -203,6 +206,20 @@ fn ordinary_candidates(importer: &Path, specifier: &str) -> Vec<PathBuf> {
     }
     let directory = importer.parent().unwrap_or_else(|| Path::new(""));
     let base = normalize_path(&directory.join(specifier));
+    let index = |base: &Path| {
+        let index = base.join("index");
+        [".ts", ".tsx", ".d.ts", ".js", ".jsx"]
+            .map(|suffix| {
+                let mut path = OsString::from(index.as_os_str());
+                path.push(suffix);
+                PathBuf::from(path)
+            })
+            .to_vec()
+    };
+    // `.`, `..`, and a trailing `/` name a directory, which resolves only to its index.
+    if specifier == "." || specifier == ".." || specifier.ends_with('/') {
+        return index(&base);
+    }
     let with = |suffix: &str| {
         let mut path = OsString::from(base.as_os_str());
         path.push(suffix);
@@ -218,13 +235,8 @@ fn ordinary_candidates(importer: &Path, specifier: &str) -> Vec<PathBuf> {
         Some("mjs") => [swapped(&["mts", "d.mts"]), vec![base]].concat(),
         Some("cjs") => [swapped(&["cts", "d.cts"]), vec![base]].concat(),
         _ => {
-            let index = base.join("index");
             let mut candidates = [".ts", ".tsx", ".d.ts", ".js", ".jsx"].map(with).to_vec();
-            candidates.extend([".ts", ".tsx", ".d.ts", ".js", ".jsx"].map(|suffix| {
-                let mut path = OsString::from(index.as_os_str());
-                path.push(suffix);
-                PathBuf::from(path)
-            }));
+            candidates.extend(index(&base));
             candidates
         }
     }
@@ -354,6 +366,40 @@ mod tests {
     }
 
     #[test]
+    fn a_tsrx_module_behind_a_parent_or_own_directory_index_is_reached() {
+        // Neither importer holds `./`; only the closing-quote check lets them be read.
+        let files = files(&[
+            ("src/index.ts", "export * from './label.tsrx';\n"),
+            ("src/label.tsrx", "export const label = 1;\n"),
+            ("src/nested/index.ts", "export * from \"../view.tsrx\";\n"),
+            ("src/view.tsrx", "export const view = 1;\n"),
+        ]);
+        let parent = "import { label } from '..';\n";
+        let own = "import { view } from \".\";\n";
+        let importers = [
+            Importer {
+                path: Path::new("src/ui/main.ts"),
+                source: parent,
+                kind: SourceKind::TypeScript,
+            },
+            Importer {
+                path: Path::new("src/nested/main.ts"),
+                source: own,
+                kind: SourceKind::TypeScript,
+            },
+        ];
+        assert!(super::may_import_followed_module(parent.as_bytes()));
+        assert!(super::may_import_followed_module(own.as_bytes()));
+        assert!(!super::may_import_followed_module(
+            b"import { x } from 'react';\nconst y = 1.5;\n"
+        ));
+        assert_eq!(
+            discovered(&importers, &files),
+            [PathBuf::from("src/label.tsrx.tsx"), PathBuf::from("src/view.tsrx.tsx")]
+        );
+    }
+
+    #[test]
     fn a_known_file_is_neither_read_nor_followed() {
         let files = files(&[
             ("src/barrel.ts", "export { label } from './label.tsrx';\n"),
@@ -402,6 +448,9 @@ mod tests {
                 "src/ui/index.jsx",
             ]
         );
+        assert_eq!(names(".."), ["index.ts", "index.tsx", "index.d.ts", "index.js", "index.jsx"]);
+        assert_eq!(names("./ui/")[0], "src/ui/index.ts");
+        assert_eq!(names(".")[0], "src/index.ts");
         for specifier in ["react", "@/ui", "pkg/sub", "/abs/file", "./raw.ts?raw"] {
             assert_eq!(names(specifier), Vec::<String>::new(), "{specifier}");
         }
