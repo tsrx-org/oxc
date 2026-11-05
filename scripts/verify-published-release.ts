@@ -27,12 +27,16 @@ import { hostPlatformPackage, installAndExerciseRelease } from "./installed-rele
  *   --order-file <path>     "<name> <path>" lines naming the published packages
  *                           (default: the eight platform packages plus @tsrx/oxc)
  *   --registry <url>        default https://registry.npmjs.org/
- *   --attempts <n>          registry visibility attempts, 10s apart (default 30).
+ *   --attempts <n>          registry visibility attempts, 10s apart (default 120).
  *                           npm's read replicas have taken up to four minutes to
  *                           expose the last of the nine packages after a publish
  *                           (0.11.0, 0.12.0 and 0.13.0 each went red here at the
  *                           old 60-second budget while every package had landed),
- *                           so the default budget is five minutes.
+ *                           and 0.23.0 and 0.24.0 went red at the five-minute
+ *                           budget with two platform packages still invisible,
+ *                           both of which appeared about nine minutes after the
+ *                           publish. The default budget is twenty minutes; it
+ *                           costs nothing when the registry is quick.
  *   --rehearsal             dry-run mode: if the requested version is not on the
  *                           registry, run every stage against the latest version
  *                           that is, so the rehearsal installs and runs
@@ -63,7 +67,7 @@ function parseArguments(argv) {
     version: null,
     orderFile: null,
     registry: "https://registry.npmjs.org/",
-    attempts: 30,
+    attempts: 120,
     rehearsal: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
