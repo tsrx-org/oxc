@@ -11,7 +11,7 @@ mod translate;
 
 pub use error::{LintError, UnparsedFile};
 pub use oxc_adapter::{RuleFilter as ConfigRuleFilter, RuleSeverity as ConfigRuleSeverity};
-pub use proxy::overlay_imported_tsrx;
+pub use proxy::{OverlaidPayload, overlay_imported_tsrx};
 pub use report::{
     DiagnosticOutput, EditorFix, FileCounts, FixOutput, LabelOutput, Metadata, Output, SpanOutput,
     TimingOutput,

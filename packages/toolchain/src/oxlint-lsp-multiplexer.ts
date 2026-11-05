@@ -692,7 +692,7 @@ export async function runOxlintLspMultiplexer(args, options: any = {}) {
   // ordinary file's `.tsrx` imports; the native server finds its own tsgolint.
   const canonical = spawnProcess(process.execPath, [canonicalBinary, ...args], {
     ...childOptions,
-    env: withTsgolintProxy(childOptions.env, cwd),
+    env: withTsgolintProxy(childOptions.env, cwd, { perRoot: true }),
   });
   const multiplexer = createOxlintLspMultiplexer({
     providerRoot: providerOptions === childOptions ? null : index.root,

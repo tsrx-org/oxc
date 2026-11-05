@@ -10,70 +10,106 @@
 //! changes, so the files linted, the rules run on them, and the diagnostics reported for them stay
 //! canonical Oxlint's own.
 
-use std::{fs, path::Path};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use oxc_adapter::SourceKind;
 use serde_json::{Map, Value};
 
-use crate::imports::{Importer, imported_projections};
+use crate::imports::{
+    Importer, imported_projections_with, may_import_followed_module, parallel_map,
+};
 
-/// `payload` with a `source_overrides` entry for every `.tsrx` module its files import.
-///
-/// `None` when it is not a payload this understands or imports no `.tsrx` module, so the caller
-/// forwards the original bytes unchanged.
+/// A payload after [`overlay_imported_tsrx`].
+#[derive(Debug, Default)]
+pub struct OverlaidPayload {
+    /// The payload to send instead, or `None` to forward the original bytes unchanged: it is not a
+    /// payload this understands, or reaches no `.tsrx` module.
+    pub payload: Option<Vec<u8>>,
+    /// The first file the payload asks tsgolint to lint, which locates the project it belongs to.
+    pub first_file: Option<PathBuf>,
+}
+
+/// `payload` with a `source_overrides` entry for every `.tsrx` module its files reach.
 ///
 /// A file's source is the payload's own override for it when it has one (an editor's unsaved
-/// buffer), otherwise the file on disk. An override already present for a projection path is
-/// kept.
+/// buffer), otherwise the file on disk; the same holds for every module reached from it. A file is
+/// read as bytes and decoded only if it can request a followed module at all, so a payload with no
+/// relative or `.tsrx` import anywhere costs one byte search per file. An override already present
+/// for a projection path is kept.
 #[must_use]
-pub fn overlay_imported_tsrx(payload: &[u8]) -> Option<Vec<u8>> {
-    let mut payload = serde_json::from_slice::<Value>(payload).ok()?;
-    let object = payload.as_object_mut()?;
-    let overrides = object.get("source_overrides").and_then(Value::as_object);
-    let mut sources = Vec::new();
-    for path in object
-        .get("configs")?
-        .as_array()?
-        .iter()
+pub fn overlay_imported_tsrx(payload: &[u8]) -> OverlaidPayload {
+    let Ok(mut payload) = serde_json::from_slice::<Value>(payload) else {
+        return OverlaidPayload::default();
+    };
+    let Some(object) = payload.as_object_mut() else { return OverlaidPayload::default() };
+    let paths = object
+        .get("configs")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
         .filter_map(|config| config.get("file_paths")?.as_array())
         .flatten()
         .filter_map(Value::as_str)
-    {
-        let Ok(kind) = SourceKind::from_path(Path::new(path)) else { continue };
-        let source = match overrides.and_then(|overrides| overrides.get(path)) {
-            Some(Value::String(source)) => source.clone(),
-            _ => match fs::read_to_string(path) {
-                Ok(source) => source,
-                Err(_) => continue,
-            },
+        .map(PathBuf::from)
+        .collect::<Vec<_>>();
+    let first_file = paths.first().cloned();
+    let buffers = object
+        .get("source_overrides")
+        .and_then(Value::as_object)
+        .map(|overrides| {
+            overrides
+                .iter()
+                .filter_map(|(path, source)| {
+                    Some((PathBuf::from(path), source.as_str()?.to_owned()))
+                })
+                .collect::<HashMap<_, _>>()
+        })
+        .unwrap_or_default();
+    let load = |path: &Path| buffers.get(path).cloned().or_else(|| fs::read_to_string(path).ok());
+    // Reading the payload's files is the rest of the work, so it is spread across cores too.
+    let sources = parallel_map(&paths, |path| {
+        let kind = SourceKind::from_path(path).ok()?;
+        let source = if let Some(source) = buffers.get(path) {
+            source.clone()
+        } else {
+            let bytes = fs::read(path).ok()?;
+            if !may_import_followed_module(&bytes) {
+                return None;
+            }
+            String::from_utf8(bytes).ok()?
         };
-        // Only a file that names a `.tsrx` module is parsed for its imports.
-        if source.contains(".tsrx") {
-            sources.push((path, source, kind));
-        }
-    }
+        Some((source, kind))
+    })
+    .into_iter()
+    .zip(&paths)
+    .filter_map(|(read, path)| read.map(|(source, kind)| (path.as_path(), source, kind)))
+    .collect::<Vec<_>>();
     let importers = sources
         .iter()
-        .map(|(path, source, kind)| Importer { path: Path::new(path), source, kind: *kind })
+        .map(|(path, source, kind)| Importer { path, source, kind: *kind })
         .collect::<Vec<_>>();
-    let imported = imported_projections(&importers);
+    let known = paths.iter().map(PathBuf::as_path).collect::<Vec<_>>();
+    let imported = imported_projections_with(&importers, &known, load);
     if imported.is_empty() {
-        return None;
+        return OverlaidPayload { payload: None, first_file };
     }
-    let overrides = match object.entry("source_overrides").or_insert(Value::Null) {
-        Value::Object(overrides) => overrides,
-        slot @ Value::Null => {
-            *slot = Value::Object(Map::new());
-            slot.as_object_mut()?
-        }
-        _ => return None,
+    let slot = object.entry("source_overrides").or_insert(Value::Null);
+    if slot.is_null() {
+        *slot = Value::Object(Map::new());
+    }
+    let Some(overrides) = slot.as_object_mut() else {
+        return OverlaidPayload { payload: None, first_file };
     };
     for file in imported {
         overrides
             .entry(file.virtual_path.to_string_lossy().into_owned())
             .or_insert_with(|| Value::String(file.projection.source().to_string()));
     }
-    serde_json::to_vec(&payload).ok()
+    OverlaidPayload { payload: serde_json::to_vec(&payload).ok(), first_file }
 }
 
 #[cfg(test)]
@@ -94,6 +130,7 @@ mod tests {
 
     fn overlaid(payload: &Value) -> Option<Value> {
         overlay_imported_tsrx(&serde_json::to_vec(payload).unwrap())
+            .payload
             .map(|bytes| serde_json::from_slice(&bytes).unwrap())
     }
 
@@ -142,12 +179,19 @@ mod tests {
         fs::write(&main, "export {};\n").unwrap();
         fs::write(directory.join("label.tsrx"), "export const label = 1;\n").unwrap();
         fs::write(directory.join("other.tsrx"), "export const other = 1;\n").unwrap();
+        fs::write(directory.join("edited.tsrx"), "export const edited = 1;\n").unwrap();
         let other = directory.join("other.tsrx.tsx").to_string_lossy().into_owned();
-        let buffer = "import './label.tsrx';\nimport './other.tsrx';\n";
+        // An imported module with an unsaved buffer of its own is projected from that buffer.
+        let edited = directory.join("edited.tsrx").to_string_lossy().into_owned();
+        let buffer = "import './label.tsrx';\nimport './other.tsrx';\nimport './edited.tsrx';\n";
         let payload = json!({
             "version": 2,
             "configs": [{ "file_paths": [main], "rules": [] }],
-            "source_overrides": { main.clone(): buffer, other.clone(): "kept" },
+            "source_overrides": {
+                main.clone(): buffer,
+                other.clone(): "kept",
+                edited: "export const edited = 2;\n",
+            },
             "report_syntactic": false,
             "report_semantic": false,
         });
@@ -157,6 +201,8 @@ mod tests {
         assert_eq!(overrides[&other], "kept");
         let label = directory.join("label.tsrx.tsx").to_string_lossy().into_owned();
         assert!(overrides[&label].as_str().unwrap().contains("export const label = 1"));
+        let projected = directory.join("edited.tsrx.tsx").to_string_lossy().into_owned();
+        assert!(overrides[&projected].as_str().unwrap().contains("export const edited = 2"));
         fs::remove_dir_all(directory).unwrap();
     }
 
@@ -173,8 +219,8 @@ mod tests {
             "report_semantic": false,
         });
         assert_eq!(overlaid(&payload), None);
-        assert_eq!(overlay_imported_tsrx(b"not json"), None);
-        assert_eq!(overlay_imported_tsrx(b"[1, 2]"), None);
+        assert_eq!(overlay_imported_tsrx(b"not json").payload, None);
+        assert_eq!(overlay_imported_tsrx(b"[1, 2]").payload, None);
         assert_eq!(overlaid(&json!({ "version": 3 })), None);
         fs::remove_dir_all(directory).unwrap();
     }

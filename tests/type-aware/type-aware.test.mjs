@@ -375,6 +375,9 @@ for (const [importer, call] of [
   ["src/main.ts", "loadLabel();"],
   ["src/chain/entry.tsrx", "middle();"],
   ["src/cycle/a.tsrx", "pingB();"],
+  // Through an ordinary barrel that re-exports the `.tsrx` module and is not linted.
+  ["src/viaBarrel.ts", "loadLabel();"],
+  ["src/viaBarrelView.tsrx", "loadLabel();"],
 ]) {
   test(`a .tsrx import outside the run resolves from ${importer}`, async () => {
     const source = await readFile(join(importedRoot, importer), "utf8");
@@ -720,14 +723,23 @@ test("the drop-in oxlint passes --tsconfig to the .tsrx lane", async () => {
 // `vp lint` runs the same command under a Vite+ host, which composes the batch
 // without a prestart.
 const vitePlusHost = { VP_COMMAND: "lint", VP_VERSION: "0.3.3" };
-for (const [route, files, host] of [
-  ["a directory", ["src"], {}],
-  ["an ordinary file alone", ["src/main.ts"], {}],
-  ["an ordinary file beside a .tsrx file", ["src/main.ts", "src/app.tsrx"], {}],
-  ["a directory under vp lint", ["src"], vitePlusHost],
+// A `.tsrx` module reached through an ordinary barrel that is not linted is
+// followed as well, which is all the language server ever has: one file.
+for (const [route, files, host, importer] of [
+  ["a directory", ["src"], {}, "src/main.ts"],
+  ["an ordinary file alone", ["src/main.ts"], {}, "src/main.ts"],
+  ["an ordinary file beside a .tsrx file", ["src/main.ts", "src/app.tsrx"], {}, "src/main.ts"],
+  ["a directory under vp lint", ["src"], vitePlusHost, "src/main.ts"],
+  ["an ordinary file through a barrel", ["src/viaBarrel.ts"], {}, "src/viaBarrel.ts"],
+  [
+    "an ordinary file through a barrel beside a .tsrx file",
+    ["src/viaBarrel.ts", "src/app.tsrx"],
+    {},
+    "src/viaBarrel.ts",
+  ],
 ]) {
   test(`the drop-in oxlint resolves a .tsrx import from a .ts file: ${route}`, async () => {
-    const source = await readFile(join(importedRoot, "src/main.ts"), "utf8");
+    const source = await readFile(join(importedRoot, importer), "utf8");
     const result = await run(
       importedRoot,
       ["--format=json", "--type-aware", "--type-check", ...files],
@@ -741,15 +753,19 @@ for (const [route, files, host] of [
       [],
       result.stdout,
     );
-    const main = diagnostics.filter(
-      (item) => resolve(importedRoot, item.filename) === join(importedRoot, "src/main.ts"),
+    const reported = diagnostics.filter(
+      (item) => resolve(importedRoot, item.filename) === join(importedRoot, importer),
     );
     assert.deepEqual(
-      main.map((item) => item.code),
+      reported.map((item) => item.code),
       ["typescript(no-floating-promises)"],
       result.stdout,
     );
-    assert.equal(main[0].labels[0].span.offset, byteOffset(source, "loadLabel();"), result.stdout);
+    assert.equal(
+      reported[0].labels[0].span.offset,
+      byteOffset(source, "loadLabel();"),
+      result.stdout,
+    );
     // The imported module is read, never reported, unless it is itself linted,
     // as it is when the whole directory is.
     if (!files.includes("src")) {
@@ -761,11 +777,66 @@ for (const [route, files, host] of [
   });
 }
 
+// The proxy itself, as canonical Oxlint starts it: `headless`, the payload on
+// stdin. A stand-in tsgolint records what it was handed. The language server
+// serves several roots from one process, and each root's own
+// `node_modules/.bin/tsgolint` is the one its payloads go to.
+test(
+  "the native tsgolint proxy overlays a barrel's .tsrx import and finds each root's tsgolint",
+  { skip: process.platform === "win32" ? "the stand-in tsgolint is a shell script" : false },
+  async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "oxc-tsrx-proxy-roots-"));
+    const roots = [join(workspace, "a"), join(workspace, "b")];
+    for (const [index, project] of roots.entries()) {
+      await mkdir(join(project, "src"), { recursive: true });
+      await mkdir(join(project, "node_modules/.bin"), { recursive: true });
+      const recorder = join(project, "node_modules/.bin/tsgolint");
+      await writeFile(
+        recorder,
+        `#!/bin/sh\necho "$@" > "${project}/args"\ncat > "${project}/payload.json"\nexit ${index + 3}\n`,
+      );
+      await chmod(recorder, 0o755);
+      for (const file of ["label.tsrx", "barrel.ts", "viaBarrel.ts"]) {
+        await copyFile(join(importedRoot, "src", file), join(project, "src", file));
+      }
+    }
+    for (const [index, project] of roots.entries()) {
+      const importer = join(project, "src/viaBarrel.ts");
+      const payload = JSON.stringify({
+        version: 2,
+        configs: [{ file_paths: [importer], rules: [{ name: "no-floating-promises" }] }],
+        source_overrides: { [importer]: await readFile(importer, "utf8") },
+        report_syntactic: false,
+        report_semantic: false,
+      });
+      const child = spawn(binary, ["headless", "-fix"], {
+        cwd: workspace,
+        env: {
+          ...process.env,
+          OXC_TSRX_TSGOLINT_PROXY: "",
+          OXC_TSRX_TSGOLINT_PROXY_SEARCH: "1",
+        },
+        stdio: ["pipe", "inherit", "inherit"],
+      });
+      child.stdin.end(payload);
+      const code = await new Promise((resolveCode) => child.once("close", resolveCode));
+      assert.equal(code, index + 3);
+      assert.equal((await readFile(join(project, "args"), "utf8")).trim(), "headless -fix");
+      const handed = JSON.parse(await readFile(join(project, "payload.json"), "utf8"));
+      assert.deepEqual(
+        Object.keys(handed.source_overrides).sort(),
+        [importer, join(project, "src/label.tsrx.tsx")].sort(),
+      );
+      assert.deepEqual(handed.configs, JSON.parse(payload).configs);
+    }
+  },
+);
+
 test("the tsgolint proxy stands in only when canonical Oxlint would have found a tsgolint", async () => {
   const { TSGOLINT_PROXY_ENV, canonicalTsgolintExecutable, withTsgolintProxy } = await import(
     "../../packages/toolchain/dist/tsgolint-proxy.js"
   );
-  const native = () => binary;
+  const native = { resolveNative: () => binary };
   const environment = { PATH: "", OXLINT_TSGOLINT_PATH: tsgolint };
   assert.deepEqual(withTsgolintProxy(environment, importedRoot, native), {
     PATH: "",
@@ -779,11 +850,66 @@ test("the tsgolint proxy stands in only when canonical Oxlint would have found a
   assert.equal(withTsgolintProxy(proxied, importedRoot, native), proxied);
   const missing = { PATH: "", OXLINT_TSGOLINT_PATH: join(importedRoot, "no-such-tsgolint") };
   assert.equal(withTsgolintProxy(missing, importedRoot, native), missing);
-  const unavailable = () => {
-    throw new Error("no native package");
+  const unavailable = {
+    resolveNative: () => {
+      throw new Error("no native package");
+    },
   };
   assert.equal(withTsgolintProxy(environment, importedRoot, unavailable), environment);
-  assert.equal(withTsgolintProxy(environment, importedRoot, () => tsgolint), environment);
+  assert.equal(
+    withTsgolintProxy(environment, importedRoot, { resolveNative: () => tsgolint }),
+    environment,
+  );
+  // For the language server, with no configured tsgolint, the proxy looks one
+  // up per payload, so it stands in even where `cwd` has none to fall back to.
+  const unconfigured = { PATH: "" };
+  assert.deepEqual(
+    withTsgolintProxy(unconfigured, tmpdir(), { ...native, perRoot: true }),
+    {
+      PATH: "",
+      OXLINT_TSGOLINT_PATH: binary,
+      [TSGOLINT_PROXY_ENV]: "",
+      OXC_TSRX_TSGOLINT_PROXY_SEARCH: "1",
+    },
+  );
+  assert.equal(withTsgolintProxy(unconfigured, tmpdir(), native), unconfigured);
+  // A configured tsgolint is every root's tsgolint, for Oxlint and the proxy alike.
+  assert.equal(
+    withTsgolintProxy(environment, importedRoot, { ...native, perRoot: true })
+      .OXC_TSRX_TSGOLINT_PROXY_SEARCH,
+    undefined,
+  );
+  // An outer proxied run, even one with nothing to fall back to, is not proxied again.
+  const searching = { [TSGOLINT_PROXY_ENV]: "", OXLINT_TSGOLINT_PATH: binary };
+  assert.equal(withTsgolintProxy(searching, importedRoot, native), searching);
+
+  // Canonical Oxlint run inside this process sees the proxy only while it runs.
+  const { withProcessTsgolintProxy } = await import(
+    "../../packages/toolchain/dist/tsgolint-proxy.js"
+  );
+  const before = process.env.OXLINT_TSGOLINT_PATH;
+  process.env.OXLINT_TSGOLINT_PATH = tsgolint;
+  try {
+    const seen = await withProcessTsgolintProxy(
+      importedRoot,
+      async () => [process.env.OXLINT_TSGOLINT_PATH, process.env[TSGOLINT_PROXY_ENV]],
+      native,
+    );
+    assert.deepEqual(seen, [binary, tsgolint]);
+    assert.equal(process.env.OXLINT_TSGOLINT_PATH, tsgolint);
+    assert.equal(process.env[TSGOLINT_PROXY_ENV], undefined);
+    await assert.rejects(
+      withProcessTsgolintProxy(importedRoot, async () => {
+        throw new Error("lint failed");
+      }, native),
+      /lint failed/u,
+    );
+    assert.equal(process.env.OXLINT_TSGOLINT_PATH, tsgolint);
+    assert.equal(process.env[TSGOLINT_PROXY_ENV], undefined);
+  } finally {
+    if (before === undefined) delete process.env.OXLINT_TSGOLINT_PATH;
+    else process.env.OXLINT_TSGOLINT_PATH = before;
+  }
 
   // Without the variable, Oxlint's own search: `node_modules/.bin` upwards, then PATH.
   const project = await mkdtemp(join(tmpdir(), "oxc-tsrx-tsgolint-search-"));

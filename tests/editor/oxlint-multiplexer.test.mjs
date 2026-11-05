@@ -814,10 +814,59 @@ test("canonical Oxlint's tsgolint is the native proxy that resolves .tsrx import
   await waitFor(() => spawns, () => true, "canonical Oxlint spawn");
   assert.equal(spawns[0].options.env.OXLINT_TSGOLINT_PATH, process.execPath);
   assert.equal(spawns[0].options.env.OXC_TSRX_TSGOLINT_PROXY, tsgolint);
+  // A configured tsgolint is every root's, as it is for Oxlint itself.
+  assert.equal(spawns[0].options.env.OXC_TSRX_TSGOLINT_PROXY_SEARCH, undefined);
   assert.equal(spawns[0].options.env.NO_COLOR, "1");
   // The process's own environment, which the native server inherits, is untouched.
   assert.equal(process.env.OXLINT_TSGOLINT_PATH, tsgolint);
   assert.equal(process.env.OXC_TSRX_TSGOLINT_PROXY, undefined);
+
+  canonical.emit("close", 0, null);
+  assert.equal(await finished, 0);
+});
+
+test("with no configured tsgolint the proxy looks one up from each root it serves", async (context) => {
+  // Oxlint's server looks a tsgolint up from each workspace root, so a second
+  // root with its own `node_modules/.bin/tsgolint` must not be handed the one
+  // found from the editor's directory. The proxy is told to search per
+  // payload, and stands in even when the editor's directory has no tsgolint.
+  const project = await mkdtemp(join(tmpdir(), "oxc-tsrx-lsp-tsgolint-roots-"));
+  context.after(() => rm(project, { recursive: true, force: true }));
+  const saved = {
+    OXC_TSRX_LINT_BIN: process.env.OXC_TSRX_LINT_BIN,
+    OXLINT_TSGOLINT_PATH: process.env.OXLINT_TSGOLINT_PATH,
+    PATH: process.env.PATH,
+  };
+  context.after(() => {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  process.env.OXC_TSRX_LINT_BIN = process.execPath;
+  delete process.env.OXLINT_TSGOLINT_PATH;
+  process.env.PATH = "";
+
+  const spawns = [];
+  let canonical = null;
+  const finished = runOxlintLspMultiplexer(["--lsp"], {
+    cwd: project,
+    clientInput: new PassThrough(),
+    clientOutput: new PassThrough(),
+    clientError: new PassThrough(),
+    canonical: { binPath: join(project, "node_modules/oxlint/bin/oxlint") },
+    index: { root: project, providers: [], extensions: {}, diagnostics: [] },
+    spawn: (command, args, options) => {
+      spawns.push({ command, args, options });
+      canonical = new FakeChild();
+      return canonical;
+    },
+  });
+
+  await waitFor(() => spawns, () => true, "canonical Oxlint spawn");
+  assert.equal(spawns[0].options.env.OXLINT_TSGOLINT_PATH, process.execPath);
+  assert.equal(spawns[0].options.env.OXC_TSRX_TSGOLINT_PROXY, "");
+  assert.equal(spawns[0].options.env.OXC_TSRX_TSGOLINT_PROXY_SEARCH, "1");
 
   canonical.emit("close", 0, null);
   assert.equal(await finished, 0);

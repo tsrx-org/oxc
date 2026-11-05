@@ -587,7 +587,7 @@ async function runOxlintLspMultiplexer(args, options = {}) {
 	const providers = providerLspSessions(index, spawnProcess, providerOptions);
 	const canonical = spawnProcess(process.execPath, [canonicalBinary, ...args], {
 		...childOptions,
-		env: withTsgolintProxy(childOptions.env, cwd)
+		env: withTsgolintProxy(childOptions.env, cwd, { perRoot: true })
 	});
 	const multiplexer = createOxlintLspMultiplexer({
 		providerRoot: providerOptions === childOptions ? null : index.root,

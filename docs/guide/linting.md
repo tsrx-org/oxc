@@ -88,7 +88,10 @@ Three things behave differently here:
   reporting anything in the imported files. That includes `.ts`, `.tsx`, and
   `.js` files: the `oxlint` command (and `vp lint`, which runs it) lints them
   with canonical Oxlint, and the tsgolint that Oxlint starts is handed the
-  same read-only `.tsrx` projections.
+  same read-only `.tsrx` projections. A `.tsrx` module reached through an
+  ordinary barrel (`export * from "./label.tsrx"`) resolves too. Only relative
+  specifiers are followed; [Limitations](/reference/limitations) lists what is
+  not.
 
 [Configuration](/integrations/configuration) lists every supported field.
 
