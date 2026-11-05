@@ -7,6 +7,7 @@ fn the_linter_keeps_one_concept_per_module_file() {
         "src/lib.rs",
         "src/error.rs",
         "src/fixes.rs",
+        "src/imports.rs",
         "src/pipeline.rs",
         "src/report.rs",
         "src/session.rs",

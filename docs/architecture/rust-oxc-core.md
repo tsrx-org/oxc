@@ -86,6 +86,10 @@ official OXC parse and no TypeScript-Go process starts. `--type-aware` and
   never shows an in-memory `.tsrx.tsx` copy. So the request also carries an
   in-memory copy of each owning tsconfig whose `files` lists those copies. That
   puts each one in its real project, with its real `compilerOptions`.
+- A `.tsrx` module the run imports but does not lint, directly or through
+  another imported `.tsrx` file, is projected too and sent as a read-only copy,
+  so the import resolves to its real types. That copy joins no tsconfig's
+  `files`, no rule runs on it, and nothing is reported for it.
 - Fixes obey the same safety rule as the native path. Everything else stays
   visible as a non-applicable diagnostic.
 

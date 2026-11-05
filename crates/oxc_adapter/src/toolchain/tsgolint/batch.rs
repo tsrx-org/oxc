@@ -15,6 +15,7 @@ use super::protocol::{ProtocolConfigGroup, ProtocolDiagnostic, ProtocolPayload, 
 use super::tsconfig::{ProjectedFile, tsconfig_overrides};
 use crate::toolchain::{
     EngineDiagnostic, EngineFix, EngineSpan, LintEngine, TypeBatchDiagnostic, TypeBatchFile,
+    TypeBatchOverlay,
 };
 
 pub(crate) struct PreparedTypeBatch<'a> {
@@ -26,6 +27,7 @@ pub(crate) struct PreparedTypeBatch<'a> {
 pub(crate) fn prepare_type_batch<'a>(
     engine: &LintEngine,
     files: &'a [TypeBatchFile<'a>],
+    overlays: &'a [TypeBatchOverlay<'a>],
 ) -> Result<PreparedTypeBatch<'a>, TsgolintError> {
     let mut groups = BTreeMap::<String, ProtocolConfigGroup>::new();
     let mut source_overrides: FxHashMap<String, Cow<'a, str>> = FxHashMap::default();
@@ -51,6 +53,13 @@ pub(crate) fn prepare_type_batch<'a>(
         if let Some(disable_directives) = file.disable_directives {
             directives.insert(file.virtual_path.to_path_buf(), disable_directives);
         }
+    }
+    // An imported module outside the batch is only made readable, never named in a config group
+    // or a tsconfig's `files`, so tsgolint resolves imports of it without linting or reporting it.
+    for overlay in overlays {
+        source_overrides
+            .entry(overlay.virtual_path.to_string_lossy().into_owned())
+            .or_insert(Cow::Borrowed(overlay.projected_source));
     }
     if !groups.is_empty() {
         let projected = files
