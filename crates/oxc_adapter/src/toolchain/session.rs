@@ -171,6 +171,16 @@ pub struct TypeBatchFile<'a> {
     pub disable_directives: Option<&'a DisableDirectives>,
 }
 
+/// A module the batch imports but does not lint, readable to tsgolint at `virtual_path`.
+///
+/// That is all it is: an import of it resolves, but it joins no tsconfig's `files`, no rule runs
+/// on it, and no diagnostic is reported for it.
+#[derive(Debug)]
+pub struct TypeBatchOverlay<'a> {
+    pub virtual_path: &'a Path,
+    pub projected_source: &'a str,
+}
+
 #[derive(Debug)]
 pub struct TypeBatchDiagnostic {
     pub virtual_path: Option<PathBuf>,
@@ -334,7 +344,8 @@ impl LintEngine {
     /// OXC's public single-source helper converts diagnostics to `Message` and drops `file_path`.
     /// The documented headless stream is therefore required for a correct multi-file project
     /// batch. Rules are resolved against each authored path before its `.tsrx.tsx` virtual name is
-    /// sent, so user overrides retain their original meaning.
+    /// sent, so user overrides retain their original meaning. Each overlay is readable to
+    /// tsgolint but neither linted nor reported; a linted file of the same path wins.
     ///
     /// # Errors
     ///
@@ -343,6 +354,7 @@ impl LintEngine {
     pub fn lint_type_batch(
         &self,
         files: &[TypeBatchFile<'_>],
+        overlays: &[TypeBatchOverlay<'_>],
         collect_fixes: bool,
     ) -> Result<TypeBatchResult, TypeLintError> {
         if !self.type_aware_enabled() {
@@ -352,7 +364,7 @@ impl LintEngine {
             return Err(TypeLintError::FixModeMismatch);
         }
         let started = Instant::now();
-        let prepared = prepare_type_batch(self, files)?;
+        let prepared = prepare_type_batch(self, files, overlays)?;
         if prepared.payload.configs.is_empty() {
             return Ok(TypeBatchResult {
                 diagnostics: Vec::new(),

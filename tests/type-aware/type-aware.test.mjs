@@ -267,6 +267,60 @@ test("cross-file component inference remains usable from ordinary TSX", async ()
   assert.equal(output.oxcTsrx.parseCount, 2);
 });
 
+// Issue #223. A `.tsrx` module only reaches tsgolint as an in-memory
+// `X.tsrx.tsx` projection, and only the files being linted were projected, so
+// an import of any other `.tsrx` file failed with TS2307 and was typed `any`.
+// Every `.tsrx` file the run imports is now projected as a read-only overlay:
+// the import resolves, but the imported file is neither linted nor reported.
+// `label.tsrx` plants its own floating promise and TS2322 to prove the latter.
+const importedRoot = join(root, "tests/fixtures/type-aware/imported-tsrx");
+
+async function importedRun(files) {
+  const result = await run(
+    importedRoot,
+    ["--format=json", "--type-check", ...files],
+    { ...process.env, OXLINT_TSGOLINT_PATH: tsgolint },
+  );
+  assert.equal(result.code, 1, result.stderr || result.stdout);
+  return { output: parseJson(result), stdout: result.stdout };
+}
+
+for (const [importer, call] of [
+  ["src/app.tsrx", "loadLabel();"],
+  ["src/main.ts", "loadLabel();"],
+  ["src/chain/entry.tsrx", "middle();"],
+  ["src/cycle/a.tsrx", "pingB();"],
+]) {
+  test(`a .tsrx import outside the run resolves from ${importer}`, async () => {
+    const source = await readFile(join(importedRoot, importer), "utf8");
+    const { output, stdout } = await importedRun([importer]);
+    assert.deepEqual(
+      output.diagnostics.map((item) => [item.filename, item.code]),
+      [[join(importedRoot, importer), "typescript(no-floating-promises)"]],
+      stdout,
+    );
+    assert.equal(output.diagnostics[0].labels[0].span.offset, byteOffset(source, call), stdout);
+    assert.equal(output.number_of_files, 1);
+    assert.equal(output.oxcTsrx.typeAwareProcesses, 1);
+  });
+}
+
+test("an imported .tsrx file is reported only when it is itself linted", async () => {
+  const { output, stdout } = await importedRun(["src/main.ts", "src/label.tsrx"]);
+  const codes = output.diagnostics
+    .map((item) => [item.filename.slice(importedRoot.length + 1), item.code])
+    .sort();
+  assert.deepEqual(
+    codes,
+    [
+      ["src/label.tsrx", "typescript(TS2322)"],
+      ["src/label.tsrx", "typescript(no-floating-promises)"],
+      ["src/main.ts", "typescript(no-floating-promises)"],
+    ],
+    stdout,
+  );
+});
+
 test("the @tsrx/oxc lint bridge enables type awareness from resolved Vite+ config", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "oxc-tsrx-type-vite-plus-"));
   const source = join(cwd, "View.tsrx");
