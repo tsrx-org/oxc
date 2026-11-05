@@ -29,6 +29,17 @@ Every Vite+ release up to and including 0.3.1 carries the critical advisory
 clean-install consumer fail on any high or critical `npm audit` finding, which
 keeps an advisory like this one from passing quietly.
 
+One high advisory is accepted, by URL, in
+[`tests/packaging/audit-policy.mjs`](../../tests/packaging/audit-policy.mjs):
+[GHSA-587h-7wmj-h5pm](https://github.com/advisories/GHSA-587h-7wmj-h5pm),
+published 2026-10-20 against `launch-editor` and every Vite+ release up to
+1.0.0. It bypasses an existence check that guards opening a file in an editor
+from the Vite dev server on Windows, which lint, format, and check never reach.
+Every patched Vite+ is 1.1.0 or later, which is not a supported lane yet (see
+below). Any other high or critical advisory, including a new one against Vite+,
+still fails the gate. The exception goes when the lanes move to Vite+ 1.1.0 or
+later.
+
 Vite+ 1.x is not a supported lane yet. It requires Node 22.18 or later, above
 this package's Node 20.19 floor. Vite+ 1.x also stopped passing the project's
 `vite.config` to Oxlint with `-c`, and the canonical Oxlint this package
